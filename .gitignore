@@ -33,7 +33,6 @@ ipcache
 *.err
 *_html
 *.sld
-*.txt
 *.qsys
 *.csv
 xst

@@ -1,0 +1,140 @@
+classdef report_class < handle
+% used for making pdf reports via LaTeX
+% You must have LaTeX installed.  (Install MikTeX)
+
+  % instance members
+  properties
+    latex
+    fname
+    tmp_dir
+    tmp_fname
+    tmp_fid
+    img_ctr
+  end
+  
+  properties (Constant=true)
+    JUNK=0; % access this to avoid a core dump!
+  end
+  
+  methods
+
+    % CONSTRUCTOR
+    function me = report_class(fname, title)
+      import nc.*
+      if (~ischar(fname))
+        error('fname must be a string');
+      end
+      if (~ischar(title))
+        error('title must be a string');
+      end
+      me.latex = ['C:\Users\' getenv('username') '\AppData\Local\Programs\MiKTeX\miktex\bin\x64\pdflatex.exe'];
+      [st rsp] = dos([me.latex ' -version']);
+      if (st)
+        fprintf('Install MikTeX from: https://miktex.org\n');
+        fprintf('which is supposed to end up in:\n    %s\n', me.latex)
+        error('pdflatex not in path.  Did you install MikTex (from https://miktex.org)');
+      end
+      me.fname = fname; % final name of report
+      % temporary files for the report go into the report directory
+      report_fname = fileutils.uniquename('C:\Temp\report0');
+      me.tmp_dir = ['C:\Temp\' report_fname];
+      fileutils.ensure_dir(me.tmp_dir);
+
+      me.tmp_fname = [me.tmp_dir '\report.txt'];
+      me.tmp_fid = fopen(me.tmp_fname, 'w+');
+      me.img_ctr = 0;
+      if (me.tmp_fid<=0)
+        error(sprintf('ERR: cant write file\n  %s', me.tmp_fname));
+        sum_f=1;
+      else
+        fprintf('writing %s\n', me.tmp_fname);
+        me.write(sprintf('\\documentclass{report}\n\\author{}\n'));
+        me.write(sprintf('\\usepackage{graphicx}\n\\title{%s}\n', title));
+        me.write(['\addtolength{\oddsidemargin}{-1in}' char(13)]);
+        me.write(['\addtolength{\evensidemargin}{-1in}' char(13)]);
+        me.write(['\addtolength{\textwidth}{2in}' char(13)]);
+        me.write(['\begin{document}', char(13)]);
+      end
+    end
+
+    % DESTRUCTOR
+    function delete(me)
+      me.close();
+    end
+
+    function write(me, str)
+    % inserts string into report... this is latex
+      if (me.tmp_fid>0)
+        fprintf(me.tmp_fid, '%s', str);
+      end
+    end
+    
+    function writeln(me, str)
+    % inserts string into report ended with newline... this is latex
+      if (me.tmp_fid>0)
+        fprintf(me.tmp_fid, '%s\\\\\n', str);
+      end
+    end
+
+    function insert_plot(me, size)
+    % inserts current plot into report
+      import nc.*
+      if (me.tmp_fid>0)
+        w_in = 5;
+        if (nargin>1)
+          fig=gcf();
+          set(fig,'units','pixels');
+          p=get(fig,'Position');
+          p(3:4)=size;
+          set(fig,'Position',p);
+          
+          set(fig,'units','inches');
+          p=get(fig,'Position');
+          w_in = p(3);
+        end
+        me.img_ctr = me.img_ctr+1;
+        img_fname = sprintf('img%03d.png', me.img_ctr);
+        me.write(sprintf('\\resizebox{%fin}{!}{\\includegraphics{%s}}\n', w_in, img_fname));
+        ncplot.save([me.tmp_dir '\' img_fname]);
+      end
+    end
+
+    function close(me)
+      if (me.tmp_fid>0)
+        me.write(sprintf('\\end{document}\n'));
+        fclose(me.tmp_fid);
+      end
+      me.tmp_fid=0;
+    end
+    
+    function finish(me, dont_del)
+      import nc.*
+      if (me.tmp_fid>0)
+        me.close();
+        fprintf('running LaTeX to make pdf\n');
+        [f_path f_root f_ext] = fileparts(me.fname);
+        cmd = sprintf('%s -quiet -include-directory="%s" -output-directory="%s" report.txt', ...
+                       me.latex, me.tmp_dir, me.tmp_dir);
+        % uio.print_all(cmd);
+        status = system(cmd);
+        if (status)
+          fprintf('ERR: pdflatex returned error code %d\n', status);
+        end
+        copyfile([me.tmp_dir '\report.pdf'], me.fname);
+        fprintf('wrote %s\n', [f_root f_ext]);
+        if ((nargin<2)||(~dont_del))
+          fprintf('(was based on %s)\n', me.tmp_dir);
+          uio.pause();
+          delete([me.tmp_dir '\*']);
+          [status msg]=rmdir(me.tmp_dir);
+          if (~status)
+            fprintf('ERR: could not delete temp files\n%s\n', msg);
+            uio.pause();
+          end
+        end
+      end
+    end
+ 
+  end
+
+end

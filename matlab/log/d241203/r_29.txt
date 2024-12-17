@@ -1,0 +1,8 @@
+use_lfsr = 1;
+tx_always = 0;
+hdr_qty = 154;
+hdr_pd_samps = 2464;
+hdr_len_bits = 64;
+data_hdr = 'i_adc q_adc';
+data_len_samps = 985600;
+data_in_other_file = 1;

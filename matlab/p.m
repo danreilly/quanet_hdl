@@ -115,6 +115,7 @@ function p(arg)
   ii = m(:,1);
   qq = m(:,2);
   l = length(ii);
+  fprintf('l %d\n', l);
   fprintf('num samples %d Ksamps = %s\n', round(l/1024), uio.dur(l/fsamp_Hz));
   fprintf('num hdrs    %d\n', floor(l/hdr_pd_samps));
   fprintf('hdr pd      %d samps = %s\n', hdr_pd_samps, uio.dur(hdr_pd_samps/fsamp_Hz));
@@ -261,14 +262,16 @@ function p(arg)
 
   ncplot.subplot(1,2);
   % CORRELATION WITH HEADER
-  mean_before_norm = tvars.ask_yn('correlation vector mean taken before magnitude (const ph)', 'mean_before_norm', 1);
+  %  mean_before_norm = tvars.ask_yn('correlation vector mean taken before magnitude (const ph)', 'mean_before_norm', 1);
+  mean_before_norm = 0;
+  
   if (mean_before_norm)
       method=2;
   else
       method=3;
   end
   if (1)
-     opt2=0;
+    opt2=0;
       
     tvars.save();
       
@@ -290,6 +293,7 @@ function p(arg)
       ci_sum = zeros(h_l,1);
       cq_sum = zeros(h_l,1);
       c      = zeros(h_l,1);
+      c2     = zeros(h_l,1);
       
       nn = min(hdr_qty, n_left);
 
@@ -299,6 +303,7 @@ function p(arg)
       plot_eye(si,ei,itr);
 
       tic
+      mx=0;
       for k=1:nn
         if (use_lfsr) % ever-changing header
           hdr = lfsr.gen(hdr_len_bits);
@@ -320,10 +325,11 @@ function p(arg)
               ci_sum = ci_sum + ci/nn;
               cq_sum = cq_sum + cq/nn;
             else
-              c = c + sqrt(ci.^2 + cq.^2)/hdr_len_bits;
+              c2 = sqrt(ci.^2 + cq.^2)/hdr_len_bits;
+              c = c + c2;
             end
         end
-        if (opt_show_all && (k>97))
+        if (opt_show_all)
             %an            if (mean_before_norm)
             %                c = sqrt(ci.^2+cq.^2)/hdr_len_bits;                            
             %            end
@@ -336,10 +342,10 @@ function p(arg)
           if (mean_before_norm)                       
             plot(1:hdr_pd_samps, ci, '-', 'Color', co(1,:));
             plot(1:hdr_pd_samps, cq, '-', 'Color', co(2,:));
-            mx = max(abs([ci; cq]));
+            mx = max(mx, max(abs([ci; cq])));
           else
-            plot(1:hdr_pd_samps, c, '-', 'Color','red');
-            mx = max(abs(c));
+            plot(1:hdr_pd_samps, c2, '-', 'Color','red');
+            mx = max(mx, max(abs(c2)));
           end
           ncplot.txt(sprintf('frame %d', k));
    
@@ -512,7 +518,7 @@ function p(arg)
 
     plot(repmat(t_us,1,nn), ii(si:ei), '.', 'Color',coq(1,:));
     plot(repmat(t_us,1,nn), qq(si:ei), '.', 'Color',coq(2,:));
-    plot(t_us, c, '-','Color','yellow');
+    plot(t_us, c, '-','Color','blue');
     xlim([min(t_us) max(t_us)]);
     xlabel('time (us)');
     ylabel('amplitude (adc)');
@@ -525,16 +531,32 @@ function p(arg)
     ie = mi+dd;
     %    line([1 1]*t_us(is),[-1 1]*100,'Color','green');
     %    line([1 1]*t_us(ie),[-1 1]*100,'Color','green');
-    nf = mean([c(1:is);c(ie:end)]);
-    f_std=std([c(1:is);c(ie:end)]);
+    c((is+1):(ie-1))=0;
+
+    [mx2 mi2]=max(c);
+    
+    is2 = mi2-dd;
+    ie2 = mi2+dd;
+    
+    if (mi < mi2)
+      nf = mean([c(1:is);c(ie:is2);c(ie2:end)]);
+      f_std=std([c(1:is);c(ie:is2);c(ie2:end)]);
+    else
+      nf = mean([c(1:is2);c(ie2:is);c(ie:end)]);
+      f_std=std([c(1:is2);c(ie2:is);c(ie:end)]);
+    end
+    
     c = (mx - nf); 
     q= c/(f_std + sqrt(c));
     ylim([0 1.2]*plot_corr_mx);
     ncplot.txt(sprintf('method %d', method));
     ncplot.txt(sprintf('hdr_len %d bits', hdr_len_bits));
     ncplot.txt(sprintf('filter %s', filt_desc));
-    ncplot.txt(sprintf('  max %d at %.3fus', mx, t_us(mi)));
-    ncplot.txt(sprintf('            idx %d', mi));
+
+    
+    ncplot.txt(sprintf('  max-nf %d at %.3fus (idx %d)', round(mx-nf), t_us(mi), mi));
+    ncplot.txt(sprintf('  max-nf %d at %.3fus (idx %d)', round(mx2-nf), t_us(mi2), mi2));
+
     %    fprintf('max %d at idx %d\n', mx, mi);
     ncplot.txt(sprintf('floor mean %.1f   std %.1f', nf, f_std));
     ncplot.txt(sprintf('  snr %.1f dB', 10*log10(mx/nf)));

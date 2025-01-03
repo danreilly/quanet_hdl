@@ -1,4 +1,4 @@
-fname = 'C:\reilly\proj\quanet\matlab\log\d241217\r_51.txt';
+fname = 'C:\reilly\proj\quanet\matlab\log\d241218\r_29.txt';
 mean_before_norm = 0;
-max_fnum = 51;
+max_fnum = 36;
 use_filt = 1;

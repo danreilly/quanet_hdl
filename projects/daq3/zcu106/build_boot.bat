@@ -14,14 +14,12 @@ cd %DIR%
 set ELF=tmp\hw0\export\hw0\sw\hw0\boot\fsbl.elf
 set PMUFW=tmp\hw0\export\hw0\sw\hw0\boot\pmufw.elf
 if exist %ELF% (
-  echo fsbl.elf exists. Try to recompile sources
-  call xsct ..\compile_fsbl_project.tcl
-  echo fsbl.elf recompiled?
+  echo fsbl.elf already exists
 ) else (
   call xsct ..\create_fsbl_project.tcl
 )
-copy %ELF% fsbl.elf
-copy %PMUFW% pmufw.elf
+call :cp %ELF% fsbl.elf
+call :cp %PMUFW% pmufw.elf
 
 
 
@@ -29,15 +27,27 @@ copy %PMUFW% pmufw.elf
 
 rem if u-boot has different name, you're supposed to rename it to u-boot.elf.
 rem copy "G:\My Drive\proj\quanet\hdl_boot_zcu106\u-boot_xilinx_zynq_zcu102_revA.elf" u-boot.elf
-copy "G:\My Drive\proj\quanet\hdl_boot_zcu106\from_new_SD_image\bootgen_sysfiles\u-boot.elf .
-copy "G:\My Drive\proj\quanet\hdl_boot_zcu106\from_new_SD_image\bootgen_sysfiles\bl31.elf .
+rem copy "G:\My Drive\proj\quanet\hdl_boot_zcu106\from_new_SD_image\bootgen_sysfiles\u-boot.elf .
+rem copy "G:\My Drive\proj\quanet\hdl_boot_zcu106\from_new_SD_image\bootgen_sysfiles\bl31.elf .
+call :cp "..\..\..\..\nucrypt_boot_objs\zynqmp-zcu102-rev10-fmcdaq3\u-boot_xilinx_zynqmp_zcu102_revA.elf" u-boot.elf
+call :cp "..\..\..\..\nucrypt_boot_objs\zynqmp-zcu102-rev10-fmcdaq3\bl31.elf" .
 
 call bootgen -arch zynqmp -image ..\zynq.bif -o BOOT.BIN -w
 echo made %DIR%\BOOT.BIN
-
+call :cp BOOT.BIN ../../../nucrypt_boot_objs
 
 cd ..
 
+goto :eof
 
 
 
+
+:cp
+  echo :cp %1 %2
+  if not exist %1 (
+    echo ERR: copy from %1 does not exist!
+    pause
+    exit /b 99
+  )
+  echo F|xcopy /Y %1 %2

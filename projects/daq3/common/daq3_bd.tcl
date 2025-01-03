@@ -215,8 +215,12 @@ ad_connect  axi_ad9680_jesd/rx_data_tdata axi_ad9680_tpl_core/link_data
 ad_connect  axi_ad9680_jesd/rx_data_tvalid axi_ad9680_tpl_core/link_valid
 ad_connect  axi_ad9680_tpl_core/adc_valid_0 axi_ad9680_cpack/fifo_wr_en
 
+# dan added these for debug
+connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_jesd/rx_data_tvalid]] [get_bd_pins axi_ad9680_fifo/link_valid]
+#ad_connect  axi_ad9680_jesd/rx_data_tvalid  axi_ad9680_fifo/link_valid
+connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_tpl_core/adc_valid_0]] [get_bd_pins axi_ad9680_fifo/core_valid]
+
 # dan added sys_zynq 2
-# But crit warn about axi_ad9680_fifo/dma_wready and dma_xfer_req not connected!!
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
     ad_connect  util_daq3_xcvr/rx_out_clk_0 axi_ad9680_fifo/adc_clk
     ad_connect  axi_ad9680_jesd_rstgen/peripheral_reset axi_ad9680_fifo/adc_rst

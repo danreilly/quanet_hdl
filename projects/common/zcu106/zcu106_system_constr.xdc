@@ -42,8 +42,9 @@ set_property  -dict {PACKAGE_PIN  AM11  IOSTANDARD LVCMOS12} [get_ports gpio_bd_
 
 
 # rename SPI clocks
-create_clock -name spi0_clk      -period 40   [get_pins -hier */EMIOSPI0SCLKO]
-create_clock -name spi1_clk      -period 40   [get_pins -hier */EMIOSPI1SCLKO]
+# This renaming failed because the EMIOSPI0SCLKO was not found in 12/31/24!!!
+# create_clock -name spi0_clk      -period 40   [get_pins -hier */EMIOSPI0SCLKO]
+# create_clock -name spi1_clk      -period 40   [get_pins -hier */EMIOSPI1SCLKO]
 
 # Dont know why iface did not set loc constraints for these.  If I leave them out,
 # i get critical warnings.

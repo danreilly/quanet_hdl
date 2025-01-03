@@ -27,6 +27,8 @@ module axi_adcfifo #(
   input 			  reg_clk,
   output reg [63:0] 		  reg_samp,
   output reg [31:0] 		  reg_adc_stat,
+  input              link_valid, // from axi_ad9680_jesd
+  input              core_valid, // from axi_ad9680_tpl_core
 
    
   // a writable fifo-like interface
@@ -106,7 +108,7 @@ module axi_adcfifo #(
   wire    [AXI_DATA_WIDTH-1:0]    axi_ddata_s;
   wire                            axi_dready_s;
 
-   wire  dac_txed_adcclk, dma_xfer_req_uc, dma_xfer_req_rc, adc_trig;
+   wire  dac_txed_adcclk, dma_xfer_req_uc, dma_xfer_req_rc, adc_trig, link_valid_rc, core_valid_rc;
 
    reg 	  adc_xfer_pend=1'b0, adc_en=0, adc_trig_d=0, dac_txed_d=0, init=0, dac_trig;
    reg 	  adc_xfer_req=1'b0, adc_xfer_req_d=1'b0;
@@ -130,7 +132,7 @@ module axi_adcfifo #(
 
    wire adc_en_dma, adc_en_axi, adc_wr_event, adc_rst_event, xfer_req_event;
 
-   wire [3:0] 		xfer_req_cnt, adc_rst_cnt, adc_wr_cnt;
+   wire [3:0] core_vld_cnt, xfer_req_cnt, adc_rst_cnt, adc_wr_cnt;
 
    
   // This widens the data from "adc" to "axi" width
@@ -164,6 +166,20 @@ module axi_adcfifo #(
   ) cdc_samp_req (
      .in_data(dma_xfer_req),
      .out_data(dma_xfer_req_rc),
+     .out_clk (reg_clk));
+  // for dbg
+  cdc_samp #(
+     .W(1)
+  ) link_valid_samp (
+     .in_data(link_valid),
+     .out_data(link_valid_rc),
+     .out_clk (reg_clk));
+  // for dbg
+  cdc_samp #(
+     .W(1)
+  ) core_valid_samp (
+     .in_data(core_valid),
+     .out_data(core_valid_rc),
      .out_clk (reg_clk));
    
   cdc_samp #(
@@ -210,11 +226,15 @@ module axi_adcfifo #(
       reg_samp <= adc_data_sav_uc;
     samp_ack <= samp_req_rc & ~samp_req_rc_d;
 
-    reg_adc_stat[31:20]=0;
+    reg_adc_stat[31:20]=core_vld_cnt;
     reg_adc_stat[19:16]=adc_wr_cnt;
     reg_adc_stat[15:12]=xfer_req_cnt;
     reg_adc_stat[11: 8]=adc_rst_cnt;
-    reg_adc_stat[7:1]  =0;
+    reg_adc_stat[7:3]  =0;
+
+    reg_adc_stat[2]  = core_valid_rc;
+    reg_adc_stat[1]  = link_valid_rc;
+     
     reg_adc_stat[0]    =dma_xfer_req_rc;
      
   end
@@ -272,6 +292,16 @@ module axi_adcfifo #(
     .clk   (reg_clk),
     .clr   (reg_clr_ctrs),
     .ctr   (adc_wr_cnt));
+
+  pulse_ctr #(
+    .W(4)
+  ) core_vld_event_ctr (
+    .pulse (core_valid),
+    .pulse_clk   (adc_clk),
+    .clk   (reg_clk),
+    .clr   (reg_clr_ctrs),
+    .ctr   (core_vld_cnt));
+
   
   always @(posedge adc_clk) begin
      adc_rst_d <= adc_rst;

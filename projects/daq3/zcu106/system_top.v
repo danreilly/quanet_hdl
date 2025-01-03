@@ -1,43 +1,11 @@
-// ***************************************************************************
-// ***************************************************************************
-// Copyright (C) 2017-2023 Analog Devices, Inc. All rights reserved.
-//
-// In this HDL repository, there are many different and unique modules, consisting
-// of various HDL (Verilog or VHDL) components. The individual modules are
-// developed independently, and may be accompanied by separate and unique license
-// terms.
-//
-// The user should read each of these license terms, and understand the
-// freedoms and responsibilities that he or she has by using this source/core.
-//
-// This core is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-// A PARTICULAR PURPOSE.
-//
-// Redistribution and use of source or resulting binaries, with or without modification
-// of this file, are permitted under one of the following two license terms:
-//
-//   1. The GNU General Public License version 2 as published by the
-//      Free Software Foundation, which can be found in the top level directory
-//      of this repository (LICENSE_GPL2), and also online at:
-//      <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
-//
-// OR
-//
-//   2. An ADI specific BSD license, which can be found in the top level directory
-//      of this repository (LICENSE_ADIBSD), and also on-line at:
-//      https://github.com/analogdevicesinc/hdl/blob/main/LICENSE_ADIBSD
-//      This will allow to generate bit files and not release the source code,
-//      as long as it attaches to an ADI device.
-//
-// ***************************************************************************
-// ***************************************************************************
 
 `timescale 1ns/100ps
 
 module system_top (
   output 	j3_6, // trigger to scope
-  		   
+  output 	j3_8, // fast switch ctl
+  output 	j3_24, // debug
+
 //  inout [14:0] 	ddr_addr,
 //  inout [ 2:0] 	ddr_ba,
 //  inout 	ddr_cas_n,
@@ -62,7 +30,7 @@ module system_top (
   output 	c0_ddr4_ck_t,
   output 	c0_ddr4_cke,
   output 	c0_ddr4_cs_n,
-  inout [ 7:0] c0_ddr4_dm_dbi_n,
+  inout [ 7:0] 	c0_ddr4_dm_dbi_n,
   inout [63:0] 	c0_ddr4_dq,
   inout [ 7:0] 	c0_ddr4_dqs_c,
   inout [ 7:0] 	c0_ddr4_dqs_t,
@@ -138,10 +106,12 @@ module system_top (
   wire                    rx_sysref;
   wire                    rx_sync;
   wire                    tx_ref_clk;
+  wire                    tx_ref_clk_d2;
   wire                    tx_sysref;
   wire                    tx_sync;
 
-  wire 		  junk;
+
+  wire 	  dbg_clk;
    
   // spi
   assign spi_csn_adc = spi_csn[2];
@@ -171,13 +141,21 @@ module system_top (
     .OB (rx_sync_n));
 
    // OK
-  IBUFDS_GTE4 i_ibufds_tx_ref_clk (
+  IBUFDS_GTE4 #(
+    .REFCLK_HROW_CK_SEL (1)
+  ) i_ibufds_tx_ref_clk (
     .CEB (1'd0),
     .I (tx_ref_clk_p),
     .IB (tx_ref_clk_n),
     .O (tx_ref_clk),
-    .ODIV2 ());
+    .ODIV2 (tx_ref_clk_d2));
 
+  BUFG_GT i_dbg_clk_buf (
+    .I (tx_ref_clk_d2),
+    .O (dbg_clk));
+  assign j3_24 = dbg_clk; // dbg
+   
+   
   // OK
   IBUFDS i_ibufds_tx_sysref (
     .I (tx_sysref_p),
@@ -193,13 +171,13 @@ module system_top (
 
   // Note: in the zc706 design, spi1 is not used. We do not bother to instantiate it.
   daq3_spi i_spi (
-    .spi_csn (spi_csn),
-    .spi_clk (spi_clk),
-    .spi_mosi (spi_mosi),
-    .spi_miso (spi_miso),
+    .spi_csn (spi_csn), // in
+    .spi_clk (spi_clk), // in
+    .spi_mosi (spi_mosi), // in
+    .spi_miso (spi_miso), // out
 		  
-    .spi_sdio (spi_sdio),
-    .spi_dir (spi_dir));
+    .spi_sdio (spi_sdio), // in
+    .spi_dir (spi_dir));  // out
 
   // went out to fmc la13 p&n
   // OK   
@@ -228,8 +206,7 @@ module system_top (
               adc_fdb,          // 36
               adc_fda,          // 35
               dac_irq,          // 34
-              junk, 
-              clkd_status}));   // 32
+              clkd_status}));   // 32 and 33
 
   assign gpio_i[12:0]   = gpio_bd_i[12:0];
   assign gpio_bd_0 = gpio_o[20:13];
@@ -253,6 +230,7 @@ module system_top (
 
   system_wrapper i_system_wrapper (
     .dac_xfer_out_port (j3_6),
+    .rxq_sw_ctl (j3_8),
 
     .ddr4_act_n(c0_ddr4_act_n),
     .ddr4_adr (c0_ddr4_adr),

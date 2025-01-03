@@ -94,13 +94,13 @@ _vmake
 *.xpe
 *.gen*
 *.xsa
+*.workspace
 *.pdi
 library/**/bd/bd.tcl
 *.syn.smsg
 *.syn.summary
 qdb
 tmp-clearbox
-*.bin
 __pycache__
 _build
 .qsys_edit

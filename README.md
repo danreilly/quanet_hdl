@@ -88,6 +88,10 @@ https://analogdevicesinc.github.io/hdl/library/corundum/index.html
 
 # qnicll, the low level library
 
+The header file is
+
+`quanet_hdl/qnicll/qnicll.h`
+
 This fits into the qnic as shown.  It's not ideal, but it's a first step.
 
 ![qnic layers!](assets/qnic_layers.png "qnic layers")

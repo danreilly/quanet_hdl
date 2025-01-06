@@ -32,14 +32,15 @@ Then I cloned the AD Linux sources:
 ```
 git clone -b 2022_r2  https://github.com/analogdevicesinc/linux.git
 ```
-Then I created the file:  
-linux/arch/arm64/boot/dts/xilinx/
-zynqmp-zcu106-fmcdaq3.dts  
-Which is based on a copy of the zcu102 dts,.  (a copy of the original dts file is in my github in nucrypt_build_objs)
+Then I created the file:
+linux/arch/arm64/boot/dts/xilinx/zynqmp-zcu106-fmcdaq3.dts
+Which is based on a copy of the zcu102 dts.  I copied this to:  
+quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dts  
+Note: I did not make a full copy of the kuiper linux source tree on this repository.  
 
 Here are the instructions specific to zynqmp:  
 https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp  
-The AD instructions say to copy a build script, which I did and I called bldu.sh.  Note that this is different from the zynq build script, I then modified bldu.sh so that you just run it and you cant specify any command line arguments, and it will build xilinx\zynqmp-zcu106-fmcdaq3.dtb. (a copy of bldu.sh is in my github in nucrypt_build_objs)
+The AD instructions say to copy a build script, which I did and I called `bldu.sh`.  Note that this is different from the zynq build script, I then modified `bldu.sh` so that you just run it and you cant specify any command line arguments, and it will build xilinx\zynqmp-zcu106-fmcdaq3.dtb. (a copy of `bldu.sh` is in my github in nucrypt_build_objs)
 
 Since Vitis has the cross compiler, the next thing to do is to put that on the path:
 ```

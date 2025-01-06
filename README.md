@@ -1,4 +1,4 @@
-# project goals
+# goals for this repository
 
 Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
 

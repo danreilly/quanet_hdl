@@ -1,4 +1,4 @@
-# project
+# project goals
 retarget AB's libiio and HDL to make DAQ3 board work on zcu106.
 
 # status
@@ -20,22 +20,25 @@ quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb
 
 # Porting Kuiper Linux to the ZCU106
 
-I got my 2022_r2 linux image from
-https://wiki.analog.com/resources/tools-software/linux-software/adi-kuiper_images/release_notes
-This is about building Kuiper linux:
-https://wiki.analog.com/resources/tools-software/linux-drivers-all
-https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp
-On my VM I installed lex, bison, U-boot-tools, and  libssl-dev
+I got my 2022_r2 linux image from  
+https://wiki.analog.com/resources/tools-software/linux-software/adi-kuiper_images/release_notes  
+This is about building Kuiper linux:  
+https://wiki.analog.com/resources/tools-software/linux-drivers-all  
+https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp  
+
+On my VM I installed lex, bison, U-boot-tools, and  libssl-dev.
 I also installed Vitis 2023.2
-Then I cloned the AD Linux sources:
-git clone -b 2022_r2  https://github.com/analogdevicesinc/linux.git
-Then I created the file:
+Then I cloned the AD Linux sources:  
+git clone -b 2022_r2  https://github.com/analogdevicesinc/linux.git  
+Then I created the file:  
 linux/arch/arm64/boot/dts/xilinx/
-zynqmp-zcu106-fmcdaq3.dts
+zynqmp-zcu106-fmcdaq3.dts  
 Which is based on a copy of the zcu102 dts,.  (a copy of the original dts file is in my github in nucrypt_build_objs)
-Here are the instructions specific to zynqmp:
-https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp
+
+Here are the instructions specific to zynqmp:  
+https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp  
 The AD instructions say to copy a build script, which I did and I called bldu.sh.  Note that this is different from the zynq build script, I then modified bldu.sh so that you just run it and you cant specify any command line arguments, and it will build xilinx\zynqmp-zcu106-fmcdaq3.dtb. (a copy of bldu.sh is in my github in nucrypt_build_objs)
+
 Since Vitis has the cross compiler, the next thing to do is to put that on the path:
 source /tools/Xilinx/Vitis/2023.2/settings64.sh
 

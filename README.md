@@ -1,5 +1,6 @@
 # project goals
-retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
+Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
+Develop low level library for qnic
 
 # status
 The DAC on the DAC3 works.  ADC does not yet work.
@@ -70,6 +71,25 @@ projects/daq3/zcu106/build_boot.bat
 This script builds the fsbl.elf and the pmufw.elf file.  
 I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there.  Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.  
 I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.  
+
+
+
+# Notes on AD's HDL
+
+I found this web page useful:
+
+https://analogdevicesinc.github.io/hdl/library/jesd204/axi_jesd204_rx/index.html#axi-jesd204-rx
+
+Interestingly, AD also offers a Corundum core IP.
+
+https://analogdevicesinc.github.io/hdl/library/corundum/index.html
+
+
+# qnicll, the low level library
+
+This fits into the qnic as:
+
+![qnic layers!](assets/qnic_layers.png "qnic layers")
 
 
 

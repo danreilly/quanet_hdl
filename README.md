@@ -1,6 +1,8 @@
 # project goals
+
 Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
-Develop low level library for qnic
+
+Develop low level library for qnic  
 
 # status
 The DAC on the DAC3 works.  ADC does not yet work.

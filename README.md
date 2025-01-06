@@ -4,21 +4,20 @@ Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zc
 
 Develop low level library for qnic  
 
+
 # status
-The DAC on the DAC3 works.  ADC does not yet work.
+The DAC on the DAC3 works!  ADC does not yet work.
+
 
 # objects
 
 Copy this to the  /boot partition of your SD card:
 
-quanet_hdl/nucrypt_boot_objs/BOOT.BIN
-
+`quanet_hdl/nucrypt_boot_objs/BOOT.BIN`
 
 Copy this to the /boot partition of your SD card and name it system.dtb (not devicetree.dtb)
 
-quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb
-
-
+`quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb`
 
 
 # Porting Kuiper Linux to the ZCU106
@@ -89,7 +88,7 @@ https://analogdevicesinc.github.io/hdl/library/corundum/index.html
 
 # qnicll, the low level library
 
-This fits into the qnic as:
+This fits into the qnic as shown.  It's not ideal, but it's a first step.
 
 ![qnic layers!](assets/qnic_layers.png "qnic layers")
 

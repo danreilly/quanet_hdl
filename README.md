@@ -1,5 +1,5 @@
 # project goals
-retarget AB's libiio and HDL to make DAQ3 board work on zcu106.
+retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
 
 # status
 The DAC on the DAC3 works.  ADC does not yet work.
@@ -11,7 +11,7 @@ Copy this to the  /boot partition of your SD card:
 quanet_hdl/nucrypt_boot_objs/BOOT.BIN
 
 
-Copy this to the /boot partition of your SD card and name it system.dtb
+Copy this to the /boot partition of your SD card and name it system.dtb (not devicetree.dtb)
 
 quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb
 
@@ -55,18 +55,15 @@ This produces:
 hdl-main/projects/daq3/zcu106/daq3_zcu106.runs/impl/system_top.bit
 hdl-main/projects/daq3/zcu106/daq3_zcu106.sdk/system_top.xsa
 
-There are probably better ways to make the BOOT.BIN, but for now I'm using a method similar to AD's document on building BOOT.BIN:
-https://analogdevicesinc.github.io/hdl/user_guide/build_boot_bin.html
-Which says to copy a script and run it.  I did that, modified it, and named it (in my github) as:
-projects/daq3/zcu106/build_boot.bat
-This script builds the fsbl.elf and the pmufw.elf file.
-I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there. Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.
-I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.
-zynqmp-zcu102-rev10-fmcdaq3.tar in 
- bootgen_sysfiles.tgz.  I got this from Kuiper linux running on our zc706 board
-
+There are probably better ways to make the BOOT.BIN, but for now I'm using a method similar to AD's document on building BOOT.BIN:  
+https://analogdevicesinc.github.io/hdl/user_guide/build_boot_bin.html  
+Which says to copy a script and run it.  I did that, modified it, and named it (in my github) as:  
+projects/daq3/zcu106/build_boot.bat  
+This script builds the fsbl.elf and the pmufw.elf file.  
+I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there.  Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.  
+I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.  
 
  It copies in the u-boot.elf and the b131.elf that I extracted from the SD card image from the zcu106 directory.  Then it uses my zynq.bif file to put those four files and the bitfile into a BOOT.BIN file.
-The device tree must be named system.dtb (not devicetree.dtb)
+
 
 

@@ -2,8 +2,8 @@
 #define _QNICLL_
 /*
 
-  interface between ISI's code
-  and NuCrupypt's "low level" library
+  interface between application code
+  and the qnic "low level" library
 
  */
 
@@ -118,13 +118,12 @@ char *qnicll_error_desc(void);
 
   
   
-int qnicll_set_mode(int *mode);
+int qnicll_set_mode(int mode);
 // desc: invokes settings appropriate for specified mode. (optical switches,
 //   voa settings, bias feedback goals, etc.  If called before prior set_mode finishes
-// inputs: mode: requested mode. one of QNICLL_MODE_*.  Use 0 to querry
-// sets:   mode: new actual effective mode
+// inputs: mode: requested mode. one of QNICLL_MODE_*.
 // returns: one of QNICLL_ERR_*
-
+//          If mode is invalid or not supported, returns QNICLL_ERR_MISUSE.
 
 
 

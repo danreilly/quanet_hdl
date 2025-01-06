@@ -1,1 +1,69 @@
-This is Dan&rsquo;s latest code for the zcu106:</span></h2><p class="c0 c6"><span class="c5"></span></p><p class="c0"><span class="c10">Copy this to the &nbsp;</span><span class="c3">/boot</span><span class="c5">&nbsp;partition of your SD card:</span></p><p class="c0 c6"><span class="c5"></span></p><p class="c0"><span class="c3 c11 c15">quanet_hdl/nucrypt_boot_objs/BOOT.BIN</span></p><p class="c0 c6"><span class="c5"></span></p><p class="c0 c6"><span class="c5"></span></p><p class="c0"><span class="c10">Copy this to the </span><span class="c3">/boot</span><span class="c10">&nbsp;partition of your SD card and name it </span><span class="c3">system.dtb</span></p><p class="c0 c6"><span class="c5"></span></p><p class="c0"><span class="c3 c11 c15">quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb</span></p><p class="c0 c6"><span class="c12 c11"></span></p><p class="c0 c6"><span class="c12 c11"></span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c0 c6"><span class="c12 c11"></span></p><p class="c0"><span class="c7">Porting Kuiper Linux to the ZCU106</span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c0"><span>I got my 2022_r2 linux image from </span><span class="c8"><a class="c13" href="https://www.google.com/url?q=https://wiki.analog.com/resources/tools-software/linux-software/adi-kuiper_images/release_notes&amp;sa=D&amp;source=editors&amp;ust=1735941384350184&amp;usg=AOvVaw143B2drggsI1nZcIe-Poz1">https://wiki.analog.com/resources/tools-software/linux-software/adi-kuiper_images/release_notes</a></span></p><p class="c0"><span class="c4">This is about building Kuiper linux:</span></p><p class="c1 c0"><span class="c2">https://wiki.analog.com/resources/tools-software/linux-drivers-all</span></p><p class="c1 c0"><span class="c8 c21"><a class="c13" href="https://www.google.com/url?q=https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp&amp;sa=D&amp;source=editors&amp;ust=1735941384351032&amp;usg=AOvVaw3N-CSNmDBV5_Ky_bZg55Ho">https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp</a></span></p><p class="c1 c0"><span class="c2">On my VM I installed lex, bison, U-boot-tools, and &nbsp;libssl-dev</span></p><p class="c1 c0"><span class="c2">I also installed Vitis 2023.2</span></p><p class="c1 c0"><span class="c2">Then I cloned the AD Linux sources:</span></p><p class="c1 c0"><span class="c9 c4">git clone -b 2022_r2 &nbsp;https://github.com/analogdevicesinc/linux.git</span></p><p class="c1 c0"><span class="c2">Then I created the file:</span></p><p class="c0 c1"><span class="c11 c9 c4">linux/arch/arm64/boot/dts/xilinx/</span></p><p class="c1 c0 c17"><span class="c11 c9 c4">zynqmp-zcu106-fmcdaq3.dts</span></p><p class="c1 c0"><span class="c2">Which is based on a copy of the zcu102 dts,. &nbsp;(a copy of the original dts file is in my github in nucrypt_build_objs)</span></p><p class="c1 c0"><span class="c4">Here are the instructions specific to zynqmp:</span></p><p class="c1 c0"><span class="c2">https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp</span></p><p class="c1 c0"><span class="c2">The AD instructions say to copy a build script, which I did and I called bldu.sh. &nbsp;Note that this is different from the zynq build script, I then modified bldu.sh so that you just run it and you can&rsquo;t specify any command line arguments, and it will build xilinx\zynqmp-zcu106-fmcdaq3.dtb. (a copy of bldu.sh is in my github in nucrypt_build_objs)</span></p><p class="c1 c0"><span class="c2">Since Vitis has the cross compiler, the next thing to do is to put that on the path:</span></p><p class="c0"><span class="c11 c9 c15 c20">source /tools/Xilinx/Vitis/2023.2/settings64.sh</span></p><p class="c0 c6"><span class="c11 c12"></span></p><p class="c0"><span>And if you don&rsquo;t do that, the </span><span class="c9">bdlu.sh</span><span class="c12 c11">&nbsp;script will download a different cross compiler (Linaro) and try to use it. &nbsp;I have not explored that method. &nbsp;Then I ran the script:</span></p><p class="c0 c6"><span class="c12 c11"></span></p><p class="c1 c18"><span class="c11 c9 c14">./bldu.sh</span></p><p class="c0"><span>It produced Image and </span><span class="c2">&nbsp;xilinx\zynqmp-zcu106-fmcdaq3.dtb, both of which I copied to github in &nbsp;nucrypt_build_objs.</span></p><p class="c0 c6"><span class="c2"></span></p><p class="c0"><span class="c2">I built my bitfile inside cygwin. &nbsp;You can also do this in linux, but I have not tried.</span></p><p class="c0"><span class="c11 c9 c4">cd quanet_hdl/projects/daq3/zcu106</span></p><p class="c0"><span class="c9 c4">make</span></p><p class="c0 c6"><span class="c2"></span></p><p class="c0"><span class="c2">This produces:</span></p><p class="c0"><span class="c9 c4 c11">hdl-main/projects/daq3/zcu106/daq3_zcu106.runs/impl/system_top.bit</span></p><p class="c0"><span class="c11 c9 c4">hdl-main/projects/daq3/zcu106/daq3_zcu106.sdk/system_top.xsa</span></p><p class="c0 c6"><span class="c2"></span></p><p class="c0"><span class="c4">There are probably better ways to make the BOOT.BIN, but for now I&rsquo;m using a method </span><span class="c12 c11">similar to AD&rsquo;s document on building BOOT.BIN:</span></p><p class="c0"><span class="c12 c11">https://analogdevicesinc.github.io/hdl/user_guide/build_boot_bin.html</span></p><p class="c0"><span class="c2">Which says to copy a script and run it. &nbsp;I did that, modified it, and named it (in my github) as:</span></p><p class="c0"><span class="c9 c4">projects/daq3/zcu106/build_boot.bat</span></p><p class="c1 c0"><span class="c4">This</span><span class="c2">&nbsp;script builds the fsbl.elf and the pmufw.elf file.</span></p><p class="c1 c0"><span class="c4">I did not build u-boot.elf. &nbsp;Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image. &nbsp;After you put the image on an SD card, you can navigate (I used microsoft &ldquo;File Explorer&rdquo;) to the boot partition and get the stuff in </span><span class="c4 c9">/boot/zynqmp-zcu102-rev10-fmcdaq3</span><span class="c2">&nbsp;and unpack it. &nbsp;I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there. Note that this contains a BOOT.BIN for the zcu106, but I didn&rsquo;t use that or even try that. &nbsp;I only wanted the elf files.</span></p><p class="c1 c0"><span class="c2">I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.</span></p><p class="c1 c0"><span class="c2">zynqmp-zcu102-rev10-fmcdaq3.tar in </span></p><p class="c1 c0"><span class="c2">&nbsp;bootgen_sysfiles.tgz. &nbsp;I got this from Kuiper linux running on our zc706 board</span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c1 c0 c6"><span class="c2"></span></p><p class="c1 c0"><span class="c2">&nbsp;It copies in the u-boot.elf and the b131.elf that I extracted from the SD card image from the zcu106 directory. &nbsp;Then it uses my zynq.bif file to put those four files and the bitfile into a BOOT.BIN file.</span></p><p class="c0"><span class="c2">The device tree must be named system.dtb (not devicetree.dtb)</span></p><p class="c0 c6"><span class="c2"></span></p><p class="c1 c0 c6"><span class="c2"></span></p><div><p class="c0 c6"><span class="c12 c11"></span></p></div></body></html>
+# project
+retarget AB's libiio and HDL to make DAQ3 board work on zcu106.
+
+# status
+The DAC on the DAC3 works.  ADC does not yet work.
+
+# objects
+
+Copy this to the  /boot partition of your SD card:
+
+quanet_hdl/nucrypt_boot_objs/BOOT.BIN
+
+
+Copy this to the /boot partition of your SD card and name it system.dtb
+
+quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb
+
+
+
+
+# Porting Kuiper Linux to the ZCU106
+
+I got my 2022_r2 linux image from
+https://wiki.analog.com/resources/tools-software/linux-software/adi-kuiper_images/release_notes
+This is about building Kuiper linux:
+https://wiki.analog.com/resources/tools-software/linux-drivers-all
+https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp
+On my VM I installed lex, bison, U-boot-tools, and  libssl-dev
+I also installed Vitis 2023.2
+Then I cloned the AD Linux sources:
+git clone -b 2022_r2  https://github.com/analogdevicesinc/linux.git
+Then I created the file:
+linux/arch/arm64/boot/dts/xilinx/
+zynqmp-zcu106-fmcdaq3.dts
+Which is based on a copy of the zcu102 dts,.  (a copy of the original dts file is in my github in nucrypt_build_objs)
+Here are the instructions specific to zynqmp:
+https://wiki.analog.com/resources/tools-software/linux-build/generic/zynqmp
+The AD instructions say to copy a build script, which I did and I called bldu.sh.  Note that this is different from the zynq build script, I then modified bldu.sh so that you just run it and you cant specify any command line arguments, and it will build xilinx\zynqmp-zcu106-fmcdaq3.dtb. (a copy of bldu.sh is in my github in nucrypt_build_objs)
+Since Vitis has the cross compiler, the next thing to do is to put that on the path:
+source /tools/Xilinx/Vitis/2023.2/settings64.sh
+
+And if you don't do that, the bdlu.sh script will download a different cross compiler (Linaro) and try to use it.  I have not explored that method.  Then I ran the script:
+
+./bldu.sh
+It produced Image and  xilinx\zynqmp-zcu106-fmcdaq3.dtb, both of which I copied to github in  nucrypt_build_objs.
+
+I built my bitfile inside cygwin.  You can also do this in linux, but I have not tried.
+cd quanet_hdl/projects/daq3/zcu106
+make
+
+This produces:
+hdl-main/projects/daq3/zcu106/daq3_zcu106.runs/impl/system_top.bit
+hdl-main/projects/daq3/zcu106/daq3_zcu106.sdk/system_top.xsa
+
+There are probably better ways to make the BOOT.BIN, but for now I'm using a method similar to AD's document on building BOOT.BIN:
+https://analogdevicesinc.github.io/hdl/user_guide/build_boot_bin.html
+Which says to copy a script and run it.  I did that, modified it, and named it (in my github) as:
+projects/daq3/zcu106/build_boot.bat
+This script builds the fsbl.elf and the pmufw.elf file.
+I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there. Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.
+I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.
+zynqmp-zcu102-rev10-fmcdaq3.tar in 
+ bootgen_sysfiles.tgz.  I got this from Kuiper linux running on our zc706 board
+
+
+ It copies in the u-boot.elf and the b131.elf that I extracted from the SD card image from the zcu106 directory.  Then it uses my zynq.bif file to put those four files and the bitfile into a BOOT.BIN file.
+The device tree must be named system.dtb (not devicetree.dtb)
+
+

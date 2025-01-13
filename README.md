@@ -65,13 +65,13 @@ This produces:
 hdl-main/projects/daq3/zcu106/daq3_zcu106.runs/impl/system_top.bit
 hdl-main/projects/daq3/zcu106/daq3_zcu106.sdk/system_top.xsa
 
+The bitfile gets put into BOOT.BIN.
+
 There are probably better ways to make the BOOT.BIN, but for now I'm using a method similar to AD's document on building BOOT.BIN:  
 https://analogdevicesinc.github.io/hdl/user_guide/build_boot_bin.html  
-Which says to copy a script and run it.  I did that, modified it, and named it (in my github) as:  
-projects/daq3/zcu106/build_boot.bat  
-This script builds the fsbl.elf and the pmufw.elf file.  
-I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there.  Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.  
-I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.  
+Which says to copy a script and run it.  I did that, modified it, and named it (on github) as:  
+`projects/daq3/zcu106/build_boot.bat`
+This script builds the fsbl.elf and the pmufw.elf file.  Since the PS configuration seldom changes, these probably don't have to be recompiled every time the HDL is built, but they are.  I did not build u-boot.elf.  Both u-boot.elf and bl31.elf can be extracted from the project folder on the AD Kuiper linux SD Card image.  After you put the image on an SD card, you can navigate (I used microsoft "File Explorer") to the boot partition and get the stuff in /boot/zynqmp-zcu102-rev10-fmcdaq3 and unpack it.  I put a copy of that directory on github under nucrypt_boot_objs and unpacked bootgen_sysfiles.tgz there.  Note that this contains a BOOT.BIN for the zcu106, but I didn't use that or even try that.  I only wanted the elf files.  I made my build_boot.bat pull those elf files into the BOOT.BIN that it builds.  AD's script auto-generates the zynq.bif file, but I just hand-wrote mine for ease of tweaking.
 
 
 
@@ -88,13 +88,8 @@ https://analogdevicesinc.github.io/hdl/library/corundum/index.html
 
 # qnicll, the low level library
 
-The header file is
+Now in
 
-`quanet_hdl/qnicll/qnicll.h`
+https://github.com/danreilly/qnicll
 
-This fits into the qnic as shown.  It's not ideal, but it's a first step.
-
-![qnic layers!](assets/qnic_layers.png "qnic layers")
-
-To move data, qnicll uses AD's libiio library.  This communicates over ethernet to the AD iiod (iio demon).  In the PL (programmable logic) of the FPGA, "quanet regs" are the small set of registers we added in order to implement the LFSR-based probe generation, the syncronized transmit and recieve, and the synchronized driver for the fast optical switch for noise measurements.  (see library/quanet_regs).  Libiio knows nothing about these, so we wrote a demon "qregd" that mmaps the registers so they can be used.  qnicll connects to qregd to access these registers.  Eventually when we can access these registers through PCI, we can get rid of qregd.  Eventually we can get also rid of the USB connection to the arty S750 board, and use the rs422 link shown in yellow (this is not currently used).
 

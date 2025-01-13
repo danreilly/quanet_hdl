@@ -1,1 +1,1 @@
-scp daq3_zcu106.sdk/BOOT.BIN analog@analog:/home/analog/BOOT.BIN
+scp daq3_zcu106.sdk/BOOT.BIN analog@zcu:/home/analog/BOOT.BIN

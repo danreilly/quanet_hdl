@@ -182,7 +182,7 @@ module axi_jesd204_rx #(
     .up_clk(s_axi_aclk),
     .ext_resetn(s_axi_aresetn),
 
-    .up_reset(up_reset),
+    .up_reset(up_reset), // out
     .up_reset_synchronizer(up_reset_synchronizer),
 
     .core_clk(core_clk),
@@ -190,7 +190,7 @@ module axi_jesd204_rx #(
     .core_reset(core_reset),
 
     .device_clk(device_clk),
-    .device_reset(device_reset),
+    .device_reset(device_reset), // out
 
     .up_raddr(up_raddr),
     .up_rdata(up_rdata_common),

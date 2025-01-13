@@ -43,14 +43,15 @@ module axi_adcfifo_rd #(
   parameter   AXI_ADDRESS = 32'h00000000,
   parameter   AXI_ADDRESS_LIMIT = 32'h00000000
 ) (
-  input en, // new
+
   // request and synchronization
 
+  input                   dma_xfer_req,
 
   // read interface
 
   input                   axi_rd_req,
-  input       [ 31:0]     axi_rd_addr, // not allowed to read past this
+  input       [ 31:0]     axi_rd_addr,
 
   // axi interface
 
@@ -98,9 +99,9 @@ module axi_adcfifo_rd #(
   reg     [ 31:0]                 axi_rd_addr_h = 'd0;
   reg                             axi_rd = 'd0;
   reg                             axi_rd_active = 'd0;
-//  reg     [  2:0]                 axi_xfer_req_m = 'd0;
-//  reg                             axi_xfer_init = 'd0;
-//  reg                             axi_xfer_enable = 'd0;
+  reg     [  2:0]                 axi_xfer_req_m = 'd0;
+  reg                             axi_xfer_init = 'd0;
+  reg                             axi_xfer_enable = 'd0;
 
   // internal signals
 
@@ -115,27 +116,27 @@ module axi_adcfifo_rd #(
       axi_rd_addr_h <= 'd0;
       axi_rd <= 'd0;
       axi_rd_active <= 'd0;
-//      axi_xfer_req_m <= 'd0;
-//      axi_xfer_init <= 'd0;
-//      axi_xfer_enable <= 'd0;
+      axi_xfer_req_m <= 'd0;
+      axi_xfer_init <= 'd0;
+      axi_xfer_enable <= 'd0;
     end else begin
-      if (~en)
+      if (axi_xfer_init == 1'b1) begin
         axi_rd_addr_h <= AXI_ADDRESS;
-      else if (axi_rd_req == 1'b1)
+      end else if (axi_rd_req == 1'b1) begin
         axi_rd_addr_h <= axi_rd_addr;
-
+      end
       if (axi_rd_active == 1'b1) begin
         axi_rd <= 1'b0;
         if ((axi_rvalid == 1'b1) && (axi_rlast == 1'b1)) begin
           axi_rd_active <= 1'b0;
         end
       end else if ((axi_ready_s == 1'b1) && (axi_araddr < axi_rd_addr_h)) begin
-         axi_rd        <= en;
-         axi_rd_active <= en;
+        axi_rd <= axi_xfer_enable;
+        axi_rd_active <= axi_xfer_enable;
       end
-//      axi_xfer_req_m <= {axi_xfer_req_m[1:0], dma_xfer_req};
-//      axi_xfer_init <= axi_xfer_req_m[1] & ~axi_xfer_req_m[2];
-//      axi_xfer_enable <= axi_xfer_req_m[2];
+      axi_xfer_req_m <= {axi_xfer_req_m[1:0], dma_xfer_req};
+      axi_xfer_init <= axi_xfer_req_m[1] & ~axi_xfer_req_m[2];
+      axi_xfer_enable <= axi_xfer_req_m[2];
     end
   end
 
@@ -165,7 +166,7 @@ module axi_adcfifo_rd #(
           axi_arvalid <= 1'b1;
         end
       end
-      if (~en) begin
+      if (axi_xfer_init == 1'b1) begin
         axi_araddr <= AXI_ADDRESS;
       end else if ((axi_arvalid == 1'b1) && (axi_arready == 1'b1)) begin
         axi_araddr <= axi_araddr + AXI_AWINCR;
@@ -182,7 +183,7 @@ module axi_adcfifo_rd #(
       axi_ddata <= 'd0;
       axi_rready <= 'd0;
     end else begin
-      axi_drst   <= ~en;  // axi_xfer_req_m[1];
+      axi_drst <= ~axi_xfer_req_m[1];
       axi_dvalid <= axi_rvalid;
       axi_ddata <= axi_rdata;
       axi_rready <= 1'b1;

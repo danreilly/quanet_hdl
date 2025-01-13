@@ -41,62 +41,58 @@ module axi_adcfifo_wr #(
   parameter   AXI_SIZE = 2,
   parameter   AXI_LENGTH = 16,
   parameter   AXI_ADDRESS = 32'h00000000,
-  parameter   AXI_ADDRESS_LIMIT = 32'h00000000 // not used!
+  parameter   AXI_ADDRESS_LIMIT = 32'h00000000
 ) (
 
   // request and synchronization
 
-  // This module could be a pure fifo, and know nothing about
-  // whether DMA is requested.
+  input                   dma_xfer_req,
 
-  input 		      en_adc, // enable in adc domain
-  input 		      en_axi, // enable in axi clk domain
-   
   // read interface
 
-  output reg 		      axi_rd_req,
-  output reg [ 31:0] 	      axi_rd_addr,
+  output  reg             axi_rd_req,
+  output  reg [ 31:0]     axi_rd_addr,
 
   // fifo interface
 
-  input 		      adc_rst, // in adc_clk domain
-  input 		      adc_clk,
-  input 		      adc_wr, // ignored when en=0
-  input [AXI_DATA_WIDTH-1:0]  adc_wdata,
+  input                   adc_rst,
+  input                   adc_clk,
+  input                   adc_wr,
+  input       [AXI_DATA_WIDTH-1:0]  adc_wdata,
 
   // axi interface
-  // I guess to ddr
-  input 		      axi_clk,
-  input 		      axi_resetn,
-  output reg 		      axi_awvalid,
-  output [ 3:0] 	      axi_awid,
-  output [ 1:0] 	      axi_awburst,
-  output 		      axi_awlock,
-  output [ 3:0] 	      axi_awcache,
-  output [ 2:0] 	      axi_awprot,
-  output [ 3:0] 	      axi_awqos,
-  output [ 3:0] 	      axi_awuser,
-  output [ 7:0] 	      axi_awlen,
-  output [ 2:0] 	      axi_awsize,
-  output reg [ 31:0] 	      axi_awaddr,
-  input 		      axi_awready,
-  output 		      axi_wvalid,
-  output [AXI_DATA_WIDTH-1:0] axi_wdata,
-  output [AXI_DATA_WIDTH/8-1:0] axi_wstrb,
-  output 		      axi_wlast,
-  output [ 3:0] 	      axi_wuser,
-  input 		      axi_wready,
-  input 		      axi_bvalid,
-  input [ 3:0] 		      axi_bid,
-  input [ 1:0] 		      axi_bresp,
-  input [ 3:0] 		      axi_buser,
-  output 		      axi_bready,
+
+  input                   axi_clk,
+  input                   axi_resetn,
+  output  reg             axi_awvalid,
+  output      [ 3:0]      axi_awid,
+  output      [ 1:0]      axi_awburst,
+  output                  axi_awlock,
+  output      [ 3:0]      axi_awcache,
+  output      [ 2:0]      axi_awprot,
+  output      [ 3:0]      axi_awqos,
+  output      [ 3:0]      axi_awuser,
+  output      [ 7:0]      axi_awlen,
+  output      [ 2:0]      axi_awsize,
+  output  reg [ 31:0]     axi_awaddr,
+  input                   axi_awready,
+  output                  axi_wvalid,
+  output      [AXI_DATA_WIDTH-1:0]  axi_wdata,
+  output      [AXI_BYTE_WIDTH-1:0]  axi_wstrb,
+  output                  axi_wlast,
+  output      [ 3:0]      axi_wuser,
+  input                   axi_wready,
+  input                   axi_bvalid,
+  input       [ 3:0]      axi_bid,
+  input       [ 1:0]      axi_bresp,
+  input       [ 3:0]      axi_buser,
+  output                  axi_bready,
 
   // axi status
 
-  output reg 		      axi_dwovf, // means buf overflowed
-  output reg 		      axi_dwunf,
-  output reg 		      axi_werror
+  output  reg             axi_dwovf,
+  output  reg             axi_dwunf,
+  output  reg             axi_werror
 );
 
   localparam  AXI_BYTE_WIDTH = AXI_DATA_WIDTH/8;
@@ -106,13 +102,11 @@ module axi_adcfifo_wr #(
 
   // internal registers
 
-//  reg     [  2:0]                 adc_xfer_req_m = 'd0;
-
-   
-//  reg                             adc_xfer_limit = 'd0;
-//  reg                             adc_xfer_enable = 'd0;
-//  reg                             adc_xfer_enable_d = 'd0;
-//  reg     [ 31:0]                 adc_xfer_addr = 'd0;
+  reg     [  2:0]                 adc_xfer_req_m = 'd0;
+  reg                             adc_xfer_init = 'd0;
+  reg                             adc_xfer_limit = 'd0;
+  reg                             adc_xfer_enable = 'd0;
+  reg     [ 31:0]                 adc_xfer_addr = 'd0;
   reg     [  7:0]                 adc_waddr = 'd0;
   reg     [  7:0]                 adc_waddr_g = 'd0;
   reg                             adc_rel_enable = 'd0;
@@ -126,8 +120,8 @@ module axi_adcfifo_wr #(
   reg     [  7:0]                 axi_addr_diff = 'd0;
   reg                             axi_almost_full = 'd0;
   reg                             axi_almost_empty = 'd0;
-//  reg     [  2:0]                 axi_xfer_req_m = 'd0;
-
+  reg     [  2:0]                 axi_xfer_req_m = 'd0;
+  reg                             axi_xfer_init = 'd0;
   reg     [  7:0]                 axi_raddr = 'd0;
   reg                             axi_rd = 'd0;
   reg                             axi_rlast = 'd0;
@@ -145,13 +139,7 @@ module axi_adcfifo_wr #(
   wire                            axi_req_s;
   wire                            axi_rlast_s;
   wire    [AXI_DATA_WIDTH-1:0]    axi_rdata_s;
-   wire 			  adc_wr_word;
-   wire 			  wr, en_ax;
-   wire 			  en_ax_n;
 
-   
-   
-   
   // binary to grey conversion
 
   function [7:0] b2g;
@@ -190,43 +178,42 @@ module axi_adcfifo_wr #(
 
   // fifo interface
 
-
-  assign wr = en_adc & adc_wr;
-  assign adc_wr_word = wr & (adc_waddr[1:0] == 2'h3);
-   
-
-   
   always @(posedge adc_clk) begin
     if (adc_rst == 1'b1) begin
       adc_waddr <= 'd0;
       adc_waddr_g <= 'd0;
-//      adc_xfer_req_m <= 'd0;
-//      adc_xfer_addr <= 'd0;
+      adc_xfer_req_m <= 'd0;
+      adc_xfer_init <= 'd0;
+      adc_xfer_limit <= 'd0;
+      adc_xfer_enable <= 'd0;
+      adc_xfer_addr <= 'd0;
       adc_rel_enable <= 'd0;
       adc_rel_toggle <= 'd0;
       adc_rel_waddr <= 'd0;
     end else begin
-
-
-      if (~en_adc)
-        adc_waddr <= 0;
-      else if (wr)
+      if ((adc_wr == 1'b1) && (adc_xfer_enable == 1'b1)) begin
         adc_waddr <= adc_waddr + 1'b1;
+      end
       adc_waddr_g <= b2g(adc_waddr);
-       
-//      if (en == 1'b0)
-//.        adc_xfer_addr   <= AXI_ADDRESS; // 0
-//      else if (adc_wr_word)
-//        adc_xfer_addr   <= adc_xfer_addr + AXI_AWINCR;
-
-      // after every fourth write, rel_enable pulses high.
-      if (adc_waddr[1:0] == 2'h3)
-        adc_rel_enable <= wr;
-      else
+      adc_xfer_req_m <= {adc_xfer_req_m[1:0], dma_xfer_req};
+      adc_xfer_init <= adc_xfer_req_m[1] & ~adc_xfer_req_m[2];
+      if (adc_xfer_init == 1'b1) begin
+        adc_xfer_limit <= 1'd1;
+      end else if ((adc_xfer_addr >= AXI_ADDRESS_LIMIT) || (adc_xfer_enable == 1'b0)) begin
+        adc_xfer_limit <= 1'd0;
+      end
+      if (adc_xfer_init == 1'b1) begin
+        adc_xfer_enable <= 1'b1;
+        adc_xfer_addr <= AXI_ADDRESS;
+      end else if ((adc_waddr[1:0] == 2'h3) && (adc_wr == 1'b1)) begin
+        adc_xfer_enable <= adc_xfer_req_m[2] & adc_xfer_limit;
+        adc_xfer_addr <= adc_xfer_addr + AXI_AWINCR;
+      end
+      if (adc_waddr[1:0] == 2'h3) begin
+        adc_rel_enable <= adc_wr;
+      end else begin
         adc_rel_enable <= 1'd0;
-
-      // This toggles adc_rel toggle (used for cdc).
-      // axw_waddr is passed to axi clk domain.
+      end
       if (adc_rel_enable == 1'b1) begin
         adc_rel_toggle <= ~adc_rel_toggle;
         adc_rel_waddr <= adc_waddr;
@@ -238,7 +225,6 @@ module axi_adcfifo_wr #(
 
   assign axi_rel_toggle_s = axi_rel_toggle_m[2] ^ axi_rel_toggle_m[1];
 
-   // why pass one adress when you can pass two?
   always @(posedge axi_clk or negedge axi_resetn) begin
     if (axi_resetn == 1'b0) begin
       axi_rel_toggle_m <= 'd0;
@@ -258,7 +244,7 @@ module axi_adcfifo_wr #(
   end
 
   // overflow (no underflow possible)
-  
+
   assign axi_addr_diff_s = {1'b1, axi_waddr} - axi_raddr;
 
   always @(posedge axi_clk or negedge axi_resetn) begin
@@ -287,14 +273,22 @@ module axi_adcfifo_wr #(
     end
   end
 
-   
+  // transfer request is required to keep things in sync
+
+  always @(posedge axi_clk or negedge axi_resetn) begin
+    if (axi_resetn == 1'b0) begin
+      axi_xfer_req_m <= 'd0;
+      axi_xfer_init <= 'd0;
+    end else begin
+      axi_xfer_req_m <= {axi_xfer_req_m[1:0], dma_xfer_req};
+      axi_xfer_init <= axi_xfer_req_m[1] & ~axi_xfer_req_m[2];
+    end
+  end
+
+  // read is initiated if xfer enabled
 
   assign axi_wready_s = ~axi_wvalid | axi_wready;
-  // axi_rd_s means the axi_raddr has not yet caught up to the write address.
-  // s maybe means is safe for axi to read. It increments axi_raddr
-  assign axi_rd_s = (axi_rel_waddr == axi_raddr) ? 1'b0 : (axi_wready_s & en_axi);
-  // axi_req_s raises awvalid, eventually incrementing the axi_waddr,
-  // which has nothing to do with axi.  axi_waddr is the read addres into the ad_mem buffer.
+  assign axi_rd_s = (axi_rel_waddr == axi_raddr) ? 1'b0 : axi_wready_s;
   assign axi_req_s = (axi_raddr[1:0] == 2'h0) ? axi_rd_s : 1'b0;
   assign axi_rlast_s = (axi_raddr[1:0] == 2'h3) ? axi_rd_s : 1'b0;
 
@@ -307,16 +301,14 @@ module axi_adcfifo_wr #(
       axi_rlast_d <= 'd0;
       axi_rdata_d <= 'd0;
     end else begin
-      if (~en_axi)
-        axi_raddr <= 0;
-      else if (axi_rd_s == 1'b1)
+      if (axi_rd_s == 1'b1) begin
         axi_raddr <= axi_raddr + 1'b1;
-
+      end
       axi_rd <= axi_rd_s;
       axi_rlast <= axi_rlast_s;
       axi_rd_d <= axi_rd;
       axi_rlast_d <= axi_rlast;
-      axi_rdata_d <= axi_rdata_s; // from buffer below
+      axi_rdata_d <= axi_rdata_s;
     end
   end
 
@@ -324,14 +316,15 @@ module axi_adcfifo_wr #(
 
   always @(posedge axi_clk or negedge axi_resetn) begin
     if (axi_resetn == 1'b0) begin
-      axi_rd_req  <= 'd0;
+      axi_rd_req <= 'd0;
       axi_rd_addr <= 'd0;
     end else begin
-      axi_rd_req <= axi_rlast_s & en_axi;
-      if (!en_axi)
+      axi_rd_req <= axi_rlast_s;
+      if (axi_xfer_init == 1'b1) begin
         axi_rd_addr <= AXI_ADDRESS;
-      else if (axi_rd_req == 1'b1)
+      end else if (axi_rd_req == 1'b1) begin
         axi_rd_addr <= axi_rd_addr + AXI_AWINCR;
+      end
     end
   end
 
@@ -350,10 +343,8 @@ module axi_adcfifo_wr #(
   always @(posedge axi_clk or negedge axi_resetn) begin
     if (axi_resetn == 1'b0) begin
       axi_awvalid <= 'd0;
-//      axi_awaddr <= 'd0;
-      axi_awaddr <= AXI_ADDRESS;		    
+      axi_awaddr <= 'd0;
     end else begin
-
       if (axi_awvalid == 1'b1) begin
         if (axi_awready == 1'b1) begin
           axi_awvalid <= 1'b0;
@@ -363,12 +354,10 @@ module axi_adcfifo_wr #(
           axi_awvalid <= 1'b1;
         end
       end
-		    
-      if (!en_axi) begin
+      if (axi_xfer_init == 1'b1) begin
         axi_awaddr <= AXI_ADDRESS;
-      end else begin
-        if ((axi_awvalid == 1'b1) && (axi_awready == 1'b1))
-          axi_awaddr <= axi_awaddr + AXI_AWINCR;
+      end else if ((axi_awvalid == 1'b1) && (axi_awready == 1'b1)) begin
+        axi_awaddr <= axi_awaddr + AXI_AWINCR;
       end
     end
   end
@@ -381,6 +370,7 @@ module axi_adcfifo_wr #(
   // response channel
 
   assign axi_bready = 1'b1;
+
   always @(posedge axi_clk or negedge axi_resetn) begin
     if (axi_resetn == 1'b0) begin
       axi_werror <= 'd0;
@@ -389,31 +379,39 @@ module axi_adcfifo_wr #(
     end
   end
 
-  assign en_ax_n = ~en_axi;
-   
-   
+  // fifo needs a reset
+
+  always @(posedge axi_clk or negedge axi_resetn) begin
+    if (axi_resetn == 1'b0) begin
+      axi_reset <= 1'b1;
+    end else begin
+      axi_reset <= 1'b0;
+    end
+  end
+
   // interface handler
-  // changes width?
+
   ad_axis_inf_rx #(
     .DATA_WIDTH(AXI_DATA_WIDTH)
   ) i_axis_inf (
     .clk (axi_clk),
-    .rst (en_ax_n),
+    .rst (axi_reset),
     .valid (axi_rd_d),
     .last (axi_rlast_d),
-    .data (axi_rdata_d), // in
+    .data (axi_rdata_d),
     .inf_valid (axi_wvalid),
     .inf_last (axi_wlast),
-    .inf_data (axi_wdata), // out
+    .inf_data (axi_wdata),
     .inf_ready (axi_wready));
 
   // buffer
+
   ad_mem #(
     .DATA_WIDTH(AXI_DATA_WIDTH),
     .ADDRESS_WIDTH(8)
   ) i_mem (
     .clka (adc_clk),
-    .wea (wr),
+    .wea (adc_wr),
     .addra (adc_waddr),
     .dina (adc_wdata),
     .clkb (axi_clk),

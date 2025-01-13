@@ -8,6 +8,7 @@ source ../../../scripts/adi_env.tcl
 source $ad_hdl_dir/library/scripts/adi_ip_xilinx.tcl
 
 adi_ip_create axi_adxcvr
+# Dan tried this out of desperation.
 set_param ips.enableInterfaceArrayInference false
 puts "adding files (will infer bus ifaces)"
 adi_ip_files axi_adxcvr [list \
@@ -21,7 +22,7 @@ adi_ip_files axi_adxcvr [list \
 
 
 adi_ip_properties axi_adxcvr
-puts "inferring ifaces"
+puts "inferring adxcr ifaces"
 adi_ip_infer_mm_interfaces axi_adxcvr
 set_param ips.enableInterfaceArrayInference true
 

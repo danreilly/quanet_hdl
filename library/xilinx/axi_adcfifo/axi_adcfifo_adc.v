@@ -48,12 +48,13 @@ module axi_adcfifo_adc #(
   input                   adc_wr,
   input       [ADC_DATA_WIDTH-1:0]  adc_wdata,
   output  reg             adc_wovf,
-
-  // axi interface
-  input                   axi_clk,
   output  reg             adc_dwr,
   output  reg [AXI_DATA_WIDTH-1:0]  adc_ddata,
+
+  // axi interface
+
   input                   axi_drst,
+  input                   axi_clk,
   input       [ 3:0]      axi_xfer_status
 );
 

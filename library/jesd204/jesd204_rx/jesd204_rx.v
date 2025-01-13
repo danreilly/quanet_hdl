@@ -21,75 +21,77 @@ module jesd204_rx #(
   parameter ASYNC_CLK = 1,
   parameter TPL_DATA_PATH_WIDTH = LINK_MODE == 2 ? 8 : 4
 ) (
-  input clk,   // Link clock, lane rate / 40 or lane rate / 20 or lane rate / 66
-  input reset,
+   // dan added
+   output ch0_charisk,
+  input 				       clk, // Link clock, lane rate / 40 or lane rate / 20 or lane rate / 66
+  input 				       reset,
 
-  input device_clk, // Integer multiple of frame clock
-  input device_reset,
+  input 				       device_clk, // Integer multiple of frame clock
+  input 				       device_reset,
 
-  input [DATA_PATH_WIDTH*8*NUM_LANES-1:0] phy_data,
-  input [2*NUM_LANES-1:0] phy_header,
-  input [DATA_PATH_WIDTH*NUM_LANES-1:0] phy_charisk,
-  input [DATA_PATH_WIDTH*NUM_LANES-1:0] phy_notintable,
-  input [DATA_PATH_WIDTH*NUM_LANES-1:0] phy_disperr,
-  input [NUM_LANES-1:0] phy_block_sync,
+  input [DATA_PATH_WIDTH*8*NUM_LANES-1:0]      phy_data,
+  input [2*NUM_LANES-1:0] 		       phy_header,
+  input [DATA_PATH_WIDTH*NUM_LANES-1:0]        phy_charisk,
+  input [DATA_PATH_WIDTH*NUM_LANES-1:0]        phy_notintable,
+  input [DATA_PATH_WIDTH*NUM_LANES-1:0]        phy_disperr,
+  input [NUM_LANES-1:0] 		       phy_block_sync,
 
-  input sysref,
-  output lmfc_edge,
-  output lmfc_clk,
+  input 				       sysref,
+  output 				       lmfc_edge,
+  output 				       lmfc_clk,
 
-  output device_event_sysref_alignment_error,
-  output device_event_sysref_edge,
-  output event_frame_alignment_error,
-  output event_unexpected_lane_state_error,
+  output 				       device_event_sysref_alignment_error,
+  output 				       device_event_sysref_edge,
+  output 				       event_frame_alignment_error,
+  output 				       event_unexpected_lane_state_error,
 
-  output [NUM_LINKS-1:0] sync,
+  output [NUM_LINKS-1:0] 		       sync,
 
-  output phy_en_char_align,
+  output 				       phy_en_char_align,
 
   output [TPL_DATA_PATH_WIDTH*8*NUM_LANES-1:0] rx_data,
-  output rx_valid,
-  output [TPL_DATA_PATH_WIDTH-1:0] rx_eof,
-  output [TPL_DATA_PATH_WIDTH-1:0] rx_sof,
-  output [TPL_DATA_PATH_WIDTH-1:0] rx_eomf,
-  output [TPL_DATA_PATH_WIDTH-1:0] rx_somf,
+  output 				       rx_valid,
+  output [TPL_DATA_PATH_WIDTH-1:0] 	       rx_eof,
+  output [TPL_DATA_PATH_WIDTH-1:0] 	       rx_sof,
+  output [TPL_DATA_PATH_WIDTH-1:0] 	       rx_eomf,
+  output [TPL_DATA_PATH_WIDTH-1:0] 	       rx_somf,
 
-  input [NUM_LANES-1:0] cfg_lanes_disable,
-  input [NUM_LINKS-1:0] cfg_links_disable,
-  input [9:0] cfg_octets_per_multiframe,
-  input [7:0] cfg_octets_per_frame,
-  input cfg_disable_scrambler,
-  input cfg_disable_char_replacement,
-  input [7:0] cfg_frame_align_err_threshold,
+  input [NUM_LANES-1:0] 		       cfg_lanes_disable,
+  input [NUM_LINKS-1:0] 		       cfg_links_disable,
+  input [9:0] 				       cfg_octets_per_multiframe,
+  input [7:0] 				       cfg_octets_per_frame,
+  input 				       cfg_disable_scrambler,
+  input 				       cfg_disable_char_replacement,
+  input [7:0] 				       cfg_frame_align_err_threshold,
 
-  input [9:0] device_cfg_octets_per_multiframe,
-  input [7:0] device_cfg_octets_per_frame,
-  input [7:0] device_cfg_beats_per_multiframe,
-  input [7:0] device_cfg_lmfc_offset,
-  input device_cfg_sysref_oneshot,
-  input device_cfg_sysref_disable,
-  input device_cfg_buffer_early_release,
-  input [7:0] device_cfg_buffer_delay,
+  input [9:0] 				       device_cfg_octets_per_multiframe,
+  input [7:0] 				       device_cfg_octets_per_frame,
+  input [7:0] 				       device_cfg_beats_per_multiframe,
+  input [7:0] 				       device_cfg_lmfc_offset,
+  input 				       device_cfg_sysref_oneshot,
+  input 				       device_cfg_sysref_disable,
+  input 				       device_cfg_buffer_early_release,
+  input [7:0] 				       device_cfg_buffer_delay,
 
-  input ctrl_err_statistics_reset,
-  input [6:0] ctrl_err_statistics_mask,
+  input 				       ctrl_err_statistics_reset,
+  input [6:0] 				       ctrl_err_statistics_mask,
 
-  output [32*NUM_LANES-1:0] status_err_statistics_cnt,
+  output [32*NUM_LANES-1:0] 		       status_err_statistics_cnt,
 
-  output [NUM_LANES-1:0] ilas_config_valid,
-  output [NUM_LANES*2-1:0] ilas_config_addr,
-  output [NUM_LANES*DATA_PATH_WIDTH*8-1:0] ilas_config_data,
+  output [NUM_LANES-1:0] 		       ilas_config_valid,
+  output [NUM_LANES*2-1:0] 		       ilas_config_addr,
+  output [NUM_LANES*DATA_PATH_WIDTH*8-1:0]     ilas_config_data,
 
-  output [1:0] status_ctrl_state,
-  output [2*NUM_LANES-1:0] status_lane_cgs_state,
-  output [NUM_LANES-1:0] status_lane_ifs_ready,
-  output [14*NUM_LANES-1:0] status_lane_latency,
-  output [3*NUM_LANES-1:0] status_lane_emb_state,
-  output [8*NUM_LANES-1:0] status_lane_frame_align_err_cnt,
+  output [1:0] 				       status_ctrl_state,
+  output [2*NUM_LANES-1:0] 		       status_lane_cgs_state,
+  output [NUM_LANES-1:0] 		       status_lane_ifs_ready,
+  output [14*NUM_LANES-1:0] 		       status_lane_latency,
+  output [3*NUM_LANES-1:0] 		       status_lane_emb_state,
+  output [8*NUM_LANES-1:0] 		       status_lane_frame_align_err_cnt,
 
-  output [31:0] status_synth_params0,
-  output [31:0] status_synth_params1,
-  output [31:0] status_synth_params2
+  output [31:0] 			       status_synth_params0,
+  output [31:0] 			       status_synth_params1,
+  output [31:0] 			       status_synth_params2
 );
 
   /*
@@ -168,6 +170,9 @@ module jesd204_rx #(
 
   reg buffer_release_opportunity = 1'b0;
 
+  assign ch0_charisk = phy_charisk[0];
+   
+   
   always @(posedge device_clk) begin
     if (lmfc_counter == device_cfg_buffer_delay ||
         device_cfg_buffer_early_release == 1'b1) begin

@@ -112,6 +112,15 @@ proc adi_axi_jesd204_rx_create {ip_name num_lanes {num_links 1} {link_mode 1}} {
     ad_connect "${ip_name}/rx_axi/rx_cfg" "${ip_name}/rx/rx_cfg"
     ad_connect "${ip_name}/rx/rx_event" "${ip_name}/rx_axi/rx_event"
     ad_connect "${ip_name}/rx/rx_status" "${ip_name}/rx_axi/rx_status"
+
+  # debug stuff
+    create_bd_pin -dir O "${ip_name}/dbg_core_rst"
+    create_bd_pin -dir O "${ip_name}/dbg_dev_rst"
+    create_bd_pin -dir O "${ip_name}/dbg_charisk"
+    connect_bd_net -net [get_bd_nets -of [get_bd_pins "${ip_name}/rx_axi/core_reset"]]   [get_bd_pins "${ip_name}/dbg_core_rst"]
+    connect_bd_net -net [get_bd_nets -of [get_bd_pins "${ip_name}/rx_axi/device_reset"]] [get_bd_pins "${ip_name}/dbg_dev_rst"]
+    ad_connect "${ip_name}/rx/ch0_charisk" "${ip_name}/dbg_charisk"
+  
     if {$link_mode == 1} {ad_connect "${ip_name}/rx/rx_ilas_config" "${ip_name}/rx_axi/rx_ilas_config"}
 
     # Control interface
@@ -135,6 +144,8 @@ proc adi_axi_jesd204_rx_create {ip_name num_lanes {num_links 1} {link_mode 1}} {
     create_bd_pin -dir O -from 3 -to 0 "${ip_name}/rx_eof"
     create_bd_pin -dir O -from 3 -to 0 "${ip_name}/rx_sof"
 
+    
+    
 #    create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 "${ip_name}/rx_data"
     create_bd_pin -dir O "${ip_name}/rx_data_tvalid"
     create_bd_pin -dir O -from [expr $num_lanes * 32 - 1] -to 0 "${ip_name}/rx_data_tdata"

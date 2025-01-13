@@ -19,12 +19,25 @@ if exist %ELF% (
 )
 copy %ELF% fsbl.elf
 
-copy "G:\My Drive\proj\quanet\hdl_boot_zc706\bootgen_sysfiles\u-boot_zynq_zc706.elf" u-boot.elf
+rem copy "G:\My Drive\proj\quanet\hdl_boot_zc706\bootgen_sysfiles\u-boot_zynq_zc706.elf" u-boot.elf
+call :cp ..\..\..\..\nucrypt_boot_objs\zynq_zc706-fmcdaq3\u-boot_zynq_zc706.elf u-boot.elf
 call bootgen -arch zynq -image ..\zynq.bif -o BOOT.BIN -w
 echo made %DIR%\BOOT.BIN
 
 cd ..
+call :cp %DIR%\BOOT.BIN ..\..\..\nucrypt_boot_objs\zc706_BOOT.BIN
+
+
+goto :eof
 
 
 
 
+:cp
+  echo :cp %1 %2
+  if not exist %1 (
+    echo ERR: copy from %1 does not exist!
+    pause
+    exit /b 99
+  )
+  echo F|xcopy /Y %1 %2

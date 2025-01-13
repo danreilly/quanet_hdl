@@ -216,9 +216,13 @@ ad_connect  axi_ad9680_jesd/rx_data_tvalid axi_ad9680_tpl_core/link_valid
 ad_connect  axi_ad9680_tpl_core/adc_valid_0 axi_ad9680_cpack/fifo_wr_en
 
 # dan added these for debug
-connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_jesd/rx_data_tvalid]] [get_bd_pins axi_ad9680_fifo/link_valid]
+#connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_jesd/rx_data_tvalid]] [get_bd_pins axi_ad9680_fifo/link_valid]
 #ad_connect  axi_ad9680_jesd/rx_data_tvalid  axi_ad9680_fifo/link_valid
-connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_tpl_core/adc_valid_0]] [get_bd_pins axi_ad9680_fifo/core_valid]
+#connect_bd_net -net [get_bd_nets -of [get_bd_pins axi_ad9680_tpl_core/adc_valid_0]] [get_bd_pins axi_ad9680_fifo/core_valid]
+#ad_connect axi_ad9680_jesd/dbg_core_rst axi_ad9680_fifo/dbg_core_rst
+#ad_connect axi_ad9680_jesd/dbg_dev_rst  axi_ad9680_fifo/dbg_dev_rst
+# ad_connect axi_ad9680_jesd/dbg_charisk  axi_ad9680_fifo/dbg_charisk
+
 
 # dan added sys_zynq 2
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
@@ -236,17 +240,17 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
     ad_connect  axi_ad9680_tpl_core/adc_dovf axi_ad9680_fifo/adc_wovf
 }
 
-puts "dans connections1"
+puts "NuCrypt connections1"
 create_bd_port -dir O dac_xfer_out_port
 create_bd_port -dir O rxq_sw_ctl
 ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
-ad_connect  axi_ad9152_fifo/dac_xfer_out axi_ad9680_fifo/dac_txed
+ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 
-ad_connect  qregs/regs_w             axi_ad9152_fifo/regs_w
-ad_connect  qregs/regs_w             axi_ad9680_fifo/regs_w
+ad_connect  qregs/regs_w                 axi_ad9152_fifo/regs_w
+ad_connect  qregs/regs_w                 axi_ad9680_fifo/regs_w
 ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
-ad_connect  axi_ad9680_fifo/reg_samp     qregs/reg_samp
+# ad_connect  axi_ad9680_fifo/reg_samp     qregs/reg_samp
 ad_connect  axi_ad9680_fifo/reg_adc_stat qregs/reg_adc_stat
 ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
 

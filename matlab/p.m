@@ -2,8 +2,14 @@ function p(arg)
   import nc.*
 
   do_eye=0;
+  opt_show=0;
   if (nargin>0)
-    do_eye=1;
+      [skip n]=sscanf(arg,'%d')
+      if (n==1)
+        skip
+      else
+        opt_show=1;
+      end
   end
   
   tvars = nc.vars_class('tvars.txt');
@@ -13,7 +19,7 @@ function p(arg)
   
   dflt_fname_var = 'fname';
   fn_full = tvars.get(dflt_fname_var,'');
-  max_fnum = tvars.get('max_fnum', 0);
+  max_fnum = 0; % tvars.get('max_fnum', 0);
   if (iscell(fn_full))
     str = fn_full{1};
   else
@@ -56,9 +62,18 @@ function p(arg)
     if (mvars.get('tx_0',0))
       do_eye=1;
     end
-    hdr_pd_samps = mvars.get('hdr_pd_samps', 2464);
-    hdr_qty      = mvars.get('hdr_qty', 0);
-    hdr_len_bits = mvars.get('hdr_len_bits', 256);
+    hdr_pd_samps = mvars.get('probe_pd_samps', 0);
+    if (~hdr_pd_samps)
+      hdr_pd_samps = mvars.get('hdr_pd_samps', 2464);
+    end
+    hdr_qty = mvars.get('probe_qty', 0);
+    if (~hdr_qty)
+      hdr_qty      = mvars.get('hdr_qty', 0);
+    end
+    hdr_len_bits = mvars.get('probe_len_bits', 0);
+    if (~hdr_len_bits)
+      hdr_len_bits = mvars.get('hdr_len_bits', 256);
+    end
     osamp = mvars.get('osamp', 4);
     other_file = mvars.get('data_in_other_file',0);
     if (other_file==2)
@@ -156,7 +171,7 @@ function p(arg)
   filt_desc='none';
   fcut_Hz = fsamp_Hz*3/16;
   filt_len = 8;
-  if (tvars.ask_yn('filter ','use_filt'))
+  if (1) % tvars.ask_yn('filter ','use_filt'))
     filt_desc = sprintf('gauss fcut %.1fMHz  len %d', fcut_Hz/1e6, filt_len);
     ii = filt.gauss(ii, fsamp_Hz, fcut_Hz, filt_len);
     qq = filt.gauss(qq, fsamp_Hz, fcut_Hz, filt_len);
@@ -247,7 +262,7 @@ function p(arg)
 
   n=floor(l/h_l); % number of iterations captured
 
-  n = uio.ask('number of frames to process', n);
+  %  n = uio.ask('number of frames to process', n);
 
   l=n*h_l;
   %  y = reshape(y(1:(n*h_l)),h_l,[]);
@@ -278,10 +293,20 @@ function p(arg)
     m=max(max(abs(ii)),max(abs(qq)));
     fprintf('max abs %d, %d\n', max(abs(ii)), max(abs(qq)));
 
-    opt_show=0;
+    %    opt_show=1;
+    opt_skip=0;
+
+    if (opt_show)
+      opt_skip=tvars.ask('skip how many hdrs', 'opt_skip');
+      
+    end
 
     c_all  = zeros(h_l,1);
     n_all  = 0;
+
+    if (~use_lfsr)
+      hdr = pat_base(:);
+    end
     
     n_left = n;
     itr=1;
@@ -306,7 +331,12 @@ function p(arg)
       mx=0;
       for k=1:nn
         if (use_lfsr) % ever-changing header
-          hdr = lfsr.gen(hdr_len_bits);
+          if (opt_skip)
+            opt_skip=opt_skip-1;
+            hdr=zeros(hdr_len_bits, 1);
+          else
+            hdr = lfsr.gen(hdr_len_bits);
+          end
           hdr = repmat(hdr.',osamp,1);
           hdr = hdr(:)*2-1;
         end
@@ -349,7 +379,7 @@ function p(arg)
           end
           ncplot.txt(sprintf('frame %d', k));
    
-          ylim([-1.2 1.2]*mx);
+          % ylim([-1.2 1.2]*mx);
           xlabel('time (samples)');
           ylabel('amplitude (adc)');
           ncplot.title({fname_s; sprintf('frame %d', k)});
@@ -358,6 +388,11 @@ function p(arg)
           end
         end
       end % for k
+
+      ncplot.subplot(1,2);
+
+      plot_eye(si,ei,itr);
+      
       toc
       
       n_left = n_left - nn;
@@ -548,7 +583,7 @@ function p(arg)
     
     c = (mx - nf); 
     q= c/(f_std + sqrt(c));
-    ylim([0 1.2]*plot_corr_mx);
+    %    ylim([0 1.2]*plot_corr_mx);
     ncplot.txt(sprintf('method %d', method));
     ncplot.txt(sprintf('hdr_len %d bits', hdr_len_bits));
     ncplot.txt(sprintf('filter %s', filt_desc));

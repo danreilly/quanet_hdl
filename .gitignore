@@ -109,4 +109,5 @@ _build
 library/**/.lock
 library/**/interfaces/*.sv
 *~
-#*
+\#*
+*.bak

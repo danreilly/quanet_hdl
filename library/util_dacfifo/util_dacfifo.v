@@ -9,6 +9,8 @@ module util_dacfifo #(
   // NuCrypt additions
   input  [511:0] regs_w,
   output [511:0] regs_r,
+  output reg 			dac_xfer_out=0,
+  input       dac_tx_in,
    
   // DMA interface
   input 			dma_clk,
@@ -25,12 +27,11 @@ module util_dacfifo #(
   input 			dac_valid, // flow ctl from dac
   output reg [(DATA_WIDTH-1):0] dac_data,
   output 			dac_dunf, // always 0
-  output reg 			dac_xfer_out=0, // Dan added. Goes to ADC fifo to tell it to start
 
   input 			bypass // always 0
 );
 
-//  reg 				dac_xfer_out = 0;
+
    
    
 //   wire 			dac_dunf;
@@ -50,7 +51,7 @@ module util_dacfifo #(
 //  reg     [(ADDRESS_WIDTH-1):0]       dma_waddr_g = 'b0;
   reg [(ADDRESS_WIDTH-1):0] 	      dma_lastaddr = 'h0f;
 
-   reg 				      dax_xfer_out = 0;
+//   reg 				      dax_xfer_out = 0;
    
 
   reg                                 dma_xfer_req_d1 = 1'b0;
@@ -88,7 +89,7 @@ module util_dacfifo #(
 
 
 
-  wire regw_tx_req, regw_use_lfsr, regw_tx_always, dma_rst_int_s;
+  wire regw_tx_req, regw_use_lfsr, regw_tx_always, dma_rst_int_s, regw_tx_unsync;
   wire [G_HDR_LEN_W-1:0] regw_hdr_len_min1;
   wire [G_HDR_QTY_W-1:0] regw_hdr_qty_min1;
   wire [G_HDR_PD_W-1:0]  regw_hdr_pd_min1;
@@ -96,7 +97,7 @@ module util_dacfifo #(
   reg [G_HDR_QTY_W-1:0] hdr_qty_min1 = 0;
   reg [G_HDR_LEN_W-1:0] hdr_len_min1 = 0;
   reg [G_HDR_PD_W-1:0]  hdr_pd_min1 = 0;
-  reg tx_req, use_lfsr, tx_always, tx_0,
+  reg tx_req, use_lfsr, tx_always, tx_0, tx_unsync,
       tx_req_p, tx_req_d, tx_req_pulse = 0;
    
   wire gen_tx_req, gen_tx_always, dma_wren;
@@ -106,6 +107,8 @@ module util_dacfifo #(
 
   wire [(DATA_WIDTH-1):0] gen_dout, mem_dout;
   reg  [(DATA_WIDTH-1):0]          dac_data_p, mem_dout_d;
+  reg [31:0] 			   reg0;
+   
 
 
 //  wire    [(ADDRESS_WIDTH-1):0]       dma_waddr_b2g_s;
@@ -143,6 +146,7 @@ module util_dacfifo #(
   assign regw_hdr_qty_min1 = regs_w[G_HDR_QTY_W-1+32:32];
 
   // reg 2
+  assign regw_tx_unsync    = regs_w[31 + 64]; // default is to tx syncronously with adc dma
   assign regw_tx_req       = regs_w[30 + 64];
   assign regw_use_lfsr     = regs_w[29 + 64]; // header contains lfsr
   assign regw_tx_always    = regs_w[28 + 64];
@@ -275,16 +279,19 @@ module util_dacfifo #(
     use_lfsr     <= regw_use_lfsr;
     tx_always    <= regw_tx_always;
     tx_0         <= regw_tx_0;
+    tx_unsync    <= regw_tx_unsync;
     hdr_pd_min1  <= regw_hdr_pd_min1;     
     hdr_qty_min1 <= regw_hdr_qty_min1;
     hdr_len_min1 <= regw_hdr_len_min1;
     tx_req       <= regw_tx_req;
      
-    dac_lastaddr    <= dac_lastaddr_m0;
-     
-    tx_req_p <= tx_req   & !dac_rst_int_s;
+    dac_lastaddr <= dac_lastaddr_m0;
+
+   // dac_tx is a dac_clk domain signal from adc fifo that tells dac when to tx.     
+    tx_req_p <= (tx_unsync ? dac_xfer_req : dac_tx_in) & !dac_rst_int_s;
     tx_req_d <= tx_req_p & !dac_rst_int_s;
-    tx_req_pulse <= (tx_req_d & !tx_req_p) & !dac_rst_int_s;
+    // This pulse starts transmision:
+    tx_req_pulse <= (tx_req_p & !tx_req_d) & !dac_rst_int_s;
 
 
      
@@ -312,7 +319,7 @@ module util_dacfifo #(
      
     mem_dout_vld <= !dac_rst_int_s & mem_ren;
 
-    dac_xfer_out <= hdr_first | (dax_xfer_out & !hdr_tx);
+    dac_xfer_out <= hdr_first | (dac_xfer_out & !hdr_tx);
         
   end
 

@@ -42,7 +42,7 @@ module system_top (
 		   
   // for switches, buttons and leds (which are different from board to board)
   input [12:0] 	gpio_bd_i,
-  input [20:13] gpio_bd_o,
+  output [20:13] gpio_bd_o,
 
   input 	rx_ref_clk_p,
   input 	rx_ref_clk_n,
@@ -209,7 +209,7 @@ module system_top (
               clkd_status}));   // 32 and 33
 
   assign gpio_i[12:0]   = gpio_bd_i[12:0];
-  assign gpio_bd_0 = gpio_o[20:13];
+  assign gpio_bd_o = gpio_o[20:13];
    
 //  assign gpio_i[31:21] = gpio_o[31:21];
 //  assign gpio_i = gpio_bd_i;

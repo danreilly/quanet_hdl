@@ -161,6 +161,7 @@ classdef util
     end
 
     function str=substr_after(str, key)
+    % if substr not found, returns str
       idxs=strfind(str, key);
       if (~isempty(idxs))
         str=str((idxs(end)+length(key)):end);

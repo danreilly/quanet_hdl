@@ -6,6 +6,16 @@
 # FMC_HPC 0
 # daq3
 
+set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
+set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
+# Dan added to use the SFP transmitter, for ease of testing
+set_property PACKAGE_PIN Y4 [get_ports sfp0_tx_p]
+set_property PACKAGE_PIN Y3 [get_ports sfp0_tx_n]
+set_property PACKAGE_PIN AA2 [get_ports sfp0_rx_p]
+set_property PACKAGE_PIN AA1 [get_ports sfp0_rx_n]
+
+
+
 set_property  -dict {PACKAGE_PIN  E24   IOSTANDARD LVDS} [get_ports rx_sync_p]                                ; ## D08  FMC_HPC0_LA01_CC_P
 set_property  -dict {PACKAGE_PIN  D24   IOSTANDARD LVDS} [get_ports rx_sync_n]                                ; ## D09  FMC_HPC0_LA01_CC_N
 

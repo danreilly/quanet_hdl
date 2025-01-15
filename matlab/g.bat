@@ -24,9 +24,24 @@ set F=%DIR%
 scp -i "C:/reilly/proj/quanet/matlab/analog.txt.pub" -r analog@analog:/home/analog/ech/out %F%
 rem scp -i "analog.txt" -r analog@analog:/home/analog/ech/out %F%
 
-move %DIR%\out\r.txt %DIR%
-move %DIR%\out\d.raw %DIR%
-rename %DIR%\r.txt r_%CTR%.txt
-rename %DIR%\d.raw d_%CTR%.raw
+call :cp %DIR%\out\r.txt %DIR%\r_%CTR%.txt
+call :cp %DIR%\out\d.raw %DIR%\d_%CTR%.raw
+rem rename %DIR%\r.txt 
+rem rename %DIR%\d.raw 
 
 echo got %F%\d_%CTR%.raw and %F%\r_%CTR%.txt
+
+
+goto :eof
+
+
+
+
+:cp
+  echo :cp %1 %2
+  if not exist %1 (
+    echo ERR: copy from %1 does not exist!
+    pause
+    exit /b 99
+  )
+  echo F|xcopy /Y %1 %2

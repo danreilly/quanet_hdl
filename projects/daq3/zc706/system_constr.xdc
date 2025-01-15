@@ -3,6 +3,17 @@
 ### SPDX short identifier: ADIBSD
 ###############################################################################
 
+set_property PACKAGE_PIN AC8 [get_ports si5324_out_c_p]
+set_property PACKAGE_PIN AC7 [get_ports si5324_out_c_n]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets si5324_out_c]
+
+# Dan added to use the SFP transmitter, for ease of testing
+set_property PACKAGE_PIN W4 [get_ports sfp_tx_p]
+set_property PACKAGE_PIN W3 [get_ports sfp_tx_n]
+set_property PACKAGE_PIN Y6 [get_ports sfp_rx_p]
+set_property PACKAGE_PIN Y5 [get_ports sfp_rx_n]
+set_property  -dict {PACKAGE_PIN  AA18  IOSTANDARD LVCMOS25} [get_ports sfp_tx_dis]
+
 set_property  -dict {PACKAGE_PIN  AA8 } [get_ports rx_ref_clk_p]                                      ; ## B20  FMC_HPC_GBTCLK1_M2C_P
 set_property  -dict {PACKAGE_PIN  AA7 } [get_ports rx_ref_clk_n]                                      ; ## B21  FMC_HPC_GBTCLK1_M2C_N
 set_property  -dict {PACKAGE_PIN  AE8 } [get_ports rx_data_p[0]]                                      ; ## A10  FMC_HPC_DP3_M2C_P

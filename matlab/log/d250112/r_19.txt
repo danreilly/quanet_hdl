@@ -1,0 +1,15 @@
+sfp_attn_dB = 0;
+use_lfsr = 1;
+meas_noise = 1;
+noise_dith = 1;
+tx_always = 0;
+tx_0 = 1;
+hdr_qty = 50;
+hdr_pd_samps = 29600;
+hdr_len_bits = 128;
+data_hdr = 'i_adc q_adc';
+data_len_samps = 1480000;
+data_in_other_file = 2;
+num_itr = 1;
+time = 1736747919;
+itr_times = [ 0];

@@ -246,6 +246,7 @@ create_bd_port -dir O rxq_sw_ctl
 ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
+ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
 
 ad_connect  qregs/regs_w                 axi_ad9152_fifo/regs_w
 ad_connect  qregs/regs_w                 axi_ad9680_fifo/regs_w

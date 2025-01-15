@@ -11,6 +11,7 @@ module util_dacfifo #(
   output [511:0] regs_r,
   output reg 			dac_xfer_out=0,
   input       dac_tx_in,
+  output      dac_tx_out,
    
   // DMA interface
   input 			dma_clk,
@@ -89,7 +90,7 @@ module util_dacfifo #(
 
 
 
-  wire regw_tx_req, regw_use_lfsr, regw_tx_always, dma_rst_int_s, regw_tx_unsync;
+  wire regw_tx_0, regw_memtx_circ, regw_tx_req, regw_use_lfsr, regw_tx_always, dma_rst_int_s, regw_tx_unsync;
   wire [G_HDR_LEN_W-1:0] regw_hdr_len_min1;
   wire [G_HDR_QTY_W-1:0] regw_hdr_qty_min1;
   wire [G_HDR_PD_W-1:0]  regw_hdr_pd_min1;
@@ -97,7 +98,7 @@ module util_dacfifo #(
   reg [G_HDR_QTY_W-1:0] hdr_qty_min1 = 0;
   reg [G_HDR_LEN_W-1:0] hdr_len_min1 = 0;
   reg [G_HDR_PD_W-1:0]  hdr_pd_min1 = 0;
-  reg tx_req, use_lfsr, tx_always, tx_0, tx_unsync,
+  reg tx_req, use_lfsr, tx_always, tx_0, tx_unsync, memtx_circ,
       tx_req_p, tx_req_d, tx_req_pulse = 0;
    
   wire gen_tx_req, gen_tx_always, dma_wren;
@@ -151,6 +152,7 @@ module util_dacfifo #(
   assign regw_use_lfsr     = regs_w[29 + 64]; // header contains lfsr
   assign regw_tx_always    = regs_w[28 + 64];
   assign regw_tx_0         = regs_w[27 + 64]; // header contains zeros
+  assign regw_memtx_circ   = regs_w[26 + 64]; // circular xmit from mem
   assign regw_hdr_len_min1 = regs_w[17+64:12+64];
 
    
@@ -279,6 +281,7 @@ module util_dacfifo #(
     use_lfsr     <= regw_use_lfsr;
     tx_always    <= regw_tx_always;
     tx_0         <= regw_tx_0;
+    memtx_circ   <= regw_memtx_circ;
     tx_unsync    <= regw_tx_unsync;
     hdr_pd_min1  <= regw_hdr_pd_min1;     
     hdr_qty_min1 <= regw_hdr_qty_min1;
@@ -307,10 +310,12 @@ module util_dacfifo #(
     mem_ren <= (hdr_tx | mem_ren)
                & !((mem_ren_last_pulse | use_lfsr) | dac_rst_int_s);
 
-    if (mem_ren & dac_valid)
-      mem_raddr <= mem_raddr+1;
-    else
-      mem_raddr <= 0;
+    if (dac_valid) begin
+      if (!mem_ren | mem_raddr_last)
+        mem_raddr <= 0;
+      else
+        mem_raddr <= mem_raddr+1;
+    end
      
     if (dac_rst_int_s | !mem_ren)
       mem_raddr_last <= 0;
@@ -323,7 +328,9 @@ module util_dacfifo #(
         
   end
 
-  assign mem_ren_last_pulse = (dac_valid & mem_ren) & mem_raddr_last;
+  assign dac_tx_out = dac_xfer_out;
+   
+  assign mem_ren_last_pulse = !memtx_circ & (dac_valid & mem_ren) & mem_raddr_last;
 
 
   // memory instantiation

@@ -58,8 +58,9 @@ function p(arg)
   if (1)
     mvars = nc.vars_class(fname);
     use_lfsr = mvars.get('use_lfsr',1);
-    num_itr = mvars.get('num_itr',1);
-    if (mvars.get('tx_0',0))
+    num_itr  = mvars.get('num_itr',1);
+    tx_0 = mvars.get('tx_0',0);
+    if (tx_0)
       do_eye=1;
     end
     hdr_pd_samps = mvars.get('probe_pd_samps', 0);
@@ -70,11 +71,13 @@ function p(arg)
     if (~hdr_qty)
       hdr_qty      = mvars.get('hdr_qty', 0);
     end
+    
     hdr_len_bits = mvars.get('probe_len_bits', 0);
     if (~hdr_len_bits)
       hdr_len_bits = mvars.get('hdr_len_bits', 256);
     end
     osamp = mvars.get('osamp', 4);
+
     other_file = mvars.get('data_in_other_file',0);
     if (other_file==2)
       s = fileutils.nopath(fname);
@@ -90,7 +93,8 @@ function p(arg)
       fclose(fid);
       % class(m) is double
       m = reshape(m, 2,cnt/2).';
-      
+        % 'DBG here'
+        % m = reshape(m,cnt/2,2);      
     elseif (other_file==1)
       s = fileutils.nopath(fname);
       s(1)='d';
@@ -100,6 +104,7 @@ function p(arg)
       [m cnt] = fscanf(fid, '%g');
       fclose(fid);
       m = reshape(m, 2,cnt/2).';
+
     else
       m = mvars.get('data');
     end
@@ -119,6 +124,7 @@ function p(arg)
   
 
   lfsr = lfsr_class(hex2dec('a01'), hex2dec('50f'));
+  lfsr_idx = 0;
 
   ncplot.init();
   [co,ch,coq]=ncplot.colors();
@@ -128,6 +134,8 @@ function p(arg)
 
 
   ii = m(:,1);
+
+
   qq = m(:,2);
   l = length(ii);
   fprintf('l %d\n', l);
@@ -143,7 +151,7 @@ function p(arg)
                       1,0,1,0,1,1,0,0,1,0,1,0,0,1,0,1, ...
                       1,0,1,0,1,1,0,0,1,0,1,0,0,1,0,1, ...
          0,1,0,1,0,0,1,1,0,1,0,1,1,0,1,0];
-  osamp = 4; % oversampling factor
+
   pat = repmat(pat_base,osamp,1);
   pat = reshape(pat,[],1);
   pat_l=length(pat);
@@ -167,19 +175,18 @@ function p(arg)
 
   ncplot.subplot(1,2);
 
-
+  
   filt_desc='none';
   fcut_Hz = fsamp_Hz*3/16;
   filt_len = 8;
-  if (1) % tvars.ask_yn('filter ','use_filt'))
-    filt_desc = sprintf('gauss fcut %.1fMHz  len %d', fcut_Hz/1e6, filt_len);
-    ii = filt.gauss(ii, fsamp_Hz, fcut_Hz, filt_len);
-    qq = filt.gauss(qq, fsamp_Hz, fcut_Hz, filt_len);
-  end
-
+  use_filt = 1;
+  use_filt = tvars.ask_yn('filter ', 'use_filt', use_filt);
   
+  do_eye=1;
+
   if (do_eye)
 
+    if (0)
     % IQ SCATTERPLOT
     ncplot.subplot();
     m=max(max(abs(ii)),max(abs(qq)));
@@ -206,46 +213,60 @@ function p(arg)
     ncplot.txt(sprintf('num samples %d', l));
     ncplot.txt(sprintf('noise %.1f ADCrms', n_rms));
     fprintf('noise %.1f ADCrms\n', n_rms);
-
+    end
 
     if (0)
-    uio.pause();
-    
-    ncplot.subplot(2,1);
+      ncplot.subplot(2,1);
+      ncplot.subplot();
 
-    ncplot.subplot();
-    plot(1:l,ii,'.','Color',coq(1,:));
-    plot(1:l,qq,'.','Color',coq(2,:));
-    xlabel('index');
-    y_mx = max(abs(ii));
-    ncplot.title('time series I & Q');
-    
-    gi = 3700; % guess
-    ncplot.subplot();
-    ncplot.title('autocorrelation');
-    c = corr2(ii(1:gi),ii((gi+1):l));
-    c_l=length(c);
-    plot(1:c_l, ii(gi+1:l), '.', 'Color',coq(1,:));
-    %    xlabel('index');
-    c = c * y_mx / max(c);
-    plot(1:c_l, c, '-','Color','red');
-    uio.pause();
-
-    pks = (c>y_mx*.9);
-    for k=length(pks):-1:2
-      if (pks(k-1)&&pks(k))
-	pks(k)=0;
+      if (0)
+          t_ms = 1e3*(0:(l-1)).'/fsamp_Hz;
+          plot(t_ms,ii,'.','Color',coq(1,:));
+          plot(t_ms,qq,'.','Color',coq(2,:));
+          xlabel('time (us)');
+          y_mx = max(abs(ii));
+          ncplot.title('time series I & Q');
+          ncplot.subplot();
       end
-    end
-    idxs = find(pks);
 
-    ncplot.subplot();
-    d=diff(idxs);
-    plot(d,'.');
-    ylabel('difference (idx)');
-    xlabel('match');
-    
-    return;
+      noise=zeros(num_itr,1);
+      l = hdr_qty * hdr_pd_samps;
+      for k=1:(n-1)
+        rng = (k-1)*l + (1:l);
+        noise(k)=sqrt(mean(ii(rng).^2+qq(rng).^2));
+      end
+      itr_times_s = mvars.get('itr_times');
+      plot(itr_times_s, noise,'.');
+      xlabel('time (s)');
+      ylabel('noise (ADCrms)');
+      return;
+      
+      gi = 3700; % guess
+      ncplot.subplot();
+      ncplot.title('autocorrelation');
+      c = corr2(ii(1:gi),ii((gi+1):l));
+      c_l=length(c);
+      plot(1:c_l, ii(gi+1:l), '.', 'Color',coq(1,:));
+      %    xlabel('index');
+      c = c * y_mx / max(c);
+      plot(1:c_l, c, '-','Color','red');
+      uio.pause();
+
+      pks = (c>y_mx*.9);
+      for k=length(pks):-1:2
+          if (pks(k-1)&&pks(k))
+	      pks(k)=0;
+          end
+      end
+      idxs = find(pks);
+
+      ncplot.subplot();
+      d=diff(idxs);
+      plot(d,'.');
+      ylabel('difference (idx)');
+      xlabel('match');
+      
+      return;
     end
   end
 
@@ -257,10 +278,9 @@ function p(arg)
   %  h_l=1240;
   h_l= hdr_pd_samps;
 
-
   %  l=floor(l/2);
 
-  n=floor(l/h_l); % number of iterations captured
+  n=floor(l/h_l); % number of frames captured per session
 
   %  n = uio.ask('number of frames to process', n);
 
@@ -279,26 +299,24 @@ function p(arg)
   % CORRELATION WITH HEADER
   %  mean_before_norm = tvars.ask_yn('correlation vector mean taken before magnitude (const ph)', 'mean_before_norm', 1);
   mean_before_norm = 0;
-  
   if (mean_before_norm)
       method=2;
   else
       method=3;
   end
-  if (1)
+
     opt2=0;
       
     tvars.save();
       
     m=max(max(abs(ii)),max(abs(qq)));
-    fprintf('max abs %d, %d\n', max(abs(ii)), max(abs(qq)));
+    %   fprintf('max abs %d, %d\n', max(abs(ii)), max(abs(qq)));
 
-    %    opt_show=1;
+    %   opt_show=1;
     opt_skip=0;
 
     if (opt_show)
       opt_skip=tvars.ask('skip how many hdrs', 'opt_skip');
-      
     end
 
     c_all  = zeros(h_l,1);
@@ -307,14 +325,20 @@ function p(arg)
     if (~use_lfsr)
       hdr = pat_base(:);
     end
+
+
+  choice = 'e';
+  search_mode=0;
     
     n_left = n;
     itr=1;
     while ((n_left>0)&&(itr<=num_itr))
+      ncplot.subplot(1,2);
       opt_show_all=opt_show;
 
-
       lfsr.reset();
+      lfsr_idx = 0;
+
       ci_sum = zeros(h_l,1);
       cq_sum = zeros(h_l,1);
       c      = zeros(h_l,1);
@@ -325,73 +349,99 @@ function p(arg)
       si = 1               + (itr-1)*hdr_qty*hdr_pd_samps;
       ei = nn*hdr_pd_samps + (itr-1)*hdr_qty*hdr_pd_samps;
 
-      plot_eye(si,ei,itr);
+      ncplot.subplot(1,2);
+      
+      plot_eye(si,ei,itr,[]);
+      
+      if (use_filt)
+        filt_desc = sprintf('gauss fcut %.1fMHz  len %d', fcut_Hz/1e6, filt_len);
+        ii(si:ei) = filt.gauss(ii(si:ei), fsamp_Hz, fcut_Hz, filt_len);
+        qq(si:ei) = filt.gauss(qq(si:ei), fsamp_Hz, fcut_Hz, filt_len);
+      end
 
-      tic
+      tic;
       mx=0;
-      for k=1:nn
-        if (use_lfsr) % ever-changing header
+      for k=1:nn % for each probe
+        search_cmax=0;
+        while(1)
+        if (use_lfsr) % ever-changing probe
           if (opt_skip)
             opt_skip=opt_skip-1;
-            hdr=zeros(hdr_len_bits, 1);
+            hdr = zeros(hdr_len_bits, 1);
           else
             hdr = lfsr.gen(hdr_len_bits);
+            lfsr_idx = lfsr_idx + 1;
           end
           hdr = repmat(hdr.',osamp,1);
           hdr = hdr(:)*2-1;
         end
 
-        % fprintf('   ping %d\n', k);
         off=(k-1)*hdr_pd_samps + (itr-1)*hdr_qty*hdr_pd_samps;
         
         rng = (1:hdr_pd_samps)+off;
         if (opt2)
            mm=sqrt(ii(rng).^2+qq(rng).^2);
-           c = corr_circ(hdr, mm);
+           c2 = corr_circ(hdr, mm, 0);
         else
-            ci = corr_circ(hdr, ii(rng));
-            cq = corr_circ(hdr, qq(rng));
-            if (mean_before_norm)
-              ci_sum = ci_sum + ci/nn;
-              cq_sum = cq_sum + cq/nn;
-            else
-              c2 = sqrt(ci.^2 + cq.^2)/hdr_len_bits;
-              c = c + c2;
-            end
+           ci = corr_circ(hdr, ii(rng));
+           cq = corr_circ(hdr, qq(rng));
+           if (mean_before_norm)
+             ci_sum = ci_sum + ci/nn;
+             cq_sum = cq_sum + cq/nn;
+           else
+             if (k==1)
+               ci(1:20).'
+             end
+             c2 = sqrt(ci.^2 + cq.^2)/hdr_len_bits;
+               
+           end
         end
-        if (opt_show_all)
-            %an            if (mean_before_norm)
-            %                c = sqrt(ci.^2+cq.^2)/hdr_len_bits;                            
-            %            end
-          % DRAW ONLY ONE FRAME
+        if (~opt_show_all)
+            break;
+        else
 
-          ncplot.subplot(1,1);
-          ncplot.subplot();
-          plot(1:hdr_pd_samps, ii(rng), '.-', 'Color',coq(1,:));
-          plot(1:hdr_pd_samps, qq(rng), '.-', 'Color',coq(2,:));
-          if (mean_before_norm)                       
-            plot(1:hdr_pd_samps, ci, '-', 'Color', co(1,:));
-            plot(1:hdr_pd_samps, cq, '-', 'Color', co(2,:));
-            mx = max(mx, max(abs([ci; cq])));
-          else
-            plot(1:hdr_pd_samps, c2, '-', 'Color','red');
-            mx = max(mx, max(abs(c2)));
-          end
-          ncplot.txt(sprintf('frame %d', k));
-   
-          % ylim([-1.2 1.2]*mx);
-          xlabel('time (samples)');
-          ylabel('amplitude (adc)');
-          ncplot.title({fname_s; sprintf('frame %d', k)});
-          if uio.ask_yn('goto end', 0);
-          opt_show_all=0;
-          end
-        end
+          if (~search_mode || (max(c2) > search_cmax))
+                search_cmax = max(c2);
+                % DRAW ONLY ONE FRAME
+                ncplot.subplot(1,1);
+                ncplot.subplot();
+                plot(1:hdr_pd_samps, ii(rng), '.-', 'Color',coq(1,:));
+                plot(1:hdr_pd_samps, qq(rng), '.-', 'Color',coq(2,:));
+                if (mean_before_norm)                       
+                    plot(1:hdr_pd_samps, ci, '-', 'Color', co(1,:));
+                    plot(1:hdr_pd_samps, cq, '-', 'Color', co(2,:));
+                    mx = max(mx, max(abs([ci; cq])));
+                else
+                    plot(1:hdr_pd_samps, c2, '-', 'Color','red');
+                    mx = max(mx, max(abs(c2)));
+                end
+                ncplot.txt(sprintf('frame %d', k));
+                
+                % ylim([-1.2 1.2]*mx);
+                xlabel('time (samples)');
+                ylabel('amplitude (adc)');
+                ncplot.title({fname_s; sprintf('frame %d', k)});
+
+                choice = uio.ask_choice('(n)ext, goto (e)nd, (s)earch or (r)edo', 'nesr', choice);
+                if (choice=='e')
+                    opt_show_all=0;
+                    break;
+                elseif (choice=='n')
+                    break;
+                elseif (choice=='s')
+                    search_mode=1;
+                end
+            end
+          end % if not show all
+        end % search loop
+        
+        c = c + c2;
+        
       end % for k
 
-      ncplot.subplot(1,2);
 
-      plot_eye(si,ei,itr);
+
+      %      plot_eye(si,ei,itr);
       
       toc
       
@@ -425,28 +475,30 @@ function p(arg)
       [mx mi]=max(c_all/n_all);
       fprintf('peak %d  at idx %d\n', round(mx),  mi);
 
+      drawnow();
       if (num_itr>1)
-        uio.pause();
+          % uio.pause();
       end
       itr=itr+1;
     end % itrs
 
     if (num_itr>1)
       c=c_all/n_all;
-      plot_corr(1,ei,c);
+      plot_corr(1,1,c);
+      %      plot(t_us, c, '-', 'Color','blue');
+      ncplot.title(sprintf('%s:  %d pings', fname_s, n));
+      ylim([-1 1]*max(c)*1.5);
     end
     
-    return;
-
-   end
+  return;
    
   if (0)
       % CORRELATION OF MEAN OF PINGS
       % wont work if hdr always changes
    ii=mean(reshape(ii,h_l,[]).').';
    qq=mean(reshape(qq,h_l,[]).').';
-   ci = corr_circ(pat, ii);
-   cq = corr_circ(pat, qq);
+   ci = corr_circ(pat, ii, 0);
+   cq = corr_circ(pat, qq, 0);
    c_l=length(ci);
    m=max(max(abs(ci)),max(abs(cq)));                
    ci = ci * iq_mx / m;
@@ -530,7 +582,7 @@ function p(arg)
   title(tit);
 
   % NESTED
-  function plot_eye(si, ei, itr)
+  function plot_eye(si, ei, itr, filt_desc)
     import nc.*
     ncplot.subplot();
     plot(ii(si:ei),qq(si:ei),'.','Color',coq(1,:));
@@ -538,8 +590,17 @@ function p(arg)
     xlim([-1 1]*2^13);
     ylim([-1 1]*2^13);
     set(gca(),'PlotBoxAspectRatio', [1 1 1]);
+    
+  %   round( ii(si:(si+20)).^2 + qq(si:(si+20)).^2)
+    mean(round( ii(si:(si+20)).^2 + qq(si:(si+20)).^2))
     n_rms = sqrt(mean(ii(si:ei).^2 + qq(si:ei).^2));
-    ncplot.txt(sprintf('filter %s', filt_desc));    
+
+    if (~isempty(filt_desc))
+      ncplot.txt(sprintf('filter %s', filt_desc));
+    else
+      ncplot.txt('NO FILTER');
+    end
+        
     ncplot.txt(sprintf('num samples %d', ei-si+1));
     ncplot.txt(sprintf('noise %.1f ADCrms', n_rms));
     fprintf('itr %d   noise %.1f ADCrms\n', itr, n_rms);
@@ -549,10 +610,22 @@ function p(arg)
   function plot_corr(si, ei, c)
     import nc.*
     ncplot.subplot();
-    nn = (ei-si+1)/hdr_pd_samps;
+nn=n;
+    if (ei>si)
+        nn = (ei-si+1)/hdr_pd_samps;
+        if (1)
+            if (1)
+                plot(repmat(t_us,1,nn), ii(si:ei), '.', 'Color',coq(1,:));
+                plot(repmat(t_us,1,nn), qq(si:ei), '.', 'Color',coq(2,:));
+            else
 
-    plot(repmat(t_us,1,nn), ii(si:ei), '.', 'Color',coq(1,:));
-    plot(repmat(t_us,1,nn), qq(si:ei), '.', 'Color',coq(2,:));
+                plot(t_us, max(reshape(ii(si:ei),hdr_pd_samps,[]).'),'-', 'Color',coq(1,:));
+                plot(t_us, min(reshape(ii(si:ei),hdr_pd_samps,[]).'),'-', 'Color',coq(1,:));
+                plot(t_us, max(reshape(qq(si:ei),hdr_pd_samps,[]).'),'-', 'Color',coq(2,:));
+                plot(t_us, min(reshape(qq(si:ei),hdr_pd_samps,[]).'),'-', 'Color',coq(2,:));
+            end
+        end
+    end
     plot(t_us, c, '-','Color','blue');
     xlim([min(t_us) max(t_us)]);
     xlabel('time (us)');
@@ -561,9 +634,9 @@ function p(arg)
     [mx mi]=max(c);
     mx=round(mx);
     plot_corr_mx=max(plot_corr_mx,mx);
-    dd=(hdr_len_bits+2)*osamp;
-    is = mi-dd;
-    ie = mi+dd;
+    dd=round((hdr_len_bits+2)*osamp/2);
+    is = max(mi-dd, 1);
+    ie = min(mi+dd, hdr_pd_samps);
     %    line([1 1]*t_us(is),[-1 1]*100,'Color','green');
     %    line([1 1]*t_us(ie),[-1 1]*100,'Color','green');
     c((is+1):(ie-1))=0;
@@ -584,16 +657,20 @@ function p(arg)
     c = (mx - nf); 
     q= c/(f_std + sqrt(c));
     %    ylim([0 1.2]*plot_corr_mx);
-    ncplot.txt(sprintf('method %d', method));
-    ncplot.txt(sprintf('hdr_len %d bits', hdr_len_bits));
-    ncplot.txt(sprintf('filter %s', filt_desc));
+    %    ncplot.txt(sprintf('method %d', method));
+    %    ncplot.txt(sprintf('hdr_len %d bits', hdr_len_bits));
+    %    ncplot.txt(sprintf('filter %s', filt_desc));
 
     
-    ncplot.txt(sprintf('  max-nf %d at %.3fus (idx %d)', round(mx-nf), t_us(mi), mi));
-    ncplot.txt(sprintf('  max-nf %d at %.3fus (idx %d)', round(mx2-nf), t_us(mi2), mi2));
+    ncplot.txt(sprintf('  max-nf %.1f at %.3fus (idx %d)', mx-nf, t_us(mi), mi));
 
+    k = mx2-nf;
+    if (k>0)
+      ncplot.txt(sprintf('  max-nf %.1f at %.3fus (idx %d)', k, t_us(mi2), mi2));
+    end
+    
     %    fprintf('max %d at idx %d\n', mx, mi);
-    ncplot.txt(sprintf('floor mean %.1f   std %.1f', nf, f_std));
+    ncplot.txt(sprintf('floor mean %.1f   std %.2f', nf, f_std));
     ncplot.txt(sprintf('  snr %.1f dB', 10*log10(mx/nf)));
     ncplot.txt(sprintf('    Q %.1f', q));
   end

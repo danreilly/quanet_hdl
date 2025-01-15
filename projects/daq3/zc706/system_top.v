@@ -1,43 +1,17 @@
-// ***************************************************************************
-// ***************************************************************************
-// Copyright (C) 2014-2023 Analog Devices, Inc. All rights reserved.
-//
-// In this HDL repository, there are many different and unique modules, consisting
-// of various HDL (Verilog or VHDL) components. The individual modules are
-// developed independently, and may be accompanied by separate and unique license
-// terms.
-//
-// The user should read each of these license terms, and understand the
-// freedoms and responsibilities that he or she has by using this source/core.
-//
-// This core is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-// A PARTICULAR PURPOSE.
-//
-// Redistribution and use of source or resulting binaries, with or without modification
-// of this file, are permitted under one of the following two license terms:
-//
-//   1. The GNU General Public License version 2 as published by the
-//      Free Software Foundation, which can be found in the top level directory
-//      of this repository (LICENSE_GPL2), and also online at:
-//      <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
-//
-// OR
-//
-//   2. An ADI specific BSD license, which can be found in the top level directory
-//      of this repository (LICENSE_ADIBSD), and also on-line at:
-//      https://github.com/analogdevicesinc/hdl/blob/main/LICENSE_ADIBSD
-//      This will allow to generate bit files and not release the source code,
-//      as long as it attaches to an ADI device.
-//
-// ***************************************************************************
-// ***************************************************************************
 
 `timescale 1ns/100ps
 
 module system_top (
-  output  j67,
-  output  j68,
+  output 	j67,
+  output 	j68,
+
+  output 	sfp_tx_p,
+  output 	sfp_tx_n,
+  input 	sfp_rx_p,
+  input 	sfp_rx_n,
+  output        sfp_tx_dis,		   
+  input 	si5324_out_c_p,
+  input 	si5324_out_c_n,
 		   
   inout [14:0] 	ddr_addr,
   inout [ 2:0] 	ddr_ba,
@@ -159,7 +133,9 @@ module system_top (
   wire            tx_sync;
   wire 	  led1;
 //  wire [3:0] leds;
-   wire      scopetrig;
+   wire   scopetrig;
+   wire   si5324_out_c;
+
  
 
   // spi
@@ -251,9 +227,29 @@ module system_top (
     .dio_i (gpio_o[14:0]),
     .dio_o (gpio_i[14:0]),
     .dio_p (gpio_bd[14:0]));
+
+  // in quad 110
+  IBUFDS_GTE2 gtrefclk_ibuf (
+      .CEB(0),
+      .I(si5324_out_c_p),
+      .IB(si5324_out_c_n),
+      .O(si5324_out_c));
+   
+  // in quad 111   
+  gtx_driver i_gtxdrv (
+    .tx_p(sfp_tx_p),
+    .tx_n(sfp_tx_n),
+    .rx_p(sfp_rx_p),
+    .rx_n(sfp_rx_n),
+    .gtrefclk(si5324_out_c));
    
 
+	     
+   
+
+   
 // assign gpio_bd[10:7] = leds;
+   assign sfp_tx_dis = 0;
    
    
 
@@ -362,4 +358,5 @@ module system_top (
     .tx_sync_0 (tx_sync),
     .tx_sysref_0 (tx_sysref));
 
+   
 endmodule

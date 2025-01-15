@@ -31,8 +31,15 @@ adi_project daq3_zc706 0 [list \
 
 adi_project_files daq3_zc706 [list \
   "../common/daq3_spi.v" \
+  "../zc706/happycamper/gtx_driver.vhd" \
+  "../zc706/happycamper/my_gtx_common.vhd" \
+  "../zc706/happycamper/my_gtx_common_reset.vhd" \
+  "../zc706/happycamper/my_gtx_wrap.vhd" \
+  "../../../library/common/util_pkg.vhd" \
+  "../../../library/common/lfsr_w.vhd" \
+  "ip/my_gtx/my_gtx.xci" \
   "system_top.v" \
-  "system_constr.xdc"\
+  "system_constr.xdc" \
   "$ad_hdl_dir/library/common/ad_iobuf.v" \
   "$ad_hdl_dir/projects/common/zc706/zc706_plddr3_constr.xdc" \
   "$ad_hdl_dir/projects/common/zc706/zc706_system_constr.xdc" ]

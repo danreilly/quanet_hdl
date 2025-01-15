@@ -2,9 +2,17 @@
 `timescale 1ns/100ps
 
 module system_top (
-  output 	j3_6, // trigger to scope
-  output 	j3_8, // fast switch ctl
-  output 	j3_24, // debug
+  output 	 j3_6, // trigger to scope
+  output 	 j3_8, // fast switch ctl
+  output 	 j3_24, // debug
+		   
+  output 	 sfp0_tx_p,
+  output 	 sfp0_tx_n,
+  input 	 sfp0_rx_p,
+  input 	 sfp0_rx_n,
+  output 	 sfp0_tx_dis, 
+  input 	 si5328_out_c_p,
+  input 	 si5328_out_c_n,
 
 //  inout [14:0] 	ddr_addr,
 //  inout [ 2:0] 	ddr_ba,
@@ -22,72 +30,72 @@ module system_top (
 //  inout 	ddr_reset_n,
 //  inout 	ddr_we_n,
 
-  output 	c0_ddr4_act_n,
-  output [16:0] c0_ddr4_adr,
-  output [ 1:0] c0_ddr4_ba,
-  output 	c0_ddr4_bg,
-  output 	c0_ddr4_ck_c,
-  output 	c0_ddr4_ck_t,
-  output 	c0_ddr4_cke,
-  output 	c0_ddr4_cs_n,
-  inout [ 7:0] 	c0_ddr4_dm_dbi_n,
-  inout [63:0] 	c0_ddr4_dq,
-  inout [ 7:0] 	c0_ddr4_dqs_c,
-  inout [ 7:0] 	c0_ddr4_dqs_t,
-  output 	c0_ddr4_odt,
-  output 	c0_ddr4_reset_n,
+  output 	 c0_ddr4_act_n,
+  output [16:0]  c0_ddr4_adr,
+  output [ 1:0]  c0_ddr4_ba,
+  output 	 c0_ddr4_bg,
+  output 	 c0_ddr4_ck_c,
+  output 	 c0_ddr4_ck_t,
+  output 	 c0_ddr4_cke,
+  output 	 c0_ddr4_cs_n,
+  inout [ 7:0] 	 c0_ddr4_dm_dbi_n,
+  inout [63:0] 	 c0_ddr4_dq,
+  inout [ 7:0] 	 c0_ddr4_dqs_c,
+  inout [ 7:0] 	 c0_ddr4_dqs_t,
+  output 	 c0_ddr4_odt,
+  output 	 c0_ddr4_reset_n,
 
 //  inout iic_main_scl,
 //  inout iic_main_sda,
 		   
   // for switches, buttons and leds (which are different from board to board)
-  input [12:0] 	gpio_bd_i,
+  input [12:0] 	 gpio_bd_i,
   output [20:13] gpio_bd_o,
 
-  input 	rx_ref_clk_p,
-  input 	rx_ref_clk_n,
-  input 	rx_sysref_p,
-  input 	rx_sysref_n,
-  output 	rx_sync_p,
-  output 	rx_sync_n,
-  input [ 3:0] 	rx_data_p,
-  input [ 3:0] 	rx_data_n,
+  input 	 rx_ref_clk_p,
+  input 	 rx_ref_clk_n,
+  input 	 rx_sysref_p,
+  input 	 rx_sysref_n,
+  output 	 rx_sync_p,
+  output 	 rx_sync_n,
+  input [ 3:0] 	 rx_data_p,
+  input [ 3:0] 	 rx_data_n,
 
-  input 	tx_ref_clk_p,
-  input 	tx_ref_clk_n,
-  input 	tx_sysref_p,
-  input 	tx_sysref_n,
-  input 	tx_sync_p,
-  input 	tx_sync_n,
-  output [ 3:0] tx_data_p,
-  output [ 3:0] tx_data_n,
+  input 	 tx_ref_clk_p,
+  input 	 tx_ref_clk_n,
+  input 	 tx_sysref_p,
+  input 	 tx_sysref_n,
+  input 	 tx_sync_p,
+  input 	 tx_sync_n,
+  output [ 3:0]  tx_data_p,
+  output [ 3:0]  tx_data_n,
 
-  input 	trig_p,
-  input 	trig_n,
+  input 	 trig_p,
+  input 	 trig_n,
 
 
   // These control lines go out through FMC
   // to the chips on the DAQ3 board:
-  inout 	adc_pd,
-  inout 	dac_txen,
-  inout 	adc_fdb,
-  inout 	adc_fda,
-  inout 	dac_irq,
-  inout [ 1:0] 	clkd_status,
+  inout 	 adc_pd,
+  inout 	 dac_txen,
+  inout 	 adc_fdb,
+  inout 	 adc_fda,
+  inout 	 dac_irq,
+  inout [ 1:0] 	 clkd_status,
 
 // Not using:		   
 //  output 	sysref_p,
 //  output 	sysref_n,
 		   
-  output 	spi_csn_clk,
-  output 	spi_csn_dac,
-  output 	spi_csn_adc,
-  output 	spi_clk,
-  inout 	spi_sdio,
-  output 	spi_dir,
+  output 	 spi_csn_clk,
+  output 	 spi_csn_dac,
+  output 	 spi_csn_adc,
+  output 	 spi_clk,
+  inout 	 spi_sdio,
+  output 	 spi_dir,
 
-  input 	sys_clk_p,
-  input 	sys_clk_n
+  input 	 sys_clk_p,
+  input 	 sys_clk_n
 		   
 );
 
@@ -110,7 +118,7 @@ module system_top (
   wire                    tx_sysref;
   wire                    tx_sync;
 
-
+  wire   si5328_out_c;
   wire 	  dbg_clk;
    
   // spi
@@ -225,6 +233,20 @@ module system_top (
   // need to do it explicitly in this file.
   // Both of them connect to IIC muxes to control various board-specific stuff.
 
+  // This emits an LFSR pattern out SFP0.
+  // Could be used for testing the system without the classical NIC.
+  // in bank 225
+  IBUFDS_GTE2 gtrefclk_ibuf (
+      .CEB(0),
+      .I(si5328_out_c_p),
+      .IB(si5328_out_c_n),
+      .O(si5328_out_c));
+  gth_driver i_gthdrv (
+    .tx_p(sfp0_tx_p),
+    .tx_n(sfp0_tx_n),
+    .rx_p(sfp0_rx_p),
+    .rx_n(sfp0_rx_n),
+    .gtrefclk(si5328_out_c));
    
 
 

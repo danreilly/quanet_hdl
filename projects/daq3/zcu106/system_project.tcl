@@ -29,10 +29,15 @@ adi_project daq3_zcu106 0 [list \
   TX_JESD_S    [get_env_param TX_JESD_S    1 ] \
 ]
 
+# Dam added this gtx xci to try to get SFP working at NASA
 adi_project_files daq3_zcu106 [list \
   "../common/daq3_spi.v" \
   "system_top.v" \
-  "system_constr.xdc"\
+  "happycamper/gth_driver.vhd" \
+  "happycamper/my_gtx_common.vhd" \
+  "happycamper/my_gtx_common_reset.vhd" \
+  "happycamper/my_gtx_wrap.vhd" \
+   "system_constr.xdc"\
   "$ad_hdl_dir/library/common/ad_iobuf.v" \
   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
 

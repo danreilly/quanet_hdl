@@ -34,7 +34,8 @@ classical NICs.  By adding an SFP driver to the zcu106 design, we can bypass
 that sort of trouble, to allow system testing even if we don't have a classical
 NIC.  It's a very "dumb" interface, so it ought to always work.
 The iBERT core also allows Xilinx software to construct an eye diagram:
-![10Gbps eye](quanet_hdl/assets/sfp_data_eye.jpg)
+
+![10Gbps eye](assets/sfp_data_eye.jpg "10G data eye")
 
 # summary of changes made to HDL
 

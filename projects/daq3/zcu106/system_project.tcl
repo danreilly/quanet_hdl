@@ -29,17 +29,22 @@ adi_project daq3_zcu106 0 [list \
   TX_JESD_S    [get_env_param TX_JESD_S    1 ] \
 ]
 
-# Dam added this gtx xci to try to get SFP working at NASA
+# Dam added my_gth.xci
 adi_project_files daq3_zcu106 [list \
   "../common/daq3_spi.v" \
   "system_top.v" \
+  "../../../library/quanet/util_pkg.vhd" \
+  "../../../library/quanet/lfsr_w.vhd" \
   "happycamper/gth_driver.vhd" \
-  "happycamper/my_gtx_common.vhd" \
-  "happycamper/my_gtx_common_reset.vhd" \
-  "happycamper/my_gtx_wrap.vhd" \
-   "system_constr.xdc"\
+  "happycamper/my_gth_wrap.vhd" \
   "$ad_hdl_dir/library/common/ad_iobuf.v" \
+  "ip/my_gth/my_gth.xci" \
+  "ip/in_system_ibert_0/in_system_ibert_0.xci" \
+  "system_constr.xdc" \
   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
+
+
+
 
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,
 # which only defines loc and iostds for sys_clk and sys_rst.  But

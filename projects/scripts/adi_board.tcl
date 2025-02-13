@@ -357,6 +357,9 @@ proc ad_xcvrcon {u_xcvr a_xcvr a_jesd {lane_map {}} {link_clk {}} {device_clk {}
   }
   set link_mode $link_mode_u
 
+  # DAN
+  puts "link mode $link_mode"
+  
   set jesd204_bd_type [get_property TYPE [get_bd_cells $a_jesd]]
 
   if {$jesd204_bd_type == "hier"} {

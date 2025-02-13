@@ -94,6 +94,7 @@ _vmake
 *.xpe
 *.gen*
 *.xsa
+*.dmp
 *.workspace
 *.pdi
 library/**/bd/bd.tcl

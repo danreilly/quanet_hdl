@@ -49,13 +49,34 @@ module axi_adcfifo #(
    
   // NuCrypt additions
   output reg 			  rxq_sw_ctl,
-  input [511:0] 		  regs_w,
-  input 			  reg_clk,
   input 			  dac_clk,
-  output                          dac_tx,
-  input                           dac_tx_in,
-  output reg [31:0] 		  reg_adc_stat, // in reg_clk domain
-  output [31:0] 		  reg_adc_samp,
+  output 			  dac_tx,
+  input 			  dac_tx_in,
+
+  // NuCrypt added this slave axi iface for regs.
+  // Slave AXI interface
+  input 			  s_axi_aclk,
+  input 			  s_axi_aresetn,
+  input 			  s_axi_awvalid,
+  input [10:0] 			  s_axi_awaddr,
+  output 			  s_axi_awready,
+  input [2:0] 			  s_axi_awprot,
+  input 			  s_axi_wvalid,
+  input [31:0] 			  s_axi_wdata,
+  input [ 3:0] 			  s_axi_wstrb,
+  output 			  s_axi_wready,
+  output 			  s_axi_bvalid,
+  output [ 1:0] 		  s_axi_bresp,
+  input 			  s_axi_bready,
+  input 			  s_axi_arvalid,
+  input [10:0] 			  s_axi_araddr,
+  output 			  s_axi_arready,
+  input [2:0] 			  s_axi_arprot,
+  output 			  s_axi_rvalid,
+  input 			  s_axi_rready,
+  output [ 1:0] 		  s_axi_rresp,
+  output [31:0] 		  s_axi_rdata,
+
    
   // fifo interface
   input 			  adc_rst,
@@ -64,8 +85,8 @@ module axi_adcfifo #(
   input [ADC_DATA_WIDTH-1:0] 	  adc_wdata,
   output 			  adc_wovf,
 
+   
   // dma interface
-
   input 			  dma_clk,
   output 			  dma_wr,
   output [DMA_DATA_WIDTH-1:0] 	  dma_wdata,
@@ -73,8 +94,8 @@ module axi_adcfifo #(
   input 			  dma_xfer_req,
   output [ 3:0] 		  dma_xfer_status,
 
-  // axi interface
-
+   
+  // axi interface to DDR
   input 			  axi_clk,
   input 			  axi_resetn,
   output 			  axi_awvalid,
@@ -134,27 +155,69 @@ module axi_adcfifo #(
   wire                            axi_dready_s;
 
   // NuCrypt sigs
-  wire reg_meas_noise, dma_xfer_req_rc;
+  wire meas_noise, meas_noise_adc, dma_xfer_req_rc, s_axi_rst;
+  wire [31:0] reg_ctl_w;
+  reg [31:0] reg_samp_r, reg_stat_r;
   reg noise_ctr_en=0;
   reg noise_ctr_go=0;
   reg noise_ctr_is0=0, noise_trig=0;
   reg [10:0] noise_ctr=0;
-   wire      meas_noise, dac_tx_in_rc;
+   wire    dac_tx_in_rc;
   wire      dma_xfer_req_adc;
   reg  [  2:0]           adc_xfer_req_m = 'd0;
   reg adc_xfer_req, adc_xfer_req_d;
   reg 	adc_go;
-  wire  xfer_req_event, reg_clr_ctrs;
+  wire  xfer_req_event, clr_ctrs, adc_go_dma;
   wire [3:0] core_vld_cnt, xfer_req_cnt, charisk_cnt, adc_wr_cnt;
    
   // NuCrypt stuff
   // reg 3
-  assign reg_clr_ctrs     = regs_w[2 + 96];   
-  assign reg_meas_noise   = regs_w[0 + 96];
 
-  assign reg_adc_samp = 'h5a5a5a5a; // placeholder
-  assign xfer_req_event = adc_xfer_req & ~ adc_xfer_req_d;
 
+
+
+  assign xfer_req_event = adc_xfer_req & ~adc_xfer_req_d;
+  assign s_axi_rst = ~s_axi_aresetn;
+  adcfifo_regs #(
+    .A_W(11)
+  ) regs (
+    .axi_clk(s_axi_aclk),
+    .axi_rst(s_axi_rst),
+	  
+    // wr addr chan
+    .awaddr(s_axi_awaddr),
+    .awvalid(s_axi_awvalid),
+    .awready(s_axi_awready),
+
+    // wr data chan
+    .wdata(s_axi_wdata),
+    .wvalid(s_axi_wvalid),
+    .wready(s_axi_wready),
+    .wstrb(s_axi_wstrb),
+
+    // wr rsp chan
+    .bvalid(s_axi_bvalid),
+    .bresp(s_axi_bresp),
+    .bready(s_axi_bready),
+
+    .araddr(s_axi_araddr),
+    .arvalid(s_axi_arvalid),
+    .arready(s_axi_arready),
+
+    .rdata(s_axi_rdata),
+    .rresp(s_axi_rresp),
+    .rvalid(s_axi_rvalid),
+    .rready(s_axi_rready),
+			  
+    .arprot(s_axi_arprot),
+    .awprot(s_axi_awprot),
+
+    .reg_ctl_w(reg_ctl_w),
+    .reg_stat_r(reg_stat_r),
+    .reg_samp_r(reg_samp_r));
+   
+    
+      
 
    
   // This sends a signal to DAC fifo every time ADC xfer starts ( or restarts)
@@ -183,7 +246,7 @@ module axi_adcfifo #(
      .W(1)
   ) cdc_meas_noise (
      .in_data(reg_meas_noise),
-     .out_data(meas_noise),
+     .out_data(meas_noise_adc),
      .out_clk (adc_clk));
    
   pulse_ctr #(
@@ -191,8 +254,8 @@ module axi_adcfifo #(
   ) i_xfer_req_ctr (
     .pulse (xfer_req_event),
     .pulse_clk   (adc_clk),
-    .clk   (reg_clk),
-    .clr   (reg_clr_ctrs),
+    .clk   (s_axi_clk),
+    .clr   (clr_ctrs),
     .ctr   (xfer_req_cnt));
 
   // for dbg
@@ -201,13 +264,19 @@ module axi_adcfifo #(
   ) cdc_samp_req (
      .in_data(dma_xfer_req),
      .out_data(dma_xfer_req_rc),
-     .out_clk (reg_clk));
+     .out_clk (s_axi_clk));
    
-  always @(posedge reg_clk) begin
-    reg_adc_stat[15:12] <= xfer_req_cnt;
-    reg_adc_stat[11:1]  <= 'h7ff;
-    reg_adc_stat[0]     <= dma_xfer_req_rc;
-  end // always @(posedge reg_clk)
+  always @(posedge s_axi_clk) begin
+    reg_stat_r[15:12] <= xfer_req_cnt;
+    reg_stat_r[11:1]  <= 'h7ff;
+    reg_stat_r[0]     <= dma_xfer_req_rc;
+     
+    reg_samp_r <= 'h5a5a5a5a; // placeholder     
+  end // always @(posedge s_axi_clk)
+
+  assign clr_ctrs   = reg_ctl_w[0];
+  assign meas_noise = reg_ctl_w[1];
+
    
   always @(posedge adc_clk) begin
      // mimicing ADC's cdc methodology
@@ -216,7 +285,7 @@ module axi_adcfifo #(
      // adc won't really take samples until dac says so.
      adc_go <= adc_xfer_req_m[1] & (dac_tx_in_rc | adc_go);
 
-     noise_ctr_go <= meas_noise && adc_go;
+     noise_ctr_go <= meas_noise_adc && adc_go;
      if (!noise_ctr_go || noise_ctr_is0)
        noise_ctr <= (6100/4-1);
      else
@@ -336,6 +405,13 @@ module axi_adcfifo #(
     .axi_ddata (axi_ddata_s),
     .axi_dready (axi_dready_s));
 
+  cdc_samp #(
+     .W(1)
+  ) cdc_samp_adc_go (
+     .in_data(adc_go),
+     .out_data(adc_go_dma),
+     .out_clk (dma_clk));
+   
   axi_adcfifo_dma #(
     .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
     .DMA_DATA_WIDTH (DMA_DATA_WIDTH),
@@ -351,7 +427,7 @@ module axi_adcfifo #(
     .dma_wr (dma_wr),
     .dma_wdata (dma_wdata),
     .dma_wready (dma_wready),
-    .dma_xfer_req (adc_go),
+    .dma_xfer_req (adc_go_dma),
     .dma_xfer_status (dma_xfer_status));
 
 endmodule

@@ -15,7 +15,14 @@ M_DEPS += ../../common/zcu106/zcu106_plddr4_adcfifo_bd.tcl
 M_DEPS += ../../common/xilinx/dacfifo_bd.tcl
 M_DEPS += ../../../library/jesd204/scripts/jesd204.tcl
 M_DEPS += ../../../library/common/ad_iobuf.v
+M_DEPS += happycamper/my_gth_wrap.vhd
+M_DEPS += happycamper/gth_driver.vhd
 
+# This should really be called IP_DEPS.
+# This is the list of IPs that must be "made" before
+# the top level system_top.v gets synthesized.
+LIB_DEPS += quanet_regs
+LIB_DEPS += quanet_sfp
 LIB_DEPS += axi_clkgen
 LIB_DEPS += axi_dmac
 LIB_DEPS += axi_hdmi_tx

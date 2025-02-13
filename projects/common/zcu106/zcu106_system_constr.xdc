@@ -45,12 +45,6 @@ set_property  -dict {PACKAGE_PIN  AM11  IOSTANDARD LVCMOS12} [get_ports gpio_bd_
 # This renaming failed because the EMIOSPI0SCLKO was not found in 12/31/24!!!
 # create_clock -name spi0_clk      -period 40   [get_pins -hier */EMIOSPI0SCLKO]
 # create_clock -name spi1_clk      -period 40   [get_pins -hier */EMIOSPI1SCLKO]
-
-# Dont know why iface did not set loc constraints for these.  If I leave them out,
-# i get critical warnings.
-# 12/6/24 Now I get CRITICAL WARNING: [Netlist 29-69] Cannot set property 'PACKAGE_PIN', because the property does not exist for objects of type 'pin'. [C:/reilly/proj/floodlight/hdl-main/projects/common/zcu106/zcu106_system_constr.xdc:56]
-# Yet these are the names of the top level ports!!!
-
 # I think these are set!
 #set_property  -dict {PACKAGE_PIN  AH18  IOSTANDARD POD12_DCI} [get_ports c0_ddr4_dm_n[0]];
 #set_property  -dict {PACKAGE_PIN  AD15  IOSTANDARD POD12_DCI} [get_ports c0_ddr4_dm_n[1]];

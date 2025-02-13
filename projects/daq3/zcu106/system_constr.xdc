@@ -6,6 +6,9 @@
 # FMC_HPC 0
 # daq3
 
+set_property  -dict {PACKAGE_PIN  G14 IOSTANDARD LVDS} [get_ports rec_clock_p]
+set_property  -dict {PACKAGE_PIN  F13 IOSTANDARD LVDS} [get_ports rec_clock_n]
+
 set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
 set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
 # Dan added to use the SFP transmitter, for ease of testing
@@ -14,10 +17,14 @@ set_property PACKAGE_PIN Y3 [get_ports sfp0_tx_n]
 set_property PACKAGE_PIN AA2 [get_ports sfp0_rx_p]
 set_property PACKAGE_PIN AA1 [get_ports sfp0_rx_n]
 
+set_property  -dict {PACKAGE_PIN  AE22 IOSTANDARD LVCMOS12} [get_ports sfp0_tx_dis]
+
+set_property  -dict {PACKAGE_PIN  H11   IOSTANDARD LVDS} [get_ports rec_clock_p]
+set_property  -dict {PACKAGE_PIN  G11   IOSTANDARD LVDS} [get_ports rec_clock_n]
 
 
-set_property  -dict {PACKAGE_PIN  E24   IOSTANDARD LVDS} [get_ports rx_sync_p]                                ; ## D08  FMC_HPC0_LA01_CC_P
-set_property  -dict {PACKAGE_PIN  D24   IOSTANDARD LVDS} [get_ports rx_sync_n]                                ; ## D09  FMC_HPC0_LA01_CC_N
+set_property  -dict {PACKAGE_PIN  H18   IOSTANDARD LVDS} [get_ports rx_sync_p]                                ; ## D08  FMC_HPC0_LA01_CC_P
+set_property  -dict {PACKAGE_PIN  H17   IOSTANDARD LVDS} [get_ports rx_sync_n]                                ; ## D09  FMC_HPC0_LA01_CC_N
 
 # lvds requires 1.8V
 # Note: la03 is in bank67.

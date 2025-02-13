@@ -45,6 +45,13 @@ ad_ip_parameter util_daq3_xcvr CONFIG.CPLL_CFG2 0x0203
 # I dont use this:
 # create_bd_port -dir I dac_fifo_bypass
 
+create_bd_port -dir O axi_clk_out
+ad_connect $sys_dma_clk axi_clk_out
+
+
+
+
+
 ad_ip_parameter util_daq3_xcvr CONFIG.QPLL_FBDIV 20
 ad_ip_parameter util_daq3_xcvr CONFIG.QPLL_REFCLK_DIV 1
 

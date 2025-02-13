@@ -341,18 +341,109 @@ proc adi_project_create {project_name mode parameter_list device {board "not-app
 
 }
 
+
+proc grep {fname key} {
+# returns line after the one containing key
+  set rv ""
+  # puts [file exist $fname]
+  set fp [open "$fname" r]
+  # puts "DBG: grep(key = $key)"
+  while { 1 } {
+    set nc [gets $fp line]
+    if {[eof $fp]} { break }
+    # puts ">> $line"
+    if {[regexp -nocase -all -- $key $line]} {
+      # puts "found $line"
+      set rv $line
+      break
+    }
+  }
+  close $fp
+  return $rv
+}
+
+
 ## Add source files to an exiting project.
 #
 # \param[project_name] - name of the project
 # \param[project_files] - list of project files
 #
 proc adi_project_files {project_name project_files} {
+  global ad_project_dir
 
+  if {![info exists ::env(ADI_PROJECT_DIR)]} {
+    # This is the clause that seems to get executed	
+    set actual_project_name $project_name
+    set ad_project_dir ""
+  } else {
+    set actual_project_name "$::env(ADI_PROJECT_DIR)${project_name}"
+    set ad_project_dir "$::env(ADI_PROJECT_DIR)"
+  }
+
+    
   foreach pfile $project_files {
+    puts "adding $pfile"	
     if {[string range $pfile [expr 1 + [string last . $pfile]] end] == "xdc"} {
       add_files -norecurse -fileset constrs_1 $pfile
     } elseif [regexp "_constr.tcl" $pfile] {
       add_files -norecurse -fileset sources_1 $pfile
+    } elseif [regexp ".xci" $pfile] { # we are adding an IP, not source code
+
+	set pname [string range $pfile 0 [expr [string last / $pfile] - 1 ]]
+	puts "DBG: adding .xci from $pname"
+	set ipname [string range $pname [expr [string last / $pname] + 1 ] end]
+
+	#	if {[llength [::fileutil:grep "gtwizard_ultrascale"]]>0} {
+#	  puts "WARN: xci is an ultrascale GT IP"
+	#	}
+
+#	try {
+#	  set res [exec grep gtwizard_ultrascale $pfile]
+#	} on error {e} {
+#	  set res ""
+#	}
+
+        set res [grep $pfile gtwizard_ultrascale]
+	
+        puts "DBG: grep result is $res"
+	if {[string length $res] > 0}  {
+          # It's a known bug of Vivado 2023.1 that Vivado crashes when importing an
+          # ultrascale trancsciever IP.  The workaround is to make sure
+          # there is an .xml file there first.
+          # See:  https://adaptivesupport.amd.com/s/question/0D54U0000784tuLSAQ/vivado-20231-crashes-when-importing-an-ultrascale-transceiver-wizard-xci?language=en_US
+	
+	  # puts "DBG: ip name {$ipname}"
+	  # puts "proj dir is {$ad_project_dir} and proj name is {$project_name}"
+	  file mkdir $project_name.srcs/sources_1/ip/$ipname
+	  file mkdir daq3_zcu106.gen/sources_1/ip
+	  
+	  # Still not sure which is best to use.
+	  puts "adding xci"
+#	  file copy -force $pname/$ipname.xci daq3_zcu106.gen/sources_1/ip/$ipname
+	  file copy -force $pname/$ipname daq3_zcu106.gen/sources_1/ip
+	  file copy -force $pname/$ipname.xci daq3_zcu106.srcs/sources_1/ip/$ipname
+	  file copy -force $pname/$ipname.xml daq3_zcu106.srcs/sources_1/ip/$ipname
+	  add_files -norecurse -fileset sources_1 daq3_zcu106.srcs/sources_1/ip/$ipname/$ipname.xci
+
+#	  puts "importing xci"
+#	  import_files -norecurse -fileset sources_1 $pname/$ipname.xci
+	  
+#	  puts "reading xci"
+#	  read_ip daq3_zcu106.srcs/sources_1/ip/$ipname/$ipname.xci
+
+      } else {
+
+	  puts "importing xci"
+	  import_files -norecurse -fileset sources_1 $pfile
+	  
+#	    add_files -norecurse -fileset sources_1 $pfile
+	}
+	# dont know if I need this:
+	# But I got a lot of warnings like: "WARNING: generated file not found ...###.gen/.../gtwizard_ultrascale_v1_7_bit_sync.v'. Please regenerate to continue."
+
+#	puts "generating ips: [get_ips $ipname]"
+#	generate_target all [get_ips $ipname]
+	
     } else {
       add_files -norecurse -fileset sources_1 $pfile
     }
@@ -582,18 +673,17 @@ proc adi_project_run {project_name} {
 
   set timing_string $[report_timing_summary -return_string]
   puts -nonewline
+
   if { [string match "*VIOLATED*" $timing_string] == 1 ||
        [string match "*Timing constraints are not met*" $timing_string] == 1} {
-#      write_hw_platform -fixed -force  -include_bit -file ${actual_project_name}.sdk/system_top_bad_timing.xsa
+    write_hw_platform -fixed -force  -include_bit -file ${actual_project_name}.sdk/system_top_bad_timing.xsa
     puts "NOTE: Timing Constraints NOT met!"
-#    return -code error [format "ERROR: Timing Constraints NOT met!"]
-} else {
+    return -code error [format "ERROR: Timing Constraints NOT met!"]
+  } else {
+    write_hw_platform -fixed -force  -include_bit -file ${actual_project_name}.sdk/system_top.xsa    
     puts "Timing Constraints are met!"
-}
+  }
   puts -nonewline
-  
-  write_hw_platform -fixed -force  -include_bit -file ${actual_project_name}.sdk/system_top.xsa
-
 }
 
 ## Run synthesis on an partial design; use it in Partial Reconfiguration flow.

@@ -93,7 +93,7 @@ _XILINX_LIB_DEPS = $(foreach dep,$(XILINX_LIB_DEPS),$(HDL_LIBRARY_PATH)$(dep)/co
 _XILINX_INTF_DEPS = $(foreach dep,$(XILINX_INTERFACE_DEPS),$(HDL_LIBRARY_PATH)$(dep))
 
 
-$(info read xilinx was defined)
+
 xilinx: external_dependencies component.xml
 
 external_dependencies: external_dependencies_cleanup $(EXTERNAL_DEPS)

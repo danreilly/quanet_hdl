@@ -14,6 +14,9 @@ module system_top (
   input 	 si5328_out_c_p,
   input 	 si5328_out_c_n,
 
+  output rec_clock_p,
+  output rec_clock_n,
+		   
 //  inout [14:0] 	ddr_addr,
 //  inout [ 2:0] 	ddr_ba,
 //  inout 	ddr_cas_n,
@@ -114,12 +117,14 @@ module system_top (
   wire                    rx_sysref;
   wire                    rx_sync;
   wire                    tx_ref_clk;
-  wire                    tx_ref_clk_d2;
+//  wire                    tx_ref_clk_d2;
   wire                    tx_sysref;
   wire                    tx_sync;
 
-  wire   si5328_out_c;
-  wire 	  dbg_clk;
+  wire   si5328_out_c, rec_clk_out;
+  wire 	  dbg_clk, axi_clk, sfp_txclk, gth_rst;
+  wire [3:0] gth_status;
+   
    
   // spi
   assign spi_csn_adc = spi_csn[2];
@@ -155,13 +160,13 @@ module system_top (
     .CEB (1'd0),
     .I (tx_ref_clk_p),
     .IB (tx_ref_clk_n),
-    .O (tx_ref_clk),
-    .ODIV2 (tx_ref_clk_d2));
+    .O (tx_ref_clk));
+//    .ODIV2 (tx_ref_clk_d2));
 
-  BUFG_GT i_dbg_clk_buf (
-    .I (tx_ref_clk_d2),
-    .O (dbg_clk));
-  assign j3_24 = dbg_clk; // dbg
+//  BUFG_GT i_dbg_clk_buf (/
+//    .I (tx_ref_clk_d2),
+//    .O (dbg_clk));
+   assign j3_24 = 0; // dbg_clk; // dbg
    
    
   // OK
@@ -236,7 +241,7 @@ module system_top (
   // This emits an LFSR pattern out SFP0.
   // Could be used for testing the system without the classical NIC.
   // in bank 225
-  IBUFDS_GTE2 gtrefclk_ibuf (
+  IBUFDS_GTE4 gtrefclk_ibuf (
       .CEB(0),
       .I(si5328_out_c_p),
       .IB(si5328_out_c_n),
@@ -246,14 +251,39 @@ module system_top (
     .tx_n(sfp0_tx_n),
     .rx_p(sfp0_rx_p),
     .rx_n(sfp0_rx_n),
+    .rst(gth_rst),		       
+    .status(gth_status),
+    .axi_clk(axi_clk),
+    .txclk_out(sfp_txclk),
     .gtrefclk(si5328_out_c));
+  assign j3_6=sfp_txclk;
+   
+  // Note: ODDR in ultrascale vs 7series is different
+  ODDRE1 recclk_oddr(
+     .C(axi_clk), // 250MHz
+     .D1(0),
+     .D2(1),
+     .SR(0),
+     .Q(rec_clk_out));
+  OBUFDS tojitattn_obuf (
+     .I(rec_clk_out),
+     .O (rec_clock_p),
+     .OB(rec_clock_n));
+   
    
 
-
   system_wrapper i_system_wrapper (
-    .dac_xfer_out_port (j3_6),
+//    .dac_xfer_out_port (j3_6),
     .rxq_sw_ctl (j3_8),
+    .axi_clk_out(axi_clk), // 250MHz I think
 
+//    .tx_p(sfp0_tx_p),
+//    .tx_n(sfp0_tx_n),
+//    .rx_p(sfp0_rx_p),
+//    .rx_n(sfp0_rx_n),
+//    .gtrefclk(si5328_out_c),
+//    .txclk_out(sfp_txclk),
+				   
     .ddr4_act_n(c0_ddr4_act_n),
     .ddr4_adr (c0_ddr4_adr),
     .ddr4_ba (c0_ddr4_ba),
@@ -268,6 +298,9 @@ module system_top (
     .ddr4_dqs_t (c0_ddr4_dqs_t),
     .ddr4_odt (c0_ddr4_odt),
     .ddr4_reset_n (c0_ddr4_reset_n),
+
+    .gth_status(gth_status),
+    .gth_rst(gth_rst),
 				   
 //    .ddr_addr (ddr_addr),
 //    .ddr_ba (ddr_ba),

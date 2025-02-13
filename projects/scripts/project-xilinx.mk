@@ -151,6 +151,4 @@ $(PROJECT_NAME).sdk/system_top.xsa_PRIOR: $(M_DEPS)
 $(HDL_LIBRARY_PATH)%/component.xml: TARGET:=xilinx
 FORCE:
 $(HDL_LIBRARY_PATH)%/component.xml: FORCE
-	echo    target $(TARGET)
-	echo    atsym is $@
 	$(MAKE) -C $(dir $@) $(TARGET)

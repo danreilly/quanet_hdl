@@ -15,14 +15,14 @@ adi_ip_create util_dacfifo
 adi_ip_files util_dacfifo [list \
   "$ad_hdl_dir/library/common/ad_mem.v" \
   "$ad_hdl_dir/library/common/ad_b2g.v" \
-  "$ad_hdl_dir/library/common/util_pkg.vhd" \
+  "$ad_hdl_dir/library/quanet/util_pkg.vhd" \
   "util_dacfifo.v" \
-  "$ad_hdl_dir/library/common/cdc_thru.vhd" \
-  "$ad_hdl_dir/library/common/cdc_thru.xdc" \
-  "$ad_hdl_dir/library/common/global_pkg.vhd" \
-  "$ad_hdl_dir/library/common/lfsr_w.vhd" \
-  "$ad_hdl_dir/library/common/pulse_bridge.vhd" \
-  "$ad_hdl_dir/library/common/pulse_bridge.xdc" \
+  "$ad_hdl_dir/library/quanet/cdc_thru.vhd" \
+  "$ad_hdl_dir/library/quanet/cdc_thru.xdc" \
+  "$ad_hdl_dir/library/quanet/global_pkg.vhd" \
+  "$ad_hdl_dir/library/quanet/lfsr_w.vhd" \
+  "$ad_hdl_dir/library/quanet/pulse_bridge.vhd" \
+  "$ad_hdl_dir/library/quanet/pulse_bridge.xdc" \
   "hdr_ctl.vhd" \
   "gen_hdr.vhd" \
   "util_dacfifo_ooc.ttcl" \

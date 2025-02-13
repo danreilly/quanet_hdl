@@ -123,11 +123,21 @@ ad_ip_parameter axi_ad9680_dma CONFIG.DMA_DATA_WIDTH_DEST 64
 ad_ip_instance quanet_regs qregs
 # Then later I will have to call ad_cpu_interconnect
 
-puts "example bd cell is    [get_bd_cells axi_ad9680_dma]"
-# This next line fails.  Why does bd cell have no IP?!!!
-puts "comp is [get_property CONFIG.Component_Name [get_bd_cells axi_ad9680_dma]]"
-puts "  ip is [get_ips [get_property CONFIG.Component_Name [get_bd_cells axi_ad9680_dma]]]"
-puts "  dir is [get_property IP_DIR [get_ips [get_property CONFIG.Component_Name [get_bd_cells axi_ad9680_dma]]]]"
+if {0} {
+    ad_ip_instance quanet_sfp qsfp
+    create_bd_port -dir I rx_p
+    create_bd_port -dir I rx_n
+    create_bd_port -dir I gtrefclk
+    create_bd_port -dir O tx_p
+    create_bd_port -dir O tx_n
+    create_bd_port -dir O txclk_out
+    ad_connect qsfp/rx_p rx_p
+    ad_connect qsfp/rx_n rx_n    
+    ad_connect qsfp/tx_p tx_p
+    ad_connect qsfp/tx_n tx_n
+    ad_connect qsfp/gtrefclk gtrefclk
+    ad_connect qsfp/txclk_out txclk_out
+}
 
 # Dan: originally this did not include sys_zynq 2. perhaps
 # the mem iface is different in the ultrascale
@@ -137,6 +147,15 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
   puts [exec ls $project_system_dir]
   # still only system.bd is there!
   ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width
+
+  ad_cpu_interconnect 0x44ad0000 $adc_fifo_name
+
+  # NuCrypt additions related to adcfifo:
+  create_bd_port -dir O rxq_sw_ctl
+  ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
+
+  ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
+  ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
 }
 
 # shared transceiver core
@@ -228,8 +247,8 @@ ad_connect  axi_ad9680_tpl_core/adc_valid_0 axi_ad9680_cpack/fifo_wr_en
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
     ad_connect  util_daq3_xcvr/rx_out_clk_0 axi_ad9680_fifo/adc_clk
     ad_connect  axi_ad9680_jesd_rstgen/peripheral_reset axi_ad9680_fifo/adc_rst
-    ad_connect  axi_ad9680_cpack/packed_fifo_wr_en axi_ad9680_fifo/adc_wr
-    ad_connect  axi_ad9680_cpack/packed_fifo_wr_data axi_ad9680_fifo/adc_wdata
+    ad_connect  axi_ad9680_cpack/packed_fifo_wr_en      axi_ad9680_fifo/adc_wr
+    ad_connect  axi_ad9680_cpack/packed_fifo_wr_data    axi_ad9680_fifo/adc_wdata
     ad_connect  $sys_dma_clk axi_ad9680_fifo/dma_clk
     ad_connect  $sys_dma_clk axi_ad9680_dma/s_axis_aclk
     ad_connect  $sys_dma_resetn axi_ad9680_dma/m_dest_axi_aresetn
@@ -238,22 +257,26 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
     ad_connect  axi_ad9680_fifo/dma_wready   axi_ad9680_dma/s_axis_ready
     ad_connect  axi_ad9680_fifo/dma_xfer_req axi_ad9680_dma/s_axis_xfer_req
     ad_connect  axi_ad9680_tpl_core/adc_dovf axi_ad9680_fifo/adc_wovf
+
 }
 
 puts "NuCrypt connections1"
 create_bd_port -dir O dac_xfer_out_port
-create_bd_port -dir O rxq_sw_ctl
 ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
 
 ad_connect  qregs/regs_w                 axi_ad9152_fifo/regs_w
-ad_connect  qregs/regs_w                 axi_ad9680_fifo/regs_w
 ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
 # ad_connect  axi_ad9680_fifo/reg_samp     qregs/reg_samp
-ad_connect  axi_ad9680_fifo/reg_adc_stat qregs/reg_adc_stat
-ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
+#ad_connect  axi_ad9680_fifo/reg_adc_stat qregs/reg_adc_stat
+
+
+create_bd_port -from 3 -to 0 -dir I gth_status
+create_bd_port -dir O gth_rst
+ad_connect  gth_status  qregs/gth_status
+ad_connect  gth_rst     qregs/gth_rst
 
 # Note: you cant set time constrants (false paths) here.
 # Do that in system_constr.xdc
@@ -284,8 +307,10 @@ ad_cpu_interconnect 0x44AA0000 axi_ad9680_jesd
 ad_cpu_interconnect 0x7c400000 axi_ad9680_dma
 
 ad_cpu_interconnect 0x44ab0000 qregs
+# ad_cpu_interconnect 0x44ad0000 qsfp
 
-ad_connect  sys_cpu_clk axi_ad9680_fifo/reg_clk
+
+
 
 
 # These add "high performance interconnects" to or from the PS

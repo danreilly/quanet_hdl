@@ -12,6 +12,7 @@ Share the data logs we captured, including matlab code as examples for how to re
 The zc706 bitfile works, and was used during the Happy Camper event.
 
 The zcu106 bitfile works partially.  The DAC on the DAC3 works.  ADC does not yet work.
+The 10G classical link on the zcu106 works.
 
 
 # objects
@@ -24,6 +25,16 @@ Copy this to the /boot partition of your SD card and name it system.dtb (not dev
 
 `quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb`
 
+
+# 10G Classical Link
+
+We added a Xilinx iBERT core to drive the zcu106's SFP at 10Gbaud.  At the
+HappyCamper event, we had compatibility troubles between our SFPs and the
+classical NICs.  By adding an SFP driver to the zcu106 design, we can bypass
+that sort of trouble, to allow system testing even if we don't have a classical
+NIC.  It's a very "dumb" interface, so it ought to always work.
+The iBERT core also allows Xilinx software to construct an eye diagram:
+![10Gbps eye](quanet_hdl/assets/sfp_data_eye.jpg)
 
 # summary of changes made to HDL
 

@@ -27,8 +27,10 @@ module quanet_regs #(
   output [31:0] 			  s_axi_rdata,
   input 				  s_axi_rready,
 
-  input [63:0] 				  reg_samp,
-  input [31:0] 				  reg_adc_stat,
+//  input [63:0] 				  reg_samp,
+  input [3:0] 				  gth_status,
+  output 				  gth_rst,
+  // input [31:0] 				  reg_adc_stat,
   output reg [(32*(2**REG_ADDR_W) - 1):0] regs_w,
   input [(32*(2**REG_ADDR_W) - 1):0] 	  regs_r
 );
@@ -54,15 +56,19 @@ module quanet_regs #(
    
 
   assign regs_r_int[191:0] = regs_r[191:0];
-  assign regs_r_int[255:192]=reg_samp;
-  assign regs_r_int[287:256]=reg_adc_stat;
-  assign regs_r_int[(32*(2**REG_ADDR_W) - 1):288]=0;
+  assign regs_r_int[255:192]=0; //reg_samp;
+  assign regs_r_int[287:256]=0; // reg_adc_stat;
+  assign regs_r_int[291:288]=gth_status;
+  assign regs_r_int[(32*(2**REG_ADDR_W) - 1):292]=0;
 
-
+  assign gth_rst = regs_w[64];
 					  
   assign up_clk = s_axi_aclk;
   assign up_rstn = s_axi_aresetn;
 
+
+
+   
   // axi_sysid used addr w + 4 but I dont know why.   
   up_axi #(
     .AXI_ADDRESS_WIDTH(AXI_ADDR_W)

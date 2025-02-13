@@ -158,16 +158,6 @@ architecture RTL of my_gtx_wrap is
       gt0_qplloutrefclk_in : in std_logic);
   end component;
 
-  component my_gtx_common_reset
-    generic (
-      STABLE_CLOCK_PERIOD      : integer := 8        -- Period of the stable clock driving this state-machine, unit is [ns]
-      );
-    port (    
-      STABLE_CLOCK             : in std_logic;             --Stable Clock, either a stable clock from the PCB
-      SOFT_RESET               : in std_logic;               --User Reset, can be pulled any time
-      COMMON_RESET             : out std_logic:= '0'  --Reset QPLL
-      );
-  end component;
 
   signal qplloutclk, qpllrefclklost_i, qplllock_i, qplllockdetclk,
     qplloutrefclk, qpllreset, qpllreset_i, commonreset,
@@ -323,5 +313,5 @@ begin
 
   drp_dout <= pll_drpdo  when (drp_sel_pll='1') else gt_drpdo;
   drp_rdy <= pll_drprdy when (drp_sel_pll='1') else gt_drprdy;
-  
+
 end RTL;

@@ -16,9 +16,7 @@
 
 
 /* Dan copied this from the zcu102 dts,
-   but hes not sure these reg=<###> lines are right.
-   The upper addr nibble does not match the phys addrs mapped in
-   hdl-main/projectsdaq3/common/daq3_bd.tcl  */
+   and he thinks these reg = <###> lines are right. */
 
 &i2c1 {
 	i2c-mux@75 {
@@ -55,7 +53,10 @@
 			reg = <0x9c400000 0x10000>;
 			interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&zynqmp_clk 71>;
-
+/* Why was this commented out?
+   Note that tx dma is 128 bits wide.
+   But daq3_bd.tcl makes rx dma 64 wide.
+*/			
 			adi,channels {
 				#size-cells = <0>;
 				#address-cells = <1>;
@@ -63,11 +64,12 @@
 				dma-channel@0 {
 					reg = <0>;
 					adi,source-bus-width = <64>;
-					adi,source-bus-type = <1>;
+					adi,source-bus-type = <2>;
 					adi,destination-bus-width = <64>;
 					adi,destination-bus-type = <0>;
 				};
 			};
+
 		};
 
 		tx_dma: tx-dmac@9c420000 {
@@ -77,6 +79,10 @@
 			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&zynqmp_clk 71>;
 
+/*
+   again, I dont know why this
+   was commented out */
+   
 			adi,channels {
 				#size-cells = <0>;
 				#address-cells = <1>;
@@ -89,6 +95,7 @@
 					adi,destination-bus-type = <1>;
 				};
 			};
+
 		};
 
 		axi_ad9680_core: axi-ad9680-hpc@84a10000 {

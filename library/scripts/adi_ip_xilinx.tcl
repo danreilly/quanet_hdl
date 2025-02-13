@@ -298,16 +298,78 @@ proc adi_ip_create {ip_name} {
   update_ip_catalog
 }
 
+
+proc grep {fname key} {
+# returns line after the one containing key
+  set rv ""
+  # puts [file exist $fname]
+  set fp [open "$fname" r]
+  # puts "DBG: grep(key = $key)"
+  while { 1 } {
+    set nc [gets $fp line]
+    if {[eof $fp]} { break }
+    # puts ">> $line"
+    if {[regexp -nocase -all -- $key $line]} {
+      # puts "found $line"
+      set rv $line
+      break
+    }
+  }
+  close $fp
+  return $rv
+}
+
 ## Add all source files to the IP's project.
 #
 # \param[ip_name] - The ip name
 # \param[ip_files] - IP files (*.v *.vhd *.xdc)
 #
 proc adi_ip_files {ip_name ip_files} {
+  global ad_hdl_dir
+  global ad_ghdl_dir
   set proj_fileset [get_filesets sources_1]
   foreach m_file $ip_files {
     if {[file extension $m_file] eq ".xdc"} {
-      add_files -norecurse -fileset constrs_1 $m_file
+	add_files -norecurse -fileset constrs_1 $m_file
+    } elseif {[file extension $m_file] eq ".xci"} { # we are adding an IP, not source code
+	set pname [string range $m_file 0 [expr [string last / $m_file] - 1 ]]
+	puts "DBG: adding .xci from $pname"
+	set ipname [string range $pname [expr [string last / $pname] + 1 ] end]
+        set res [grep $m_file gtwizard_ultrascale]
+        # puts "DBG: grep result is $res"
+	if {[string length $res] > 0} {
+	  puts "Workaround bug in Vivado 2023.1"
+          # It's a known bug of Vivado 2023.1 that Vivado crashes when importing an
+          # ultrascale trancsciever IP.  The workaround is to make sure
+          # there is an .xml file there first.
+          # See:  https://adaptivesupport.amd.com/s/question/0D54U0000784tuLSAQ/vivado-20231-crashes-when-importing-an-ultrascale-transceiver-wizard-xci?language=en_US
+	
+	  # puts "DBG: ip name {$ipname}"
+	  # puts "proj dir is {$ad_project_dir} and proj name is {$project_name}"
+
+	  puts "adding $ipname.xci to $proj_fileset"
+	  puts "ad_hdl_dir $ad_hdl_dir"
+	  set project_name "quanet_sfp"
+	    
+          file mkdir $project_name.srcs/sources_1/ip/$ipname
+ 	  file mkdir $project_name.gen/sources_1/ip
+	  puts "made dirs"
+          file copy -force $ipname/$ipname $project_name.gen/sources_1/ip
+ 	  file copy -force $pname/$ipname.xci $project_name.srcs/sources_1/ip/$ipname
+	  add_files -norecurse -fileset $proj_fileset $project_name.srcs/sources_1/ip/$ipname/$ipname.xci
+	  
+	  #	  puts "reading xci"
+#	  read_ip daq3_zcu106.srcs/sources_1/ip/$ipname/$ipname.xci
+
+        } else { # it's not a GTH IP
+	    puts "importing $ipname.xci to $proj_fileset"
+	    import_files -norecurse -fileset $proj_fileset $m_file
+	}
+	# dont know if I need this:
+	# But I got a lot of warnings like: "WARNING: generated file not found ...###.gen/.../gtwizard_ultrascale_v1_7_bit_sync.v'. Please regenerate to continue."
+#	puts "generating ips: [get_ips $ipname]"
+#	generate_target all [get_ips $ipname]
+	
     } else {
       add_files -norecurse -scan_for_includes -fileset $proj_fileset $m_file
     }
@@ -385,7 +447,7 @@ proc adi_ip_properties {ip_name} {
   set waddr_width [expr [get_property SIZE_LEFT [ipx::get_ports -nocase true s_axi_awaddr -of_objects [ipx::current_core]]] + 1]
 
   if {$raddr_width != $waddr_width} {
-    puts [format "WARNING: AXI address width mismatch for %s (r=%d, w=%d)" $ip_name $raddr_width, $waddr_width]
+    puts [format "WARNING: AXI address width mismatch for %s (r=%d, w=%d)" $ip_name $raddr_width $waddr_width]
     set range 65536
   } else {
     if {$raddr_width >= 16} {

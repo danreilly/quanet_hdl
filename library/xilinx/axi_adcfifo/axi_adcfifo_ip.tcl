@@ -22,9 +22,9 @@ adi_ip_files axi_adcfifo [list \
   "$ad_hdl_dir/library/quanet/cdc_samp.xdc" \
   "$ad_hdl_dir/library/quanet/cdc_thru.vhd" \
   "$ad_hdl_dir/library/quanet/cdc_thru.xdc" \
-  "adcfifo_regs.vhd" \
   "$ad_hdl_dir/library/quanet/util_pkg.vhd" \
   "$ad_hdl_dir/library/quanet/axi_reg_array.vhd" \
+  "$ad_hdl_dir/library/quanet/axi_regs.vhd" \
   "axi_adcfifo_adc.v" \
   "axi_adcfifo_dma.v" \
   "axi_adcfifo_wr.v" \
@@ -48,6 +48,9 @@ ipx::infer_bus_interface { \
     s_axi_araddr  s_axi_arprot   s_axi_arvalid    s_axi_arready \
     s_axi_rdata   s_axi_rresp    s_axi_rvalid    s_axi_rready } \
   xilinx.com:interface:aximm_rtl:1.0 [ipx::current_core]
+
+puts "iface is -> [ipx::get_bus_interfaces s_axi] <-"
+
 
 ipx::infer_bus_interface {\
   axi_awvalid \
@@ -93,6 +96,8 @@ ipx::infer_bus_interface {\
   axi_rdata \
   axi_rready} \
 xilinx.com:interface:aximm_rtl:1.0 [ipx::current_core]
+
+puts "iface is -> [ipx::get_bus_interfaces axi] <-"
 
 ipx::infer_bus_interface axi_clk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
 ipx::infer_bus_interface axi_resetn xilinx.com:signal:reset_rtl:1.0 [ipx::current_core]

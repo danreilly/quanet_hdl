@@ -6,8 +6,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 package axi_reg_array_pkg is
-  constant A_W: integer := 16;
-  constant AXI_REG_ARRAY_NUM_REG: integer := 16;
+  constant AXI_REG_ARRAY_NUM_REG: integer := 4;
   subtype axi_reg_sel_t is std_logic_vector(AXI_REG_ARRAY_NUM_REG-1 downto 0);
   type axi_reg_array_t is array (0 to AXI_REG_ARRAY_NUM_REG-1)
     of std_logic_vector(31 downto 0);

@@ -21,7 +21,8 @@ set /A CTR=CTR+1
 echo %CTR% > %CTRF%
 
 set F=%DIR%
-scp -i "C:/reilly/proj/quanet/matlab/analog.txt.pub" -r analog@analog:/home/analog/ech/out %F%
+rem scp -i "C:/reilly/proj/quanet/matlab/analog.txt.pub" -r analog@analog:/home/analog/ech/out %F%
+scp -r analog@zcu:/home/analog/board_code/ech/out %F%
 rem scp -i "analog.txt" -r analog@analog:/home/analog/ech/out %F%
 
 call :cp %DIR%\out\r.txt %DIR%\r_%CTR%.txt

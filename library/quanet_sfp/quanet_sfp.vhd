@@ -47,7 +47,7 @@ end quanet_sfp;
 
 library work;
 use work.util_pkg.ALL;
-use wor.axi_reg_array_pkg.ALL;
+use work.axi_reg_array_pkg.ALL;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 

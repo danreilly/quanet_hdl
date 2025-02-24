@@ -120,7 +120,7 @@ ad_ip_parameter axi_ad9680_dma CONFIG.DMA_DATA_WIDTH_SRC $adc_data_width
 ad_ip_parameter axi_ad9680_dma CONFIG.DMA_DATA_WIDTH_DEST 64
 
 
-ad_ip_instance quanet_regs qregs
+# ad_ip_instance quanet_regs qregs
 # Then later I will have to call ad_cpu_interconnect
 
 if {0} {
@@ -204,11 +204,12 @@ for {set i 0} {$i < $TX_NUM_OF_CONVERTERS} {incr i} {
 
 # dan added sys_zynq 2
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } { 
-    ad_connect  $sys_dma_clk axi_ad9152_fifo/dma_clk
+    ad_connect  $sys_dma_clk   axi_ad9152_fifo/dma_clk
     ad_connect  $sys_dma_reset axi_ad9152_fifo/dma_rst
-    ad_connect  $sys_dma_clk axi_ad9152_dma/m_axis_aclk
-    ad_connect  $sys_dma_resetn axi_ad9152_dma/m_src_axi_aresetn
     ad_connect  axi_ad9152_fifo/bypass GND
+    
+    ad_connect  $sys_dma_clk    axi_ad9152_dma/m_axis_aclk
+    ad_connect  $sys_dma_resetn axi_ad9152_dma/m_src_axi_aresetn
 }
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9152_fifo/dac_clk
 ad_connect  axi_ad9152_jesd_rstgen/peripheral_reset axi_ad9152_fifo/dac_rst
@@ -267,16 +268,16 @@ ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
 
-ad_connect  qregs/regs_w                 axi_ad9152_fifo/regs_w
-ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
+#ad_connect  util_dacfifo/regs_w                 axi_ad9152_fifo/regs_w
+# ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
 # ad_connect  axi_ad9680_fifo/reg_samp     qregs/reg_samp
 #ad_connect  axi_ad9680_fifo/reg_adc_stat qregs/reg_adc_stat
 
-
+# This is a little kludgey for now
 create_bd_port -from 3 -to 0 -dir I gth_status
 create_bd_port -dir O gth_rst
-ad_connect  gth_status  qregs/gth_status
-ad_connect  gth_rst     qregs/gth_rst
+ad_connect  gth_status  $dac_fifo_name/gth_status
+ad_connect  gth_rst     $dac_fifo_name/gth_rst
 
 # Note: you cant set time constrants (false paths) here.
 # Do that in system_constr.xdc
@@ -306,7 +307,8 @@ ad_cpu_interconnect 0x44A10000 axi_ad9680_tpl_core
 ad_cpu_interconnect 0x44AA0000 axi_ad9680_jesd
 ad_cpu_interconnect 0x7c400000 axi_ad9680_dma
 
-ad_cpu_interconnect 0x44ab0000 qregs
+# Dan added registers into this
+ad_cpu_interconnect 0x44ab0000 $dac_fifo_name
 # ad_cpu_interconnect 0x44ad0000 qsfp
 
 

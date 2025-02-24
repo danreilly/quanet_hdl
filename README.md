@@ -4,24 +4,21 @@ Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zc
 
 Develop temporary bitfile for zc706 for Happy Camper event, in case zcu106 bitfile was not working in time.
 
-Share the data logs we captured, including matlab code as examples for how to read in and process the data logs.
-(we should probably move this to a new repository).
 
 # status
 
-The zc706 bitfile works, and was used during the Happy Camper event.
+The zcu106 bitfile for the zcu106 now works.  The device tree is OK, and linux boots.  We can write from the DAC.  We can read from the ADC.
 
-The zcu106 bitfile works partially.  The DAC on the DAC3 works.  ADC does not yet work.
-The 10G classical link on the zcu106 works.
+The new 10G classical link on the zcu106 also works.
 
 
 # objects
 
-Copy this to the  /boot partition of your SD card:
+Copy this to /boot/BOOT.BIN on your SD card:
 
-`quanet_hdl/nucrypt_boot_objs/BOOT.BIN`
+`quanet_hdl/nucrypt_boot_objs/zcu106_BOOT.BIN`
 
-Copy this to the /boot partition of your SD card and name it system.dtb (not devicetree.dtb)
+Copy this to the /boot/system.dtb on your SD card: (dont name it devicetree.dtb)
 
 `quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb`
 
@@ -150,6 +147,14 @@ elf files.  I made my build_boot.bat pull those elf files into the
 BOOT.BIN that it builds.  AD's script auto-generates the zynq.bif
 file, but I just hand-wrote mine for ease of tweaking.
 
+
+# Register Spaces
+
+Initially I had made a new IP called quanet_regs, that had a slave axi interface.  It implemented registers
+that controlled three other IPs: the util_dacfifo, the axi_adcfifo, and also the quanet_sfp.  I had to make
+connections between them in daq_bd.tcl.
+
+Then I changed it so that each IP has its own slave axi interface, and its own set of registers.  While this might make the AXI buses consume more resources, this makes the IPs less interdependent.  It also means less connections have to be made in daq_bd.tcl, which becomes simpler.  It also allows each IP to have its own CDC constraints right there in the source code, as opposed to putting those constraints in yet another separate build file (system_constr.xdc).
 
 
 # notes on AD's HDL

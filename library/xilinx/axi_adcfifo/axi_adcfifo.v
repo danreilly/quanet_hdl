@@ -178,11 +178,11 @@ module axi_adcfifo #(
 
   assign xfer_req_event = adc_xfer_req & ~adc_xfer_req_d;
   assign s_axi_rst = ~s_axi_aresetn;
-  adcfifo_regs #(
+  axi_regs #(
     .A_W(11)
   ) regs (
-    .axi_clk(s_axi_aclk),
-    .axi_rst(s_axi_rst),
+    .aclk(s_axi_aclk),
+    .arstn(s_axi_aresetn),
 	  
     // wr addr chan
     .awaddr(s_axi_awaddr),
@@ -192,12 +192,12 @@ module axi_adcfifo #(
     // wr data chan
     .wdata(s_axi_wdata),
     .wvalid(s_axi_wvalid),
-    .wready(s_axi_wready),
     .wstrb(s_axi_wstrb),
+    .wready(s_axi_wready),
 
     // wr rsp chan
-    .bvalid(s_axi_bvalid),
     .bresp(s_axi_bresp),
+    .bvalid(s_axi_bvalid),
     .bready(s_axi_bready),
 
     .araddr(s_axi_araddr),
@@ -209,14 +209,17 @@ module axi_adcfifo #(
     .rvalid(s_axi_rvalid),
     .rready(s_axi_rready),
 			  
-    .arprot(s_axi_arprot),
-    .awprot(s_axi_awprot),
+//    .arprot(s_axi_arprot),
+//    .awprot(s_axi_awprot),
 
-    .reg_ctl_w(reg_ctl_w),
-    .reg_stat_r(reg_stat_r),
-    .reg_samp_r(reg_samp_r));
+    .reg0_w(reg_ctl_w),
+
+    .reg0_r(reg_ctl_w),	  
+    .reg1_r(reg_stat_r),
+    .reg2_r(reg_samp_r),
+    .reg3_r(0));
    
-    
+      
       
 
    

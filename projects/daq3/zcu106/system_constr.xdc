@@ -127,5 +127,5 @@ set_property  -dict {PACKAGE_PIN  T4  } [get_ports tx_data_p[3]]                
 set_property  -dict {PACKAGE_PIN  T3  } [get_ports tx_data_n[3]]                                      ; ## A23  FMC_HPC0_DP1_C2M_N  (tx_data_n[2])
 
 
-set_false_path -through [get_pins i_system_wrapper/system_i/qregs/regs_w*]
-set_false_path -through [get_pins i_system_wrapper/system_i/qregs/regs_r*]
+# set_false_path -through [get_pins i_system_wrapper/system_i/qregs/regs_w*]
+# set_false_path -through [get_pins i_system_wrapper/system_i/qregs/regs_r*]

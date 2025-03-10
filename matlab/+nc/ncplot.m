@@ -271,7 +271,7 @@ classdef ncplot
       end
     end
 
-    function subplot(h,w)
+    function ax = subplot(h,w)
 % usage:
 %   subplot(h,w) - declares height and width of subplot grid
 %   subplot()    - moves on to the next subplot.  Must be called for first subplot.
@@ -281,6 +281,7 @@ classdef ncplot
 	sp_i = 1;
 	sp_h = h;
 	sp_w = w;
+        ax=[];
       else
 	if (sp_i > sp_h*sp_w)
 	  fprintf('ERR: wrapping the subplots!\n')
@@ -289,6 +290,7 @@ classdef ncplot
         subplot(sp_h, sp_w, sp_i);
         sp_i=sp_i+1;
         nc.ncplot.init_axes;
+        ax = gca();
       end
     end
 
@@ -338,9 +340,10 @@ classdef ncplot
         
     
     function res = fft(sig, tsamp, opt)
-% opt
-%   .nowindow: 0=no window, 1=hann window (default 1)
-    %   .
+    % opt
+    %   .nowindow: 1=no window, 0=hann window (default 1)
+    %   .noplot: 1=no plot,  0=plot (default 0)
+    %   .color:
       import nc.*
       if (~isvector(sig))
         error('nc.ncplot.fft(sig, tsamp): sig must be a vector');
@@ -350,7 +353,12 @@ classdef ncplot
       elseif (~isstruct(opt))
         error('nc.ncplot.fft(sig, tsamp, opt): opt must be a structure');
       end
+      opt = util.set_field_if_undef(opt, 'no_window', 1);
       opt = util.set_field_if_undef(opt, 'color', 'blue');
+      opt = util.set_field_if_undef(opt, 'no_plot', 0);
+      opt = util.set_field_if_undef(opt, 'dBm', 0);
+      opt = util.set_field_if_undef(opt, 'plot_y', 0);
+      opt = util.set_field_if_undef(opt, 'plot_y2', 0);
       
       sig = sig(:);
       % fprintf('sig pwr %g\n', mean(sig.^2));
@@ -378,15 +386,33 @@ classdef ncplot
       end
 
       %  fprintf('max pwr %g\n', res.ymax2);
-
-      xf=20*log10(f_r/fmax);
-
+      if (opt.dBm)
+        xf=20*log10(f_r);
+      else
+        xf=20*log10(f_r/fmax);
+      end
+      
       fft_i = (0:l2-1).'/(l*tsamp);
-      plot(fft_i(2:end), xf(2:end),'Color', opt.color);
-      xlim([fft_i(2) fft_i(end)]);
-      xlabel('freq (Hz)');
-      ylabel('power (dBc)');
-
+      if (~opt.no_plot)
+        if (opt.plot_y2)
+          semilogy(fft_i(2:end), f_r(2:end).^2, 'Color', opt.color);
+          ylabel('fft ');
+        elseif (opt.plot_y)
+          % plot y on a semilogy plot
+          semilogy(fft_i(2:end), f_r(2:end), 'Color', opt.color);
+          ylabel('fft ');
+        else
+          plot(fft_i(2:end), xf(2:end),'Color', opt.color);
+          if (opt.dBm)        
+              ylabel('power (dBc)');
+          else
+              ylabel('power (dBrel)');
+          end
+        end
+        xlim([fft_i(2) fft_i(end)]);
+        xlabel('freq (Hz)');
+      end
+      
 %      nc.uio.print_matrix('freq',fft_i(2:end).');
 %      nc.uio.print_matrix('pwr_dBc',xf(2:end).');
 
@@ -395,10 +421,11 @@ classdef ncplot
 
       res.x_Hz  = fft_i(2:end);
       res.y_dBc = xf(2:end);    
-
+      res.main_freq_idx = idx-1;
+      
       res.main_freq_Hz = fft_i(idx);
       res.main_ph_rad = angle(f_n(idx));
-
+      res.rbw_Hz = 1/(l*tsamp); % resolution bandwidth
         
     end
 

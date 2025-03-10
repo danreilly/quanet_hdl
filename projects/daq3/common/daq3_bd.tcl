@@ -212,7 +212,7 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
     ad_connect  $sys_dma_resetn axi_ad9152_dma/m_src_axi_aresetn
 }
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9152_fifo/dac_clk
-ad_connect  axi_ad9152_jesd_rstgen/peripheral_reset axi_ad9152_fifo/dac_rst
+ad_connect  axi_ad9152_jesd_rstgen/peripheral_reset axi_ad9152_fifo/dac_rst 
 
 # TODO: Add streaming AXI interface for DAC FIFO
 ad_connect  axi_ad9152_upack/s_axis_valid VCC
@@ -264,6 +264,7 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 puts "NuCrypt connections1"
 create_bd_port -dir O dac_xfer_out_port
 ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
+puts "IS THIS GETTING DONE?"
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
@@ -324,7 +325,7 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq==2 } {
     ad_mem_hp1_interconnect $sys_dma_clk sys_ps7/S_AXI_HP1
     ad_mem_hp1_interconnect $sys_dma_clk axi_ad9152_dma/m_src_axi
 
-    # from PS to DAC dmac
+    # from PS to ADC dmac
     ad_mem_hp2_interconnect $sys_dma_clk sys_ps7/S_AXI_HP2
     ad_mem_hp2_interconnect $sys_dma_clk axi_ad9680_dma/m_dest_axi
 

@@ -88,9 +88,9 @@ module axi_adcfifo #(
    
   // dma interface
   input 			  dma_clk,
-  output 			  dma_wr,
+  output 			  dma_wr, // to dmac s_axis_valid
   output [DMA_DATA_WIDTH-1:0] 	  dma_wdata,
-  input 			  dma_wready,
+  input 			  dma_wready, // from dmac s_axis_ready
   input 			  dma_xfer_req,
   output [ 3:0] 		  dma_xfer_status,
 
@@ -155,20 +155,26 @@ module axi_adcfifo #(
   wire                            axi_dready_s;
 
   // NuCrypt sigs
-  wire meas_noise, meas_noise_adc, dma_xfer_req_rc, s_axi_rst;
+  wire meas_noise, meas_noise_adc, dma_xfer_req_rc, s_axi_rst,
+       txrx_en, txrx_en_adc;
   wire [31:0] reg_ctl_w;
   reg [31:0] reg_samp_r, reg_stat_r;
-  reg noise_ctr_en=0;
+  reg noise_ctr_en=0, dma_xfer_req_d, xfer_req_event, dma_wready_d, dma_wready_pulse;
   reg noise_ctr_go=0;
   reg noise_ctr_is0=0, noise_trig=0;
   reg [10:0] noise_ctr=0;
-   wire    dac_tx_in_rc;
+   wire    dac_tx_in_adc;
   wire      dma_xfer_req_adc;
   reg  [  2:0]           adc_xfer_req_m = 'd0;
   reg adc_xfer_req, adc_xfer_req_d;
-  reg 	adc_go;
-  wire  xfer_req_event, clr_ctrs, adc_go_dma;
-  wire [3:0] core_vld_cnt, xfer_req_cnt, charisk_cnt, adc_wr_cnt;
+  reg 	adc_go, adc_go_d, adc_go_pulse;
+  wire  new_go_en, new_go_en_adc, clr_ctrs, adc_go_dma;
+  wire [3:0] core_vld_cnt, xfer_req_cnt, charisk_cnt, adc_wr_cnt, adc_go_cnt,
+   txrx_cnt,  dma_wready_cnt;
+
+  wire [7:0] adcfifo_ver = 'h01;
+
+
    
   // NuCrypt stuff
   // reg 3
@@ -176,7 +182,7 @@ module axi_adcfifo #(
 
 
 
-  assign xfer_req_event = adc_xfer_req & ~adc_xfer_req_d;
+
   assign s_axi_rst = ~s_axi_aresetn;
   axi_regs #(
     .A_W(11)
@@ -199,7 +205,7 @@ module axi_adcfifo #(
     .bresp(s_axi_bresp),
     .bvalid(s_axi_bvalid),
     .bready(s_axi_bready),
-
+ 
     .araddr(s_axi_araddr),
     .arvalid(s_axi_arvalid),
     .arready(s_axi_arready),
@@ -221,8 +227,8 @@ module axi_adcfifo #(
    
       
       
-
-   
+ 
+    
   // This sends a signal to DAC fifo every time ADC xfer starts ( or restarts)
 
   cdc_sync_cross #(
@@ -230,7 +236,7 @@ module axi_adcfifo #(
   ) xfer_req_cross (
     .clk_in_bad (adc_rst),
     .clk_in (adc_clk),
-    .d_in (adc_xfer_req_m[1]),
+    .d_in (adc_xfer_req_m[2]),
     .clk_out_bad (0),
     .clk_out (dac_clk),
     .d_out ( dac_tx ));
@@ -243,7 +249,7 @@ module axi_adcfifo #(
     .d_in (dac_tx_in),
     .clk_out_bad (adc_rst),
     .clk_out (adc_clk),
-    .d_out ( dac_tx_in_rc ));
+    .d_out ( dac_tx_in_adc ));
 
   cdc_samp #(
      .W(1)
@@ -251,43 +257,96 @@ module axi_adcfifo #(
      .in_data(reg_meas_noise),
      .out_data(meas_noise_adc),
      .out_clk (adc_clk));
+
+  pulse_ctr #(
+    .W(4)
+  ) dma_wready_ctr (
+    .pulse (dma_wready_pulse),
+    .pulse_clk   (dma_clk),
+    .clk   (s_axi_clk),
+    .clr   (clr_ctrs),
+    .ctr   (dma_wready_cnt));
+
+   
+  pulse_ctr #(
+    .W(4)
+  ) adc_go_ctr (
+    .pulse (adc_go_pulse),
+    .pulse_clk   (adc_clk),
+    .clk   (s_axi_clk),
+    .clr   (clr_ctrs),
+    .ctr   (adc_go_cnt));
    
   pulse_ctr #(
     .W(4)
   ) i_xfer_req_ctr (
     .pulse (xfer_req_event),
-    .pulse_clk   (adc_clk),
+    .pulse_clk   (dma_clk),
     .clk   (s_axi_clk),
     .clr   (clr_ctrs),
     .ctr   (xfer_req_cnt));
 
+  pulse_ctr #(
+    .W(4)
+  ) txrx_ctr (
+    .pulse (tx_rx_en),
+    .pulse_clk   (s_axi_aclk),
+    .clk   (s_axi_clk),
+    .clr   (clr_ctrs),
+    .ctr   (txrx_cnt));
+   
   // for dbg
   cdc_samp #(
      .W(1)
   ) cdc_samp_req (
-     .in_data(dma_xfer_req),
+     .in_data(dma_xfer_req_d),
      .out_data(dma_xfer_req_rc),
      .out_clk (s_axi_clk));
    
-  always @(posedge s_axi_clk) begin
+  always @(posedge s_axi_aclk) begin
+    reg_stat_r[31:24] <= adcfifo_ver;
+    reg_stat_r[23:20] <= 0; // reserved
+    reg_stat_r[19:16] <= txrx_cnt;
     reg_stat_r[15:12] <= xfer_req_cnt;
-    reg_stat_r[11:1]  <= 'h7ff;
+    reg_stat_r[11:8]  <= adc_go_cnt;
+    reg_stat_r[7:4]   <= dma_wready_cnt;
+    reg_stat_r[3:1]   <= 0;
     reg_stat_r[0]     <= dma_xfer_req_rc;
      
     reg_samp_r <= 'h5a5a5a5a; // placeholder     
-  end // always @(posedge s_axi_clk)
+  end // always @(posedge s_axi_aclk)
 
   assign clr_ctrs   = reg_ctl_w[0];
   assign meas_noise = reg_ctl_w[1];
+  assign txrx_en    = reg_ctl_w[2];
+  assign new_go_en  = reg_ctl_w[3];
+
+  cdc_samp #(
+     .W(1)
+  ) cdc_samp_to_adcclk (
+     .in_data( {txrx_en     , new_go_en    }),
+     .out_data({txrx_en_adc , new_go_en_adc}),
+     .out_clk (adc_clk));
 
    
   always @(posedge adc_clk) begin
      // mimicing ADC's cdc methodology
      adc_xfer_req_m <= {adc_xfer_req_m[1:0], dma_xfer_req};
 
-     // adc won't really take samples until dac says so.
-     adc_go <= adc_xfer_req_m[1] & (dac_tx_in_rc | adc_go);
-
+     // We only take samples while txrx_en_adc is high.
+     // When dma req goes high, we signal the dac, and when it acks that,
+     // that is when we start taking samples.
+     // After that, dma request can go up and down, but we ignore it,
+     // and keep taking samples.  This is in case software can't keep up,
+     // in which case we keep cramming data into the DDR so we don't
+     // loose any consecutive data.
+     if (new_go_en_adc)
+       adc_go <= txrx_en_adc & ((dac_tx_in_adc & adc_xfer_req_m[2]) | adc_go);
+     else // older method
+       adc_go <= adc_xfer_req_m[2] & (dac_tx_in_adc | adc_go);
+     adc_go_d <= adc_go;
+     adc_go_pulse <= adc_go & ~adc_go_d;
+     
      noise_ctr_go <= meas_noise_adc && adc_go;
      if (!noise_ctr_go || noise_ctr_is0)
        noise_ctr <= (6100/4-1);
@@ -299,7 +358,7 @@ module axi_adcfifo #(
      else if (noise_ctr_is0)
        rxq_sw_ctl <= ~rxq_sw_ctl;
 
-     adc_xfer_req   <= adc_xfer_req_m[1];
+     adc_xfer_req   <= adc_xfer_req_m[2];
      adc_xfer_req_d <= adc_xfer_req;
 
 
@@ -335,7 +394,10 @@ module axi_adcfifo #(
     .AXI_ADDRESS (AXI_ADDRESS),
     .AXI_ADDRESS_LIMIT (AXI_ADDRESS_LIMIT)
   ) i_wr (
+
+    // When this goes low, it resets the fifo in ddr.
     .dma_xfer_req (adc_go),
+	  
     .axi_rd_req (axi_rd_req_s),   // pulses at end of each burst to ddr3
     .axi_rd_addr (axi_rd_addr_s), // to transfer this
     .adc_rst (adc_rst),
@@ -408,6 +470,14 @@ module axi_adcfifo #(
     .axi_ddata (axi_ddata_s),
     .axi_dready (axi_dready_s));
 
+
+  always @(posedge dma_clk) begin
+    dma_xfer_req_d  = dma_xfer_req;
+    xfer_req_event = dma_xfer_req & ~dma_xfer_req_d;
+    dma_wready_d <= dma_wready;
+    dma_wready_pulse <= dma_wready & ~dma_wready_d;
+  end
+   
   cdc_samp #(
      .W(1)
   ) cdc_samp_adc_go (

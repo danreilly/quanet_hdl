@@ -20,6 +20,7 @@ source $ad_hdl_dir/projects/scripts/adi_board.tcl
 #   [RX/TX]_JESD_L : Number of lanes per link
 #   [RX/TX]_JESD_S : Number of samples per frame
 
+# I think this just builds the block diagram:
 adi_project daq3_zcu106 0 [list \
   RX_JESD_M    [get_env_param RX_JESD_M    2 ] \
   RX_JESD_L    [get_env_param RX_JESD_L    4 ] \
@@ -44,7 +45,13 @@ adi_project_files daq3_zcu106 [list \
   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
 
 
-
+# Here we could add other files, such as for Corundum.
+# The corundum makefile produces their create_project.tcl
+set savdir [pwd]
+#source ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga/
+cd ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+source create_project_nc.tcl
+cd $savdir
 
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,
 # which only defines loc and iostds for sys_clk and sys_rst.  But

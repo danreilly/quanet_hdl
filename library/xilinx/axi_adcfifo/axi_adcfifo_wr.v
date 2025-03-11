@@ -78,7 +78,7 @@ module axi_adcfifo_wr #(
   input                   axi_awready,
   output                  axi_wvalid,
   output      [AXI_DATA_WIDTH-1:0]  axi_wdata,
-  output      [AXI_BYTE_WIDTH-1:0]  axi_wstrb,
+  output      [AXI_DATA_WIDTH/8-1:0]  axi_wstrb,
   output                  axi_wlast,
   output      [ 3:0]      axi_wuser,
   input                   axi_wready,

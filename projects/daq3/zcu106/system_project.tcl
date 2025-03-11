@@ -45,14 +45,6 @@ adi_project_files daq3_zcu106 [list \
   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
 
 
-# Here we could add other files, such as for Corundum.
-# The corundum makefile produces their create_project.tcl
-set savdir [pwd]
-#source ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga/
-cd ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
-source create_project_nc.tcl
-cd $savdir
-
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,
 # which only defines loc and iostds for sys_clk and sys_rst.  But
 # we use a board interface for sys_clk, and we handle sys_rst differently,

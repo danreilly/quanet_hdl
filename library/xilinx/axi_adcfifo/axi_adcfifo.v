@@ -252,7 +252,7 @@ module axi_adcfifo #(
     .d_out ( dac_tx_in_adc ));
 
   cdc_samp #(
-     .W(1)
+     .W(2)
   ) cdc_meas_noise (
      .in_data(reg_meas_noise),
      .out_data(meas_noise_adc),

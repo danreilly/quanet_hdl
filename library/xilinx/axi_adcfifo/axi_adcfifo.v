@@ -263,7 +263,7 @@ module axi_adcfifo #(
   ) dma_wready_ctr (
     .pulse (dma_wready_pulse),
     .pulse_clk   (dma_clk),
-    .clk   (s_axi_clk),
+    .clk   (s_axi_aclk),
     .clr   (clr_ctrs),
     .ctr   (dma_wready_cnt));
 
@@ -273,7 +273,7 @@ module axi_adcfifo #(
   ) adc_go_ctr (
     .pulse (adc_go_pulse),
     .pulse_clk   (adc_clk),
-    .clk   (s_axi_clk),
+    .clk   (s_axi_aclk),
     .clr   (clr_ctrs),
     .ctr   (adc_go_cnt));
    
@@ -282,7 +282,7 @@ module axi_adcfifo #(
   ) i_xfer_req_ctr (
     .pulse (xfer_req_event),
     .pulse_clk   (dma_clk),
-    .clk   (s_axi_clk),
+    .clk   (s_axi_aclk),
     .clr   (clr_ctrs),
     .ctr   (xfer_req_cnt));
 
@@ -291,7 +291,7 @@ module axi_adcfifo #(
   ) txrx_ctr (
     .pulse (tx_rx_en),
     .pulse_clk   (s_axi_aclk),
-    .clk   (s_axi_clk),
+    .clk   (s_axi_aclk),
     .clr   (clr_ctrs),
     .ctr   (txrx_cnt));
    
@@ -301,7 +301,7 @@ module axi_adcfifo #(
   ) cdc_samp_req (
      .in_data(dma_xfer_req_d),
      .out_data(dma_xfer_req_rc),
-     .out_clk (s_axi_clk));
+     .out_clk (s_axi_aclk));
    
   always @(posedge s_axi_aclk) begin
     reg_stat_r[31:24] <= adcfifo_ver;

@@ -139,24 +139,29 @@ if {0} {
     ad_connect qsfp/txclk_out txclk_out
 }
 
-# Dan: originally this did not include sys_zynq 2. perhaps
-# the mem iface is different in the ultrascale
+# Dan: originally this did not include sys_zynq 2.
 # if {$sys_zynq == 0 || $sys_zynq == 1}
-if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
-  puts "DAN: will call: ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width"
+#if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
+if {0} {
+  puts "will call: ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width"
   puts [exec ls $project_system_dir]
-  # still only system.bd is there!
   ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width
-
-  ad_cpu_interconnect 0x44ad0000 $adc_fifo_name
-
-  # NuCrypt additions related to adcfifo:
-  create_bd_port -dir O rxq_sw_ctl
-  ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
-
-  ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
-  ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
+} else {
+  # create an adcfifo with URAM fifo instead of an attached ddr3
+  ad_ip_instance axi_adcfifo $adc_fifo_name
+  ad_ip_parameter $adc_fifo_name CONFIG.ADC_DATA_WIDTH $adc_data_width
+  ad_ip_parameter $adc_fifo_name CONFIG.DMA_DATA_WIDTH $adc_data_width
+  ad_ip_parameter $adc_fifo_name CONFIG.AXI_DATA_WIDTH 512
+  ad_ip_parameter $adc_fifo_name CONFIG.DMA_READY_ENABLE 1
+  ad_ip_parameter $adc_fifo_name CONFIG.AXI_LENGTH 4
 }
+ad_cpu_interconnect 0x44ad0000 $adc_fifo_name
+# NuCrypt additions related to adcfifo:
+create_bd_port -dir O rxq_sw_ctl
+ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
+ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
+ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
+
 
 # shared transceiver core
 
@@ -264,15 +269,11 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 puts "NuCrypt connections1"
 create_bd_port -dir O dac_xfer_out_port
 ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
-puts "IS THIS GETTING DONE?"
+
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
 
-#ad_connect  util_dacfifo/regs_w                 axi_ad9152_fifo/regs_w
-# ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
-# ad_connect  axi_ad9680_fifo/reg_samp     qregs/reg_samp
-#ad_connect  axi_ad9680_fifo/reg_adc_stat qregs/reg_adc_stat
 
 # This is a little kludgey for now
 create_bd_port -from 3 -to 0 -dir I gth_status

@@ -35,14 +35,14 @@ adi_project_files daq3_zcu106 [list \
   "../common/daq3_spi.v" \
   "system_top.v" \
   "../../../library/quanet/util_pkg.vhd" \
-  "../../../library/quanet/lfsr_w.vhd" \
-  "happycamper/gth_driver.vhd" \
-  "happycamper/my_gth_wrap.vhd" \
   "$ad_hdl_dir/library/common/ad_iobuf.v" \
-  "ip/my_gth/my_gth.xci" \
-  "ip/in_system_ibert_0/in_system_ibert_0.xci" \
   "system_constr.xdc" \
   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
+#  "ip/in_system_ibert_0/in_system_ibert_0.xci" \
+#  "../../../library/quanet/lfsr_w.vhd" \
+#  "ip/my_gth/my_gth.xci" \
+#  "happycamper/gth_driver.vhd" \
+#  "happycamper/my_gth_wrap.vhd" \
 
 
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,

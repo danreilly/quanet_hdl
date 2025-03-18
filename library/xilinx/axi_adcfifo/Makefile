@@ -6,28 +6,33 @@
 
 LIBRARY_NAME := axi_adcfifo
 
-XILINX_DEPS += ../../common/ad_axis_inf_rx.v
-XILINX_DEPS += ../../common/ad_mem.v
-XILINX_DEPS += ../../common/ad_mem_asym.v
-XILINX_DEPS += ../../common/up_xfer_status.v
+# XILINX_DEPS += ../../common/ad_axis_inf_rx.v
+# XILINX_DEPS += ../../common/ad_mem.v
+# XILINX_DEPS += ../../common/ad_mem_asym.v
+# XILINX_DEPS += ../../common/up_xfer_status.v
 XILINX_DEPS += axi_adcfifo.v
-XILINX_DEPS += axi_adcfifo_adc.v
 XILINX_DEPS += axi_adcfifo_constr.xdc
-XILINX_DEPS += axi_adcfifo_dma.v
+# XILINX_DEPS += axi_adcfifo_dma.v
 XILINX_DEPS += axi_adcfifo_ip.tcl
-XILINX_DEPS += axi_adcfifo_rd.v
-XILINX_DEPS += axi_adcfifo_wr.v
+#XILINX_DEPS += axi_adcfifo_rd.v
+#XILINX_DEPS += axi_adcfifo_wr.v
+XILINX_DEPS += adc_uram_fifo.vhd
 XILINX_DEPS += ../../quanet/util_pkg.vhd
 XILINX_DEPS += ../../quanet/axi_reg_array.vhd
+XILINX_DEPS += ../../quanet/fifo_2clks_infer.vhd
+XILINX_DEPS += ../../quanet/fifo_2clks_infer.xdc
+XILINX_DEPS += ../../quanet/fifo_1clk_uram_infer.vhd
+XILINX_DEPS += ../../quanet/uram_infer.vhd
 XILINX_DEPS += ../../quanet/axi_regs.vhd
 XILINX_DEPS += ../../quanet/pulse_ctr.vhd
 XILINX_DEPS += ../../quanet/cdc_sync_cross.vhd
 XILINX_DEPS += ../../quanet/cdc_sync_cross.xdc
 XILINX_DEPS += ../../quanet/cdc_thru.vhd
+XILINX_DEPS += ../../quanet/cdc_thru.xdc
 XILINX_DEPS += ../../quanet/cdc_samp.xdc
 XILINX_DEPS += ../../quanet/cdc_samp.vhd
-XILINX_DEPS += ../../quanet/cdc_thru.xdc
-XILINX_DEPS += ../../quanet/pulse_bridge.vhd
-XILINX_DEPS += ../../quanet/pulse_bridge.xdc
+XILINX_DEPS += ../../quanet/cdc_pulse.vhd
+XILINX_DEPS += ../../quanet/cdc_pulse.xdc
+
 
 include ../../scripts/library.mk

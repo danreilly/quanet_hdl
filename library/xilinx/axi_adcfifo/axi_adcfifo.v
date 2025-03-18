@@ -92,9 +92,9 @@ module axi_adcfifo #(
   output [DMA_DATA_WIDTH-1:0] 	  dma_wdata,
   input 			  dma_wready, // from dmac s_axis_ready
   input 			  dma_xfer_req,
-  output [ 3:0] 		  dma_xfer_status,
+  output [ 3:0] 		  dma_xfer_status
 
-   
+/*   
   // axi interface to DDR
   input 			  axi_clk,
   input 			  axi_resetn,
@@ -140,6 +140,7 @@ module axi_adcfifo #(
   input 			  axi_rlast,
   input [AXI_DATA_WIDTH-1:0] 	  axi_rdata,
   output 			  axi_rready
+ */
 );
 
   // internal signals
@@ -163,21 +164,20 @@ module axi_adcfifo #(
   reg noise_ctr_go=0;
   reg noise_ctr_is0=0, noise_trig=0;
   reg [10:0] noise_ctr=0;
-   wire    dac_tx_in_adc;
-  wire      dma_xfer_req_adc;
-  reg  [  2:0]           adc_xfer_req_m = 'd0;
-  reg adc_xfer_req, adc_xfer_req_d;
-  reg 	adc_go, adc_go_d, adc_go_pulse;
-  wire  new_go_en, new_go_en_adc, clr_ctrs, adc_go_dma;
+  wire  dac_tx_in_adc;
+
+  reg  [2:0]adc_xfer_req_m = 'd0;
+  reg 	    adc_xfer_req;
+
+  reg adc_go, adc_go_d, adc_go_pulse;
+
+  wire  new_go_en, new_go_en_adc, clr_ctrs, adc_go_dma, uram_rst;
   wire [3:0] core_vld_cnt, xfer_req_cnt, charisk_cnt, adc_wr_cnt, adc_go_cnt,
    txrx_cnt,  dma_wready_cnt;
 
   wire [7:0] adcfifo_ver = 'h01;
 
-
-   
-  // NuCrypt stuff
-  // reg 3
+  wire clr_ovf;
 
 
 
@@ -295,13 +295,11 @@ module axi_adcfifo #(
     .clr   (clr_ctrs),
     .ctr   (txrx_cnt));
    
-  // for dbg
-  cdc_samp #(
-     .W(1)
-  ) cdc_samp_req (
-     .in_data(dma_xfer_req_d),
-     .out_data(dma_xfer_req_rc),
-     .out_clk (s_axi_aclk));
+
+  always @(posedge dma_clk) begin
+    dma_wready_d     <= dma_wready;
+    dma_wready_pulse <= dma_wready & ~dma_wready_d;
+  end
    
   always @(posedge s_axi_aclk) begin
     reg_stat_r[31:24] <= adcfifo_ver;
@@ -310,7 +308,9 @@ module axi_adcfifo #(
     reg_stat_r[15:12] <= xfer_req_cnt;
     reg_stat_r[11:8]  <= adc_go_cnt;
     reg_stat_r[7:4]   <= dma_wready_cnt;
-    reg_stat_r[3:1]   <= 0;
+    reg_stat_r[3]     <= uram_ovf; // OK if happens often
+    reg_stat_r[2]     <= uram_bug; // indicates bug in HDL
+    reg_stat_r[1]     <= 0;
     reg_stat_r[0]     <= dma_xfer_req_rc;
      
     reg_samp_r <= 'h5a5a5a5a; // placeholder     
@@ -320,9 +320,10 @@ module axi_adcfifo #(
   assign meas_noise = reg_ctl_w[1];
   assign txrx_en    = reg_ctl_w[2];
   assign new_go_en  = reg_ctl_w[3];
+  assign clr_ovf    = reg_ctl_w[4];
 
   cdc_samp #(
-     .W(1)
+     .W(2)
   ) cdc_samp_to_adcclk (
      .in_data( {txrx_en     , new_go_en    }),
      .out_data({txrx_en_adc , new_go_en_adc}),
@@ -357,150 +358,32 @@ module axi_adcfifo #(
        rxq_sw_ctl <= 0;
      else if (noise_ctr_is0)
        rxq_sw_ctl <= ~rxq_sw_ctl;
-
-     adc_xfer_req   <= adc_xfer_req_m[2];
-     adc_xfer_req_d <= adc_xfer_req;
-
-
      
   end // always @ (posedge adc_clk)
 
+
+  // adc clk is 312.5MHz
+  // dma clk is 250MHz
+  assign uram_rst = ~adc_go;
+  adc_uram_fifo #(
+    .D_W(ADC_DATA_WIDTH),
+    .URAM_A_W(12)  // must be >= 12
+  ) ufifo (
+    .ctl_clk(axi_clk),
+    .rst(uram_rst),
+    .fifo_ovf(uram_ovf),
+    .fifo_bug(uram_bug), // should never be hi
+    .clr_flags(clr_ovf),
+    
+    .adc_clk(adc_clk),
+    .adc_wr(adc_wr),
+    .adc_data(adc_wdata),
+
+    .dma_clk(dma_clk),
+    .dma_wready(dma_wready),
+    .dma_wr(dma_wr),
+    .dma_data(dma_wdata));
+
+  assign dma_xfer_status = 0;
    
-  // instantiations
-  // This widens the data from "adc" to "axi" width.
-  // operates continuously but maybe it should not.
-  axi_adcfifo_adc #(
-    .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-    .ADC_DATA_WIDTH (ADC_DATA_WIDTH)
-  ) i_adc_if (
-    .adc_rst (adc_rst),
-    .adc_clk (adc_clk),
-    .adc_wr (adc_wr),
-    .adc_wdata (adc_wdata), // adc data in
-    .adc_wovf (adc_wovf),
-
-    .adc_dwr (adc_dwr_s), // out
-    .adc_ddata (adc_ddata_s), // axi data out
-    .axi_drst (axi_drst_s),
-    .axi_clk (axi_clk),
-    .axi_xfer_status (axi_xfer_status_s));
-
-  // This contains a shallow buffer for bursting into ddr
-  // 
-  axi_adcfifo_wr #(
-    .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-    .AXI_SIZE (AXI_SIZE),
-    .AXI_LENGTH (AXI_LENGTH),
-    .AXI_ADDRESS (AXI_ADDRESS),
-    .AXI_ADDRESS_LIMIT (AXI_ADDRESS_LIMIT)
-  ) i_wr (
-
-    // When this goes low, it resets the fifo in ddr.
-    .dma_xfer_req (adc_go),
-	  
-    .axi_rd_req (axi_rd_req_s),   // pulses at end of each burst to ddr3
-    .axi_rd_addr (axi_rd_addr_s), // to transfer this
-    .adc_rst (adc_rst),
-    .adc_clk (adc_clk),
-    .adc_wr (adc_dwr_s),
-    .adc_wdata (adc_ddata_s), // in
-    .axi_clk (axi_clk),
-    .axi_resetn (axi_resetn),
-    .axi_awvalid (axi_awvalid),
-    .axi_awid (axi_awid),
-    .axi_awburst (axi_awburst),
-    .axi_awlock (axi_awlock),
-    .axi_awcache (axi_awcache),
-    .axi_awprot (axi_awprot),
-    .axi_awqos (axi_awqos),
-    .axi_awuser (axi_awuser),
-    .axi_awlen (axi_awlen),
-    .axi_awsize (axi_awsize),
-    .axi_awaddr (axi_awaddr),
-    .axi_awready (axi_awready),
-    .axi_wvalid (axi_wvalid),
-    .axi_wdata (axi_wdata),
-    .axi_wstrb (axi_wstrb),
-    .axi_wlast (axi_wlast),
-    .axi_wuser (axi_wuser),
-    .axi_wready (axi_wready),
-    .axi_bvalid (axi_bvalid),
-    .axi_bid (axi_bid),
-    .axi_bresp (axi_bresp),
-    .axi_buser (axi_buser),
-    .axi_bready (axi_bready),
-    .axi_dwovf (axi_xfer_status_s[0]),
-    .axi_dwunf (axi_xfer_status_s[1]),
-    .axi_werror (axi_xfer_status_s[2]));
-
-  axi_adcfifo_rd #(
-    .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-    .AXI_SIZE (AXI_SIZE),
-    .AXI_LENGTH (AXI_LENGTH),
-    .AXI_ADDRESS (AXI_ADDRESS),
-    .AXI_ADDRESS_LIMIT (AXI_ADDRESS_LIMIT)
-  ) i_rd (
-    .dma_xfer_req (adc_go),
-    .axi_rd_req (axi_rd_req_s),
-    .axi_rd_addr (axi_rd_addr_s),
-    .axi_clk (axi_clk),
-    .axi_resetn (axi_resetn),
-    .axi_arvalid (axi_arvalid),
-    .axi_arid (axi_arid),
-    .axi_arburst (axi_arburst),
-    .axi_arlock (axi_arlock),
-    .axi_arcache (axi_arcache),
-    .axi_arprot (axi_arprot),
-    .axi_arqos (axi_arqos),
-    .axi_aruser (axi_aruser),
-    .axi_arlen (axi_arlen),
-    .axi_arsize (axi_arsize),
-    .axi_araddr (axi_araddr),
-    .axi_arready (axi_arready),
-    .axi_rvalid (axi_rvalid),
-    .axi_rid (axi_rid),
-    .axi_ruser (axi_ruser),
-    .axi_rresp (axi_rresp),
-    .axi_rlast (axi_rlast),
-    .axi_rdata (axi_rdata),
-    .axi_rready (axi_rready),
-    .axi_rerror (axi_xfer_status_s[3]),
-    .axi_drst (axi_drst_s),
-    .axi_dvalid (axi_dvalid_s),
-    .axi_ddata (axi_ddata_s),
-    .axi_dready (axi_dready_s));
-
-
-  always @(posedge dma_clk) begin
-    dma_xfer_req_d  = dma_xfer_req;
-    xfer_req_event = dma_xfer_req & ~dma_xfer_req_d;
-    dma_wready_d <= dma_wready;
-    dma_wready_pulse <= dma_wready & ~dma_wready_d;
-  end
-   
-  cdc_samp #(
-     .W(1)
-  ) cdc_samp_adc_go (
-     .in_data(adc_go),
-     .out_data(adc_go_dma),
-     .out_clk (dma_clk));
-   
-  axi_adcfifo_dma #(
-    .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-    .DMA_DATA_WIDTH (DMA_DATA_WIDTH),
-    .DMA_READY_ENABLE (DMA_READY_ENABLE)
-  ) i_dma_if (
-    .axi_clk (axi_clk),
-    .axi_drst (axi_drst_s),
-    .axi_dvalid (axi_dvalid_s),
-    .axi_ddata (axi_ddata_s),
-    .axi_dready (axi_dready_s),
-    .axi_xfer_status (axi_xfer_status_s),
-    .dma_clk (dma_clk),
-    .dma_wr (dma_wr),
-    .dma_wdata (dma_wdata),
-    .dma_wready (dma_wready),
-    .dma_xfer_req (adc_go_dma),
-    .dma_xfer_status (dma_xfer_status));
-
 endmodule

@@ -6,16 +6,16 @@ module system_top (
   output 	 j3_8, // fast switch ctl
   output 	 j3_24, // debug
 		   
-  output 	 sfp0_tx_p,
-  output 	 sfp0_tx_n,
-  input 	 sfp0_rx_p,
-  input 	 sfp0_rx_n,
-  output 	 sfp0_tx_dis, 
-  input 	 si5328_out_c_p,
-  input 	 si5328_out_c_n,
+//  output 	 sfp0_tx_p,
+//  output 	 sfp0_tx_n,
+//  input 	 sfp0_rx_p,
+//  input 	 sfp0_rx_n,
+//  output 	 sfp0_tx_dis, 
+//  input 	 si5328_out_c_p,
+//  input 	 si5328_out_c_n,
 
-  output rec_clock_p,
-  output rec_clock_n,
+//  output rec_clock_p,
+//  output rec_clock_n,
 		   
 //  inout [14:0] 	ddr_addr,
 //  inout [ 2:0] 	ddr_ba,
@@ -33,20 +33,20 @@ module system_top (
 //  inout 	ddr_reset_n,
 //  inout 	ddr_we_n,
 
-  output 	 c0_ddr4_act_n,
-  output [16:0]  c0_ddr4_adr,
-  output [ 1:0]  c0_ddr4_ba,
-  output 	 c0_ddr4_bg,
-  output 	 c0_ddr4_ck_c,
-  output 	 c0_ddr4_ck_t,
-  output 	 c0_ddr4_cke,
-  output 	 c0_ddr4_cs_n,
-  inout [ 7:0] 	 c0_ddr4_dm_dbi_n,
-  inout [63:0] 	 c0_ddr4_dq,
-  inout [ 7:0] 	 c0_ddr4_dqs_c,
-  inout [ 7:0] 	 c0_ddr4_dqs_t,
-  output 	 c0_ddr4_odt,
-  output 	 c0_ddr4_reset_n,
+//  output 	 c0_ddr4_act_n,
+//  output [16:0]  c0_ddr4_adr,
+//  output [ 1:0]  c0_ddr4_ba,
+//  output 	 c0_ddr4_bg,
+//  output 	 c0_ddr4_ck_c,
+//  output 	 c0_ddr4_ck_t,
+//  output 	 c0_ddr4_cke,
+//  output 	 c0_ddr4_cs_n,
+//  inout [ 7:0] 	 c0_ddr4_dm_dbi_n,
+//  inout [63:0] 	 c0_ddr4_dq,
+//  inout [ 7:0] 	 c0_ddr4_dqs_c,
+//  inout [ 7:0] 	 c0_ddr4_dqs_t,
+//  output 	 c0_ddr4_odt,
+//  output 	 c0_ddr4_reset_n,
 
 //  inout iic_main_scl,
 //  inout iic_main_sda,
@@ -95,10 +95,10 @@ module system_top (
   output 	 spi_csn_adc,
   output 	 spi_clk,
   inout 	 spi_sdio,
-  output 	 spi_dir,
+  output 	 spi_dir
 
-  input 	 sys_clk_p,
-  input 	 sys_clk_n
+//  input 	 sys_clk_p,
+//  input 	 sys_clk_n
 		   
 );
 
@@ -241,6 +241,7 @@ module system_top (
   // This emits an LFSR pattern out SFP0.
   // Could be used for testing the system without the classical NIC.
   // in bank 225
+   /*
   IBUFDS_GTE4 gtrefclk_ibuf (
       .CEB(0),
       .I(si5328_out_c_p),
@@ -256,8 +257,10 @@ module system_top (
     .axi_clk(axi_clk),
     .txclk_out(sfp_txclk),
     .gtrefclk(si5328_out_c));
-  assign j3_6=sfp_txclk;
-   
+    */
+//  assign j3_6=sfp_txclk;
+
+/*   
   // Note: ODDR in ultrascale vs 7series is different
   ODDRE1 recclk_oddr(
      .C(axi_clk), // 250MHz
@@ -269,11 +272,11 @@ module system_top (
      .I(rec_clk_out),
      .O (rec_clock_p),
      .OB(rec_clock_n));
-   
+*/   
    
 
   system_wrapper i_system_wrapper (
-//    .dac_xfer_out_port (j3_6),
+    .dac_xfer_out_port (j3_6),
     .rxq_sw_ctl (j3_8),
     .axi_clk_out(axi_clk), // 250MHz I think
 
@@ -284,20 +287,20 @@ module system_top (
 //    .gtrefclk(si5328_out_c),
 //    .txclk_out(sfp_txclk),
 				   
-    .ddr4_act_n(c0_ddr4_act_n),
-    .ddr4_adr (c0_ddr4_adr),
-    .ddr4_ba (c0_ddr4_ba),
-    .ddr4_bg (c0_ddr4_bg),
-    .ddr4_ck_c (c0_ddr4_ck_c),
-    .ddr4_ck_t (c0_ddr4_ck_t),
-    .ddr4_cke (c0_ddr4_cke),
-    .ddr4_cs_n (c0_ddr4_cs_n),
-    .ddr4_dm_n (c0_ddr4_dm_dbi_n),
-    .ddr4_dq (c0_ddr4_dq),
-    .ddr4_dqs_c (c0_ddr4_dqs_c),
-    .ddr4_dqs_t (c0_ddr4_dqs_t),
-    .ddr4_odt (c0_ddr4_odt),
-    .ddr4_reset_n (c0_ddr4_reset_n),
+//    .ddr4_act_n(c0_ddr4_act_n),
+//    .ddr4_adr (c0_ddr4_adr),
+//    .ddr4_ba (c0_ddr4_ba),
+//    .ddr4_bg (c0_ddr4_bg),
+//    .ddr4_ck_c (c0_ddr4_ck_c),
+//    .ddr4_ck_t (c0_ddr4_ck_t),
+//    .ddr4_cke (c0_ddr4_cke),
+//    .ddr4_cs_n (c0_ddr4_cs_n),
+//    .ddr4_dm_n (c0_ddr4_dm_dbi_n),
+//    .ddr4_dq (c0_ddr4_dq),
+//    .ddr4_dqs_c (c0_ddr4_dqs_c),
+//    .ddr4_dqs_t (c0_ddr4_dqs_t),
+//    .ddr4_odt (c0_ddr4_odt),
+//    .ddr4_reset_n (c0_ddr4_reset_n),
 
     .gth_status(gth_status),
     .gth_rst(gth_rst),
@@ -344,13 +347,14 @@ module system_top (
     .spi0_mosi (spi_mosi),
 
      // spi1 was unused for the zc706 target				   
-//    .spi1_sclk (spi1_clk),
-//    .spi1_csn  (spi1_csn),
+    .spi1_sclk (),
+    .spi1_csn  (),
     .spi1_miso (0),
-//    .spi1_mosi (spi1_mosi),
+    .spi1_mosi (),
 				   
-    .sys_clk_clk_n (sys_clk_n),
-    .sys_clk_clk_p (sys_clk_p),
+//    .sys_clk_clk_n (sys_clk_n),
+//    .sys_clk_clk_p (sys_clk_p),
+				   
 //    .dac_fifo_bypass(0),
     .tx_data_0_n (tx_data_n[0]),
     .tx_data_0_p (tx_data_p[0]),

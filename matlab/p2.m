@@ -4,7 +4,7 @@ function p2
 
   dbg_each_seg_fit=0
   plot_lorentzian_fit=0;
-  calc_linewid = 1;
+  calc_linewid = 0;
   beat_with_self = 1;
   dbg=0;
 
@@ -119,9 +119,6 @@ function p2
     xlabel('time (ms)');  
   end
 
-  opt.no_window=0;
-  opt.no_plot=1;
-  opt.dBm = 1;
   
 %  zoom_bw_Hz =2e6;
   zoom_bw_Hz =20e6;
@@ -129,7 +126,7 @@ function p2
   max_pd_us = round(t_ms(end)*1000/2);
   
   pds_us = 10:10:min(100,max_pd_us);
-  pds_us = 10;
+  pds_us = .2;
 %  pds_us = 90;
   pds_l = length(pds_us);
   if (calc_linewid)
@@ -157,28 +154,25 @@ function p2
     [co,ch,cq]=ncplot.colors();
 
 
-
-
-
-
-
-    
-    fi=0;
-    si=0;
-
     x_all=[];
     y_all=[];
 
-    
-    ssi=1;
-    while(si+nsamp <= l)
-      res = ncplot.fft(a1(si+(1:nsamp)), 1/fsamp_Hz, opt);
-      fi=fi+1;
-      offs_s(fi)=si/fsamp_Hz; % start of segment
-      freqs_Hz(fi)   =res.main_freq_Hz;
-      fft_phs_rad(fi)=res.main_ph_rad;
-%      ncplot.txt(sprintf('freq %sHz', uio.sci(res.main_freq_Hz)));
-%      title(sprintf('offset %s',uio.dur(si/fsamp_Hz)));
+    freqs_l = floor(l/nsamp)
+    offs_s      =zeros(freqs_l,1);
+    freqs_Hz    =zeros(freqs_l,1);
+    fft_phs_rad =zeros(freqs_l,1);
+    lorentz_wids=zeros(freqs_l,1);
+
+    for fi = 1:freqs_l
+      opt.no_window=0;
+      opt.no_plot=1;
+      res = ncplot.fft(a1((fi-1)*nsamp+(1:nsamp)), 1/fsamp_Hz, opt);
+      offs_s(fi)      = (fi-1)/fsamp_Hz; % start of segment
+      freqs_Hz(fi)    = res.main_freq_Hz;
+      fft_phs_rad(fi) = res.main_ph_rad;
+      
+   %      ncplot.txt(sprintf('freq %sHz', uio.sci(res.main_freq_Hz)));
+%      title(sprintf('offset %s',uio.dur((fi-1)/fsamp_Hz)));
 %      uio.pause();
       
       hbw=round(zoom_bw_idx/2);
@@ -197,6 +191,7 @@ function p2
       if (0)
         gopt.weighting='y';
         gopt.m = res.main_freq_Hz;
+        gopt.dbg=1;
 	[a m s o rmse] = fit.gaussian(xs, ys, gopt);
       else
 	slopt.dbg = dbg_each_seg_fit;
@@ -204,7 +199,7 @@ function p2
 	slopt.init_y_thresh = .50;
 	slopt.weighting='y';
 	[a m g o rmse] = fit.lorentzian(xs, ys, slopt);
-	% fprintf('wid %sHz\n', uio.sci(2*g,1));
+	 fprintf('wid %sHz\n', uio.sci(2*g,1));
 	lorentz_wids(fi) = 2*g;
       end	
       x_all = [x_all; xs-m];
@@ -225,14 +220,12 @@ function p2
       
 	     %      xlim(res.rbw_Hz * (res.main_freq_idx+[-hbw hbw]));
 %      xlim(res.rbw_Hz * [-hbw hbw]);
-
       %      uio.pause();
-      ssi=ssi+1;
-      si = si + nsamp;
-    end
+
+    end % for fi
 
     
-    if (calc_linewid)
+    if (calc_linewid && freqs_l)
 
       ll = length(x_all);
       if (ll > 4000)
@@ -249,14 +242,14 @@ function p2
       lopt.dbg=0; % (pd_us==60);
       lopt.weighting='n';
       lopt.m=0;
-      lopt.fwhm = mean(lorentz_wids(1:fi));
+      lopt.fwhm = mean(lorentz_wids);
 
 		%      lopt.hh_wid = hh_wid;
 
       [a m g o rmse] = fit.lorentzian(x_all, y_all, lopt);
 
       fwhm_Hz = 2*g;
-      if ((pd_us==90) || plot_lorentzian_fit)
+      if (plot_lorentzian_fit)
 	ncplot.init();
 	plot(x_all, y_all, '.', 'Color',cq(1,:));
         % Plot lorentzian fit to all fft segments
@@ -284,10 +277,8 @@ function p2
     end
 
     
-    if (pds_l==1)
-      offs_us = offs_s(1:fi)*1e6;
-      freqs_Hz = freqs_Hz(1:fi);
-      offs_l = fi;
+    if (freqs_l && (pds_l==1))
+      offs_us = offs_s*1e6;
       ncplot.init();
       ncplot.subplot(3,1);
 
@@ -296,11 +287,11 @@ function p2
       plot(offs_us, freqs_Hz/1e6,'.','Color',cq(1,:));
       p = fit.polyfit(offs_us, freqs_Hz, 1); % Hz/us
       ch_mean_Hzpus = p(1);
-      %      plot(1:offs_l, freqs_Hz/1e6,'.','Color',ch(1,:));
+      %      plot(1:freqs_l, freqs_Hz/1e6,'.','Color',ch(1,:));
       sl = 3;
       frates_MHzpus=zeros(length(freqs_Hz)-(sl-1),1);
       pmax=0;
-      for k=0:(offs_l-sl)
+      for k=0:(freqs_l-sl)
 	srng = (1:sl)+k;
 	p = fit.polyfit(offs_us(srng), freqs_Hz(srng)/1e6,1); % MHz/us
 	frates_MHzpus(k+1)=p(1);
@@ -338,11 +329,11 @@ function p2
 	if (1) % Allen Variance
 	  m = 2; % num intervals used to calc m-sample var
 	  opt_vary_m=0;
-	  dfs_l = offs_l-m+1;
+	  dfs_l = freqs_l-m+1;
 	  avar = zeros(dfs_l,1);
 	  for k=1:dfs_l
 	    if (opt_vary_m)
-	      m=offs_l-(k-1);
+	      m=freqs_l-(k-1);
 	    end
 	    df = y(1:m)-y((k-1)+(1:m));
 	    avar(k)= m/(m-1) * (mean(df.^2)-mean(df)^2);
@@ -350,7 +341,7 @@ function p2
           ncplot.subplot();
 	  plot((0:dfs_l-1)*pd_us, sqrt(avar)/1000, '.-');
 	  line(xl,[1 1]*27, 'Color','red');	  
-	  xlim([0 (offs_l-1)*pd_us]);
+	  xlim([0 (freqs_l-1)*pd_us]);
 	  xlabel('period (us)');
 	  ylabel('deviation (kHz)');
           ncplot.title({fname_s; ...
@@ -360,7 +351,7 @@ function p2
 	
 	if (0) % Freq Noise PSD using autocorr
   	  end_l = ceil(1e-3 / (pd_us*1e-6)); % samps at end
-	  seg_l = offs_l - end_l;
+	  seg_l = freqs_l - end_l;
 	  acorr_l = end_l+1;
 
 	  k=floor(acorr_l/2);
@@ -403,17 +394,17 @@ function p2
       elseif (1)
         ncplot.subplot();
 
-	fdiff_max = zeros(offs_l-1,1);
-	fdiff_rms = zeros(offs_l-1,1);
-	for k=1:offs_l-1 % diff across k samples
-	  sl=offs_l-k;
+	fdiff_max = zeros(freqs_l-1,1);
+	fdiff_rms = zeros(freqs_l-1,1);
+	for k=1:freqs_l-1 % diff across k samples
+	  sl=freqs_l-k;
 	  tmp=(freqs_Hz(k+(1:sl))-freqs_Hz(1:sl))/2; % single laser
 	  fdiff_max(k) = max(abs(tmp));
           fdiff_rms(k) = sqrt(mean(tmp.*tmp));
 	end
-        plot(offs_us(1:offs_l-1)+pd_us, [fdiff_max fdiff_rms]/1000, '.');
+        plot(offs_us(1:freqs_l-1)+pd_us, [fdiff_max fdiff_rms]/1000, '.');
 
-%        plot(offs_us(1:offs_l-sl+1), abs(frates_MHzpus) * 1e3, '.','Color',ch(1,:));
+%        plot(offs_us(1:freqs_l-sl+1), abs(frates_MHzpus) * 1e3, '.','Color',ch(1,:));
 	line(xl,[1 1]*27, 'Color','red');
 %	line(xl,[1 1]*27*2/1000,'Color','red');
         xlim(xl+pd_us);

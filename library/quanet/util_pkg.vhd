@@ -80,6 +80,14 @@ package util_pkg is
     return std_logic_vector;
   -- extend a to length l by padding zeros on the right
 
+  function u_g2b(g: std_logic_vector)
+    return std_logic_vector;
+  -- graycode to binary
+
+  function u_b2g(b: std_logic_vector)
+  return std_logic_vector;
+  -- binary to graycode
+  
 end util_pkg;
 
 
@@ -401,4 +409,28 @@ package body util_pkg is
     return v;
   end;
 
+  function u_g2b(g: std_logic_vector)
+  return std_logic_vector is
+--    constant W: integer := g'length;
+    variable r: std_logic_vector(g'length-1 downto 0);
+  begin
+    r(g'length-1) := g(g'length-1);
+    for i in g'length-1 downto 1 loop
+      r(i-1) := r(i) xor g(i-1);
+    end loop;
+    return r;
+  end function u_g2b;
+
+  function u_b2g(b: std_logic_vector)
+  return std_logic_vector is
+    variable g: std_logic_vector(b'length-1 downto 0);
+  begin
+    g(b'length-1) := b(b'length-1);
+    for i in b'length-1 downto 1 loop
+      g(i-1) := b(i) xor b(i-1);
+    end loop;
+    return g;
+   end function u_b2g;
+
+  
 end util_pkg;

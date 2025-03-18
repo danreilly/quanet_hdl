@@ -40,7 +40,7 @@ library ieee;
 use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 library work;
-use work.pulse_bridge_pkg.all;
+use work.cdc_pulse_pkg.all;
 use work.cdc_samp_pkg.all;
 use work.cdc_thru_pkg.all;
   
@@ -49,7 +49,7 @@ architecture struct of pulse_ctr is
   signal clr_pc, req_tog, req_c, req_d, ack_tog, ack_pc, ack_d, ctr_atlim: std_logic :='0';
 begin
   
-  clr_pb: pulse_bridge
+  clr_pb: cdc_pulse
     port map(
       in_pulse  => clr,
       in_clk    => clk,

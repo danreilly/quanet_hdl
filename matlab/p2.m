@@ -127,6 +127,7 @@ function p2
   
   pds_us = 10:10:min(100,max_pd_us);
   pds_us = .2;
+  pds_us = 1;
 %  pds_us = 90;
   pds_l = length(pds_us);
   if (calc_linewid)
@@ -167,14 +168,17 @@ function p2
       opt.no_window=0;
       opt.no_plot=1;
       res = ncplot.fft(a1((fi-1)*nsamp+(1:nsamp)), 1/fsamp_Hz, opt);
-      offs_s(fi)      = (fi-1)/fsamp_Hz; % start of segment
+      offs_s(fi)      = (fi-1)*pd_us*1e-6; % start of segment
       freqs_Hz(fi)    = res.main_freq_Hz;
       fft_phs_rad(fi) = res.main_ph_rad;
-      
+
+
    %      ncplot.txt(sprintf('freq %sHz', uio.sci(res.main_freq_Hz)));
 %      title(sprintf('offset %s',uio.dur((fi-1)/fsamp_Hz)));
 %      uio.pause();
-      
+
+
+      if (calc_linewid)
       hbw=round(zoom_bw_idx/2);
       rng_lim = res.main_freq_idx+[-hbw hbw];
       rng_lim(2) = min(rng_lim(2), length(res.x_Hz));
@@ -217,7 +221,7 @@ function p2
 	uio.sci(m)
 	uio.pause();
       end	
-      
+      end
 	     %      xlim(res.rbw_Hz * (res.main_freq_idx+[-hbw hbw]));
 %      xlim(res.rbw_Hz * [-hbw hbw]);
       %      uio.pause();
@@ -278,7 +282,9 @@ function p2
 
     
     if (freqs_l && (pds_l==1))
+      
       offs_us = offs_s*1e6;
+      offs_us(1:4)
       ncplot.init();
       ncplot.subplot(3,1);
 
@@ -295,7 +301,7 @@ function p2
 	srng = (1:sl)+k;
 	p = fit.polyfit(offs_us(srng), freqs_Hz(srng)/1e6,1); % MHz/us
 	frates_MHzpus(k+1)=p(1);
-	if (abs(p(1))>pmax)
+	if ((k==0)||(abs(p(1))>pmax))
 	  pmax = abs(p(1));
 	  k_best = k;
 	  p_best = p;
@@ -323,7 +329,7 @@ function p2
       freqs_mean_Hz = mean(freqs_Hz);
 
       
-      if (1)
+      if (0) % USUAL STUFF
 	y = freqs_Hz(:)-freqs_mean_Hz;
         
 	if (1) % Allen Variance
@@ -391,7 +397,7 @@ function p2
 	title('Frequency Noise Linear Specral Density (fft of freqs)');	
 	
         return;	
-      elseif (1)
+      elseif (0)
         ncplot.subplot();
 
 	fdiff_max = zeros(freqs_l-1,1);
@@ -423,6 +429,7 @@ function p2
 %	xlabel('freq (Hz)');
 %        uio.pause(); 
       else
+          'PHASE VS TIME FIND LOST DATA'
         % Plot fft phase vs time
 	ncplot.subplot();
 	deg = util.mod_unwrap(fft_phs_rad*180/pi,360);

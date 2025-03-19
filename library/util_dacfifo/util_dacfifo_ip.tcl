@@ -24,8 +24,8 @@ adi_ip_files util_dacfifo [list \
   "$ad_hdl_dir/library/quanet/global_pkg.vhd" \
   "$ad_hdl_dir/library/quanet/global_pkg.v" \
   "$ad_hdl_dir/library/quanet/lfsr_w.vhd" \
-  "$ad_hdl_dir/library/quanet/pulse_bridge.vhd" \
-  "$ad_hdl_dir/library/quanet/pulse_bridge.xdc" \
+  "$ad_hdl_dir/library/quanet/cdc_pulse.vhd" \
+  "$ad_hdl_dir/library/quanet/cdc_pulse.xdc" \
   "$ad_hdl_dir/library/quanet/axi_regs.vhd" \
   "$ad_hdl_dir/library/quanet/axi_reg_array.vhd" \
   "probe_ctl.vhd" \
@@ -49,8 +49,8 @@ adi_ip_files util_dacfifo [list \
 
 
 # set_property scoped_to_ref cdc_thru [get_files cdc_thru.xdc]
-set_property scoped_to_ref cdc_samp [get_files cdc_samp.xdc]
-set_property scoped_to_ref pulse_bridge [get_files pulse_bridge.xdc]
+set_property scoped_to_ref cdc_samp  [get_files cdc_samp.xdc]
+set_property scoped_to_ref cdc_pulse [get_files cdc_pulse.xdc]
 
 #Im trying this to see
 # set_property source_mgmt_mode None [current_project]

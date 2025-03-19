@@ -26,6 +26,7 @@ adi_ip_files axi_adcfifo [list \
   "$ad_hdl_dir/library/quanet/fifo_1clk_uram_infer.vhd" \
   "$ad_hdl_dir/library/quanet/uram_infer.vhd" \
   "adc_uram_fifo.vhd" \
+  "checker.vhd" \
   "axi_adcfifo.v" \
   "axi_adcfifo_constr.xdc" ]
 

@@ -54,7 +54,8 @@ architecture struct of fifo_1clk_uram_infer is
   end component;
 
   signal waddr, raddr: std_logic_vector(C_AWIDTH-1 downto 0);
-  signal w_i, r_i, full_i, mt_i: std_logic;
+  signal w_i, r_i, full_i: std_logic := '0';
+  signal mt_i: std_logic := '1';
 
   type a_addr_t is array(0 to  C_NBPIPE-1) of std_logic_vector(C_AWIDTH-1 downto 0);
   signal waddr_a, raddr_a: a_addr_t;

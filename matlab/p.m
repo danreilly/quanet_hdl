@@ -389,11 +389,7 @@ function p(arg)
              ci_sum = ci_sum + ci/nn;
              cq_sum = cq_sum + cq/nn;
            else
-             if (k==1)
-               ci(1:20).'
-             end
              c2 = sqrt(ci.^2 + cq.^2)/hdr_len_bits;
-               
            end
         end
         if (~opt_show_all)
@@ -444,8 +440,11 @@ function p(arg)
       %      plot_eye(si,ei,itr);
       
       toc
+
       
       n_left = n_left - nn;
+
+
 
       if (mean_before_norm && ~opt2)
           if (opt_show)
@@ -465,8 +464,21 @@ function p(arg)
       else
         c = c/nn;
       end
+
+
+      if (1)
+        'here'
+         ncplot.subplot();
+         si
+         ei
+         t_all_us = 1e6*(0:(l-1))/fsamp_Hz;
+         plot(t_all_us, ii, '.', 'Color', coq(1,:));
+         return;
+      end
+      
       
       plot_corr(si,ei,c);
+
 
 
       c_all = c_all+c*nn;

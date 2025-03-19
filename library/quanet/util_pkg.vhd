@@ -85,15 +85,47 @@ package util_pkg is
   -- graycode to binary
 
   function u_b2g(b: std_logic_vector)
-  return std_logic_vector;
+    return std_logic_vector;
   -- binary to graycode
+  
+  function u_add_s(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
+  -- add signed arith
+  
+  function u_inc(v: std_logic_vector)
+    return std_logic_vector;
+  -- increment unsigned
+  
+  function u_dec(v: std_logic_vector)
+   return std_logic_vector;
+  -- decrement unsigned
+  
+  function u_neg(v: std_logic_vector)
+    return std_logic_vector;
+  -- consider v to be signed, and negate it.
+  
+  function u_abs(v: std_logic_vector)
+    return std_logic_vector;
+  -- consider v to be signed, take absolute value
+  
+  function u_shift_left(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  
+  function u_shift_right_u(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  -- shift right unsigned
+  
+  function u_shift_right_a(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  -- shift right arithmatic  
+
   
 end util_pkg;
 
 
 library ieee;
 use ieee.numeric_std.all;
-use ieee.std_logic_misc.all;
+--use ieee.std_logic_misc.all;
 -- don't use ieee.std_logic_arith.all or ieee.std_logic_unsigned.all anymore
 package body util_pkg is
 
@@ -432,5 +464,63 @@ package body util_pkg is
     return g;
    end function u_b2g;
 
+  function u_add_s(a: std_logic_vector; b: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(signed(a)+signed(b));
+  end function u_add_s;
+
+    
+  function u_inc(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(v)+1);
+  end function u_inc;
+  
+  function u_dec(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(v)-1);
+  end function u_dec;
+
+  function u_neg(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(-signed(v));
+  end function u_neg;
+
+  function u_abs(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    if (v(v'left)='1') then
+      return u_neg(v);
+    else
+      return v;
+    end if;
+  end function u_abs;
+
+  function u_shift_left(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector is
+  begin
+    return std_logic_vector(shift_left(unsigned(v),
+                                       to_integer(unsigned(count))));
+    return v;
+  end function u_shift_left;
+  
+  function u_shift_right_u(v: std_logic_vector; count: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(shift_right(unsigned(v),
+                                        to_integer(unsigned(count))));
+  end function u_shift_right_u;
+
+  function u_shift_right_a(v: std_logic_vector; count: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(shift_right(signed(v),
+                                        to_integer(unsigned(count))));
+    return v;
+  end function u_shift_right_a;
+    
   
 end util_pkg;

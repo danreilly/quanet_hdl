@@ -312,7 +312,7 @@ module util_dacfifo #(
     .dout(gen_dout));
    
 
-  pulse_bridge #() xfer_req_pb (
+  cdc_pulse #() xfer_req_pb (
     .in_pulse (dma_xfer_req),
     .in_clk   (dma_clk),
     .out_pulse (dac_xfer_req),

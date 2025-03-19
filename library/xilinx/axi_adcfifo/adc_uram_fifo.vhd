@@ -12,14 +12,15 @@ entity adc_uram_fifo is
     URAM_A_W: in integer := 12); -- must be mult of 12
   port (
     ctl_clk   : in std_logic;
-    rst       : in std_logic; -- clears all internal content. does not clear flags
     fifo_ovf  : out std_logic;
     fifo_bug  : out std_logic; -- internal fifo ovf that supposedly never can
                                -- ovf.  If it does, adjust almost full thresh.
     clr_flags : in std_logic;
 
     adc_clk    : in std_logic; -- typically 312.5MHz
+    rst        : in std_logic; -- clears all internal content. does not clear flags
     adc_wr     : in  std_logic;
+    full       : out std_logic;
     adc_data   : in  std_logic_vector(D_W-1 downto 0);
 
     dma_clk    : in std_logic;  -- typically 250MHz
@@ -28,8 +29,8 @@ entity adc_uram_fifo is
     dma_data   : out std_logic_vector(D_W-1 downto 0)); -- to dmac
 end adc_uram_fifo;
 
-library unisim;
-use unisim.vcomponents.all;
+-- library unisim;
+-- use unisim.vcomponents.all;
 library ieee;
 use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
@@ -63,6 +64,7 @@ architecture struct of adc_uram_fifo is
   
   constant WORDS: integer := D_W/64;
   constant UFIFO_D_W: integer := WORDS*72;
+  
   signal ufifo_din, ufifo_dout: std_logic_vector(UFIFO_D_W-1 downto 0) := (others=>'0');
   signal ufifo_rst: std_logic;
   signal ufifo_full, ufifo_ovf_pulse,
@@ -75,12 +77,12 @@ architecture struct of adc_uram_fifo is
   signal ccfifo_occ: std_logic_vector(4 downto 0);
 begin
 
-  cdc_ufifo_rst: cdc_samp
-    generic map( W => 1)
-    port map(
-      in_data(0)  => rst,
-      out_data(0) => ufifo_rst,
-      out_clk     => adc_clk);
+--  cdc_ufifo_rst: cdc_samp
+--    generic map( W => 1)
+--    port map(
+--      in_data(0)  => rst,
+--      out_data(0) => ufifo_rst,
+--      out_clk     => adc_clk);
 
   
   gen_words: for k in 0 to WORDS-1 generate
@@ -88,6 +90,8 @@ begin
     ccfifo_din(k*64+63 downto k*64) <= ufifo_dout(k*72+63 downto k*72);
   end generate;
 
+  full <= ufifo_full;
+  
   -- URAM based fifo
   -- This can be rather deep but uses only one clock
   ufifo_w <= adc_wr and not ufifo_full;
@@ -97,7 +101,7 @@ begin
       C_DWIDTH => UFIFO_D_W)
     port map(
       clk => adc_clk,
-      rst => ufifo_rst,
+      rst => rst,
 
       w    => ufifo_w,
       din  => ufifo_din,
@@ -154,9 +158,11 @@ begin
   process(adc_clk)
   begin
     if (rising_edge(adc_clk)) then
-      ufifo_ovf_pulse  <= not ufifo_rst and (adc_wr and ufifo_full); -- will happen
-      ccfifo_ovf_pulse <= not ufifo_rst and (ufifo_dout_vld and ccfifo_full); -- should never happen
-      ufifo_r          <= not ufifo_rst and not ufifo_mt and not ccfifo_pf;
+      ufifo_ovf_pulse  <= not rst and (adc_wr and ufifo_full); -- will happen
+      ccfifo_ovf_pulse <= not rst and (ufifo_dout_vld and ccfifo_full); -- should never happen
+      ufifo_r          <= not rst and not ufifo_mt and not ccfifo_pf;
+
+      
     end if;
   end process;
 

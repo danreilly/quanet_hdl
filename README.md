@@ -2,14 +2,16 @@
 
 Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
 
-Develop temporary bitfile for zc706 for Happy Camper event, in case zcu106 bitfile was not working in time.
+Test various hardware configurations
 
 
-# status
+# THIS VERSION
 
-The zcu106 bitfile for the zcu106 now works.  The device tree is OK, and linux boots.  We can write from the DAC.  We can read from the ADC.
+This version implements the ADC fifo using URAM instead of thr PL DDR4.  It's smaller and can only capture 350ms of consecutive samples.  It uses 32 of the 96 avaialbe URAMs.
 
-The new 10G classical link on the zcu106 also works.
+This version does not drive the SFP.
+
+
 
 
 # objects
@@ -23,16 +25,6 @@ Copy this to the /boot/system.dtb on your SD card: (dont name it devicetree.dtb)
 `quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb`
 
 
-# 10G Classical Link
-
-We added a Xilinx iBERT core to drive the zcu106's SFP at 10Gbaud.  At the
-HappyCamper event, we had compatibility troubles between our SFPs and the
-classical NICs.  By adding an SFP driver to the zcu106 design, we can bypass
-that sort of trouble, to allow system testing even if we don't have a classical
-NIC.  It's a very "dumb" interface, so it ought to always work.
-The iBERT core also allows Xilinx software to construct an eye diagram:
-
-![10Gbps eye](assets/sfp_data_eye.jpg "10G data eye")
 
 # summary of changes made to HDL
 

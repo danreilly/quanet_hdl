@@ -58,7 +58,15 @@ ipx::infer_bus_interface { \
     s_axi_rdata   s_axi_rresp    s_axi_rvalid    s_axi_rready } \
   xilinx.com:interface:aximm_rtl:1.0 [ipx::current_core]
 
-puts "iface is -> [ipx::get_bus_interfaces s_axi] <-"
+
+# does this fix crit warn in vivoad log line 5496?
+ipx::infer_bus_interface s_axi_aclk xilinx.com:signal:clock_rtl:1.0 [ipx::current_core]
+puts "iface is -> [ipx::get_bus_interfaces s_axi*] <-"
+ipx::add_bus_parameter ASSOCIATED_BUSIF [ipx::get_bus_interfaces s_axi_aclk \
+  -of_objects [ipx::current_core]]
+set_property value s_axi [ipx::get_bus_parameters ASSOCIATED_BUSIF \
+  -of_objects [ipx::get_bus_interfaces s_axi_aclk \
+  -of_objects [ipx::current_core]]]
 
 
 #ipx::infer_bus_interface {\

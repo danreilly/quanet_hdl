@@ -159,7 +159,8 @@ ad_cpu_interconnect 0x44ad0000 $adc_fifo_name
 # NuCrypt additions related to adcfifo:
 create_bd_port -dir O rxq_sw_ctl
 ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
-ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
+# I guess this line not needed if ASSOCIATED_BUSIF set on a_axi_aclk.
+# ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
 ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
 
 

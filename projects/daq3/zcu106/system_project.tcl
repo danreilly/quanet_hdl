@@ -41,8 +41,7 @@ adi_project_files daq3_zcu106 [list \
 #  "ip/in_system_ibert_0/in_system_ibert_0.xci" \
 #  "../../../library/quanet/lfsr_w.vhd" \
 #  "ip/my_gth/my_gth.xci" \
-#  "happycamper/gth_driver.vhd" \
-#  "happycamper/my_gth_wrap.vhd" \
+
 
 
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,
@@ -51,6 +50,13 @@ adi_project_files daq3_zcu106 [list \
 # because we feed it peripheral_reset from the main proc_sys_rst IP.
 
 set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
+
+puts "BRINGING IN CORUNDUM STUFF"
+# made by corundum makefiles, then hand edited and renamed
+cd ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+source create_project_nc.tcl
+cd ../../../../../../quanet_hdl/projects/daq3/zcu106
+
 
 
 adi_project_run daq3_zcu106

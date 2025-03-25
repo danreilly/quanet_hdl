@@ -157,8 +157,8 @@ module axi_adcfifo #(
   // NuCrypt sigs
   wire meas_noise, meas_noise_adc, dma_xfer_req_rc, s_axi_rst,
        txrx_en, txrx_en_adc;
-  wire [31:0] reg_ctl_w;
-  reg [31:0] reg_samp_r, reg_stat_r;
+  wire [31:0] reg_ctl_w, reg1_w, reg2_w, reg3_w;
+  wire [31:0] reg_samp_r, reg_stat_r;
   reg noise_ctr_en=0, dma_xfer_req_d, xfer_req_event, dma_wready_d, dma_wready_pulse;
   reg noise_ctr_go=0;
   reg noise_ctr_is0=0, noise_trig=0;
@@ -219,11 +219,30 @@ module axi_adcfifo #(
 //    .awprot(s_axi_awprot),
 
     .reg0_w(reg_ctl_w),
+    .reg1_w(reg1_w),
+    .reg2_w(reg2_w),
+    .reg3_w(reg3_w),
 
     .reg0_r(reg_ctl_w),	  
     .reg1_r(reg_stat_r),
     .reg2_r(reg_samp_r),
     .reg3_r(0));
+
+  assign reg_stat_r[31:24] = adcfifo_ver;
+  assign reg_stat_r[23:20] = 0; // reserved
+  assign reg_stat_r[19:16] = txrx_cnt;
+  assign reg_stat_r[15:12] = xfer_req_cnt;
+  assign reg_stat_r[11:8]  = adc_go_cnt;
+  assign reg_stat_r[7:4]   = dma_wready_cnt;
+  assign reg_stat_r[3:1]   = 0;
+  assign reg_stat_r[0]     = dma_xfer_req_rc;
+     
+  assign clr_ctrs   = reg_ctl_w[0];
+  assign meas_noise = reg_ctl_w[1];
+  assign txrx_en    = reg_ctl_w[2];
+  assign new_go_en  = reg_ctl_w[3];
+
+  assign reg_samp_r[11:0] = 0;
    
       
       
@@ -237,24 +256,24 @@ module axi_adcfifo #(
     .clk_in_bad (adc_rst),
     .clk_in (adc_clk),
     .d_in (adc_xfer_req_m[2]),
-    .clk_out_bad (0),
+    .clk_out_bad (1'b0),
     .clk_out (dac_clk),
     .d_out ( dac_tx ));
    
   cdc_sync_cross #(
      .W(1)
   ) dac_tx_in_cross (
-    .clk_in_bad (0),
+    .clk_in_bad (1'b0),
     .clk_in (dac_clk),
     .d_in (dac_tx_in),
     .clk_out_bad (adc_rst),
     .clk_out (adc_clk),
     .d_out ( dac_tx_in_adc ));
-
+   
   cdc_samp #(
-     .W(2)
+     .W(1)
   ) cdc_meas_noise (
-     .in_data(reg_meas_noise),
+     .in_data(meas_noise),
      .out_data(meas_noise_adc),
      .out_clk (adc_clk));
 
@@ -304,25 +323,12 @@ module axi_adcfifo #(
      .out_clk (s_axi_aclk));
    
   always @(posedge s_axi_aclk) begin
-    reg_stat_r[31:24] <= adcfifo_ver;
-    reg_stat_r[23:20] <= 0; // reserved
-    reg_stat_r[19:16] <= txrx_cnt;
-    reg_stat_r[15:12] <= xfer_req_cnt;
-    reg_stat_r[11:8]  <= adc_go_cnt;
-    reg_stat_r[7:4]   <= dma_wready_cnt;
-    reg_stat_r[3:1]   <= 0;
-    reg_stat_r[0]     <= dma_xfer_req_rc;
-     
-    reg_samp_r <= 'h5a5a5a5a; // placeholder     
+   
   end // always @(posedge s_axi_aclk)
 
-  assign clr_ctrs   = reg_ctl_w[0];
-  assign meas_noise = reg_ctl_w[1];
-  assign txrx_en    = reg_ctl_w[2];
-  assign new_go_en  = reg_ctl_w[3];
 
   cdc_samp #(
-     .W(1)
+     .W(2)
   ) cdc_samp_to_adcclk (
      .in_data( {txrx_en     , new_go_en    }),
      .out_data({txrx_en_adc , new_go_en_adc}),

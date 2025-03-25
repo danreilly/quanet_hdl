@@ -1,4 +1,0 @@
-fname = 'C:\reilly\proj\quanet\quanet_hdl\matlab\log\d250303\r09.txt';
-mean_before_norm = 0;
-max_fnum = 0;
-use_filt = 0;

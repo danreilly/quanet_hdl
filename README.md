@@ -11,6 +11,9 @@ The zcu106 bitfile for the zcu106 now works.  The device tree is OK, and linux b
 
 The new 10G classical link on the zcu106 also works.
 
+When storing I&Q samples, the HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
+
+
 
 # objects
 

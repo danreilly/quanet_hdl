@@ -29,10 +29,6 @@ create_bd_port -dir I spi1_miso
 create_bd_port -dir I -from 38 -to 0 gpio_i
 create_bd_port -dir O -from 38 -to 0 gpio_o
 create_bd_port -dir O -from 38 -to 0 gpio_t
-# TOTRY: rather than creating bd ports as above, could I create_bd_intf_port
-# and simplify the connection? Something like:
-#   create_bd_intf_port -mode ??? -vlnv xilinx.com:?? gpio
-#   ad_connect gpio sys_ps8/emio_gpio???
 
 ad_ip_instance zynq_ultra_ps_e sys_ps8
 apply_bd_automation -rule xilinx.com:bd_rule:zynq_ultra_ps_e \

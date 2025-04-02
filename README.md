@@ -1,17 +1,39 @@
 # goals for this repository
 
-Retarget Analog Devices's libiio and HDL to make the DAQ3 board work with the zcu106.
+Retarget Analog Devices's DAQ3 and AD9081 projects to work with the zcu106.
+Also for general expermentation.
 
-Develop temporary bitfile for zc706 for Happy Camper event, in case zcu106 bitfile was not working in time.
 
 
-# status
+# DAQ3 status
 
-The zcu106 bitfile for the zcu106 now works.  The device tree is OK, and linux boots.  We can write from the DAC.  We can read from the ADC.
+The DAQ3 bitfile for the zcu106 now works.  The device tree is OK, and linux boots.  We can write from the DAC, and read from the ADC.
 
 The new 10G classical link on the zcu106 also works.
 
-When storing I&Q samples, the HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
+When storing I&Q samples, the DAQ3 HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
+
+# AD9081/AD9988 status
+
+
+Supposedly the ad9081 HDL works with both the ad9081evb and the 9988evb.
+AD's overview of their HDL is described:
+
+https://analogdevicesinc.github.io/hdl/2023_R2/projects/ad9081_fmca_ebz
+
+The site shows different ways to configure the link, which can be done by modifying system_project.tcl.  We can get up to 975Msps if we use only 4 lanes, but we can easily get 1Gsps if we use 8 lanes.  So I parameterized it for L=8 lanes, M=4 converters, S=4 ???.  The lanes use 8B10B at a rate of 10GHz, so the bit rate is 8GHz, so two lanes yield 16Gbps, which is one sample from one converter.  timining_constr.xdc is modified accordingly. 
+
+Analog's scripts create the 9081's ADC and DAC fifos differently from the DAQ3 design.  It uses lots of BRAM, which isn't as good as using URAM or the DDR4RAM, so I suspect the DAQ3 sources are newer.  See quanet_hdl/projects/ad9081_fmca_ebz/zcu106/system_project.tcl for detailed resource utilization, but at a high level it uses 19.5% of CLBs, 50% of the BRAMS, 0% URAM, 0% PL DDR4.
+
+The clkin10 is not connected to the zcu106.  But I'm pretty sure we can use the same clock for tx and rx, and one way is by using the parameter SHARED_DEVCLK = 1.
+
+To build, go to
+'quanet_hdl/projects/ad9081_fmca_ebz/zcu106'
+and run make.
+
+The bitfile builds and meets timing constraints.  It has not yet been teseted.
+
+
 
 
 

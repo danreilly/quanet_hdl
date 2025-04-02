@@ -15,7 +15,7 @@ proc ad_data_offload_create {instance_name
 
   global ad_hdl_dir
   global sys_cpu_resetn
-
+  puts "ad_data_offload_create: src wid $source_dwidth dst wid $destination_dwidth"
   create_bd_cell -type hier $instance_name
   current_bd_instance /$instance_name
 

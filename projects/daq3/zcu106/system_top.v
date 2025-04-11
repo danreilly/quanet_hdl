@@ -256,7 +256,7 @@ module system_top (
     .axi_clk(axi_clk),
     .txclk_out(sfp_txclk),
     .gtrefclk(si5328_out_c));
-  assign j3_6=sfp_txclk;
+//  assign j3_6=sfp_txclk;
    
   // Note: ODDR in ultrascale vs 7series is different
   ODDRE1 recclk_oddr(
@@ -273,7 +273,7 @@ module system_top (
    
 
   system_wrapper i_system_wrapper (
-//    .dac_xfer_out_port (j3_6),
+    .dac_xfer_out_port (j3_6),
     .rxq_sw_ctl (j3_8),
     .axi_clk_out(axi_clk), // 250MHz I think
 

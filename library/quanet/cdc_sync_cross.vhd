@@ -48,8 +48,8 @@ architecture RTL of cdc_sync_cross is
     clk_in_bad_u, rst, rst2, rst2_u,
     ctr_at0, ctr_atlim,
     err_r, err_f, outsel: std_logic :='0';
-  signal d_in_0, d_in_1, d_in_0_u, d_in_1_u: std_logic_vector(W-1 downto 0);
-  signal ctr: std_logic_vector(1 downto 0);
+  signal d_in_0, d_in_1, d_in_0_u, d_in_1_u: std_logic_vector(W-1 downto 0) := (others=>'0');
+  signal ctr: std_logic_vector(1 downto 0) := "00";
 
   attribute ASYNC_REG: string;
   -- place tog_r close to tog_r_p.  And tog_f close to tog_f_p.

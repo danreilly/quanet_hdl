@@ -82,7 +82,11 @@ ad_ip_parameter axi_ad9152_dma CONFIG.CYCLIC 0
 ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_SRC 128
 ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_DEST $dac_data_width
 
-ad_dacfifo_create $dac_fifo_name $dac_data_width $dac_data_width $dac_fifo_address_width
+# Quanet stuff: instead of util_dacfifo IP we use now our own quanet_dac.
+#ad_dacfifo_create $dac_fifo_name $dac_data_width $dac_data_width $dac_fifo_address_width
+  ad_ip_instance quanet_dac $dac_fifo_name
+#  ad_ip_parameter $dac_fifo_name CONFIG.DATA_WIDTH $dac_data_width
+#  ad_ip_parameter $dac_fifo_name CONFIG.ADDRESS_WIDTH $dac_fifo_address_width
 
 # adc peripherals
 
@@ -145,7 +149,7 @@ if {0} {
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
   puts "DAN: will call: ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width"
   puts [exec ls $project_system_dir]
-  # still only system.bd is there!
+
   ad_adcfifo_create $adc_fifo_name $adc_data_width $adc_data_width $adc_fifo_address_width
 
   ad_cpu_interconnect 0x44ad0000 $adc_fifo_name
@@ -153,9 +157,9 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
   # NuCrypt additions related to adcfifo:
   create_bd_port -dir O rxq_sw_ctl
   ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
-
-  ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
-  ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
+  # dont have to do this beacause i set associated busif for this
+  # ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
+  # ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
 }
 
 # shared transceiver core
@@ -206,7 +210,7 @@ for {set i 0} {$i < $TX_NUM_OF_CONVERTERS} {incr i} {
 if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } { 
     ad_connect  $sys_dma_clk   axi_ad9152_fifo/dma_clk
     ad_connect  $sys_dma_reset axi_ad9152_fifo/dma_rst
-    ad_connect  axi_ad9152_fifo/bypass GND
+    # ad_connect  axi_ad9152_fifo/bypass GND
     
     ad_connect  $sys_dma_clk    axi_ad9152_dma/m_axis_aclk
     ad_connect  $sys_dma_resetn axi_ad9152_dma/m_src_axi_aresetn
@@ -261,13 +265,15 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 
 }
 
-puts "NuCrypt connections1"
-create_bd_port -dir O dac_xfer_out_port
-ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
-puts "IS THIS GETTING DONE?"
+puts "Quanet connections1"
+# dac_xfer_out_port not used anymore
+# create_bd_port -dir O dac_xfer_out_port
+create_bd_port -dir O hdr_vld
+#ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
+ad_connect  axi_ad9152_fifo/hdr_vld    hdr_vld
 
 #ad_connect  util_dacfifo/regs_w                 axi_ad9152_fifo/regs_w
 # ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r

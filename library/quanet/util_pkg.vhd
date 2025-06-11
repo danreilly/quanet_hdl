@@ -52,13 +52,13 @@ package util_pkg is
   -- unsigned min
   function u_min(l, r: integer)
     return integer;
-  -- desc: same as in std_logic_arith, which unfortunately doesn't export min(). 
+  -- desc: unsigned minimum
 
   -- unsigned max
   function u_max(l, r: integer)
     return integer;
-  -- desc: same as in std_logic_arith, which unfortunately doesn't export max().
-  function u_max_unsigned(l, r: std_logic_vector) -- unsigned
+  -- desc: unsigned maximum
+  function u_max_u(l, r: std_logic_vector) -- unsigned
     return std_logic_vector;
 
   function u_log2(a: integer)
@@ -73,13 +73,67 @@ package util_pkg is
     return std_logic_vector;
   -- desc: unsigned extension (pad zeros on left)
 
-  function u_extls(a: std_logic_vector; l: integer)
+  function u_extl_s(a: std_logic_vector; l: integer)
+  -- desc: signed extension
     return std_logic_vector;
   
   function u_extr(a: std_logic_vector; l: integer)
     return std_logic_vector;
   -- extend a to length l by padding zeros on the right
 
+  function u_g2b(g: std_logic_vector)
+    return std_logic_vector;
+  -- graycode to binary
+
+  function u_b2g(b: std_logic_vector)
+    return std_logic_vector;
+  -- binary to graycode
+
+  function u_add_s(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
+  -- add signed arith
+  
+  function u_add_u(a: std_logic_vector; b: std_logic_vector)
+   return std_logic_vector;
+  -- unsigned a + b
+  
+  function u_sub_u(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
+  -- unsigned a - b
+  
+  function u_inc(v: std_logic_vector)
+    return std_logic_vector;
+  -- increment unsigned
+  
+  function u_dec(v: std_logic_vector)
+   return std_logic_vector;
+  -- decrement unsigned
+  
+  function u_neg(v: std_logic_vector)
+    return std_logic_vector;
+  -- consider v to be signed, and negate it.
+  
+  function u_abs(v: std_logic_vector)
+    return std_logic_vector;
+  -- consider v to be signed, take absolute value
+  
+  function u_shift_left(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  
+  function u_shift_right_u(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  -- shift right unsigned
+  
+  function u_shift_right_s(v: std_logic_vector; count: std_logic_vector)
+    return std_logic_vector;
+  -- shift right signed (arithmatic)
+
+  function u_clip_s(v: std_logic_vector; w: integer)
+    return std_logic_vector;
+  -- Clip signed value to new shorter width    
+  function u_clip_u(v: std_logic_vector; w: integer)
+    return std_logic_vector;
+  
 end util_pkg;
 
 
@@ -347,9 +401,9 @@ package body util_pkg is
     end if;
   end;
   
-  function u_max_unsigned(l, r: std_logic_vector) return std_logic_vector is
+  function u_max_u(l, r: std_logic_vector) return std_logic_vector is
   begin
-    if (r > l) then
+    if (unsigned(r) > unsigned(l)) then
       return r;
     else
       return l;
@@ -385,7 +439,8 @@ package body util_pkg is
     return v;
   end;
 
-  function u_extls(a: std_logic_vector; l: integer)
+  function u_extl_s(a: std_logic_vector; l: integer)
+  -- signed (arithmatic) extend left    
     return std_logic_vector is
     variable v: std_logic_vector(l-1 downto 0):=(others=>a(a'left));
   begin
@@ -401,4 +456,136 @@ package body util_pkg is
     return v;
   end;
 
+  function u_g2b(g: std_logic_vector)
+  return std_logic_vector is
+--    constant W: integer := g'length;
+    variable r: std_logic_vector(g'length-1 downto 0);
+  begin
+    r(g'length-1) := g(g'length-1);
+    for i in g'length-1 downto 1 loop
+      r(i-1) := r(i) xor g(i-1);
+    end loop;
+    return r;
+  end function u_g2b;
+
+  function u_b2g(b: std_logic_vector)
+  return std_logic_vector is
+    variable g: std_logic_vector(b'length-1 downto 0);
+  begin
+    g(b'length-1) := b(b'length-1);
+    for i in b'length-1 downto 1 loop
+      g(i-1) := b(i) xor b(i-1);
+    end loop;
+    return g;
+   end function u_b2g;
+
+  function u_add_s(a: std_logic_vector; b: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(signed(a)+signed(b));
+  end function u_add_s;
+
+  function u_add_u(a: std_logic_vector; b: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(a)+unsigned(b));
+  end function u_add_u;
+
+  function u_sub_u(a: std_logic_vector; b: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(a)-unsigned(b));
+  end function u_sub_u;
+    
+  function u_inc(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(v)+1);
+  end function u_inc;
+  
+  function u_dec(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(unsigned(v)-1);
+  end function u_dec;
+
+  function u_neg(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(-signed(v));
+  end function u_neg;
+
+  function u_abs(v: std_logic_vector)
+   return std_logic_vector is
+  begin
+    if (v(v'left)='1') then
+      return u_neg(v);
+    else
+      return v;
+    end if;
+  end function u_abs;
+
+  function u_shift_left(v: std_logic_vector; count: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(shift_left(unsigned(v),
+                                      to_integer(unsigned(count))));
+  end function u_shift_left;
+  
+  function u_shift_right_u(v: std_logic_vector; count: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(shift_right(unsigned(v),
+                                        to_integer(unsigned(count))));
+  end function u_shift_right_u;
+
+  function u_shift_right_s(v: std_logic_vector; count: std_logic_vector)
+   return std_logic_vector is
+  begin
+    return std_logic_vector(shift_right(signed(v),
+                                        to_integer(unsigned(count))));
+    return v;
+  end function u_shift_right_s;
+
+  function u_clip_s(v: std_logic_vector; w: integer)
+    return std_logic_vector is
+    variable vv: std_logic_vector(v'length-1 downto 0) := v;
+    variable msbs: std_logic_vector(v'length-w-1 downto 0);
+  -- Clip signed value to new shorter width    
+  -- For example, with v of 8 bits and w=4
+  --   11111abc -> 1abc
+  --   00000abc -> 0abc
+  --   11110abc -> 1000    
+  --   00100abc -> 0111
+  begin
+    msbs := vv(v'length-1 downto w);
+    if (v'length<=w) then
+      return u_extl_s(v, w);
+    elsif (u_or(msbs)='0') then
+      return '0'&vv(w-2 downto 0);
+    elsif (u_and(msbs)='1') then
+      return '1'&vv(w-2 downto 0);
+    else
+      return v(v'left)&u_rpt(not v(v'left), w-1);
+    end if;
+  end function u_clip_s;
+
+  function u_clip_u(v: std_logic_vector; w: integer)
+    return std_logic_vector is
+    variable vv: std_logic_vector(v'length-1 downto 0) := v;
+    variable msbs: std_logic_vector(v'length-w-1 downto 0);
+  -- Clip signed value to new shorter width    
+  -- For example, with v of 8 bits and w=1
+  --   0000abcd -> abcd
+  --   0010abcd -> 1111
+  begin
+    msbs := vv(v'length-1 downto w);
+    if ((u_or(msbs)='0') or (w=v'length)) then
+      return vv(w-1 downto 0);
+    else
+      return u_rpt('1', w);
+    end if;
+  end function u_clip_u;
+
+  
 end util_pkg;

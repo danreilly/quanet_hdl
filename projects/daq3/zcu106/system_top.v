@@ -273,8 +273,9 @@ module system_top (
    
 
   system_wrapper i_system_wrapper (
-    .dac_xfer_out_port (j3_6),
+//    .dac_xfer_out_port (j3_6),
     .rxq_sw_ctl (j3_8),
+    .hdr_vld    (j3_6),				   
     .axi_clk_out(axi_clk), // 250MHz I think
 
 //    .tx_p(sfp0_tx_p),

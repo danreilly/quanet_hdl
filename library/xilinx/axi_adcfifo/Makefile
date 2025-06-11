@@ -10,6 +10,9 @@ XILINX_DEPS += ../../common/ad_axis_inf_rx.v
 XILINX_DEPS += ../../common/ad_mem.v
 XILINX_DEPS += ../../common/ad_mem_asym.v
 XILINX_DEPS += ../../common/up_xfer_status.v
+XILINX_DEPS += period_timer.vhd
+XILINX_DEPS += hdr_corr.vhd
+XILINX_DEPS += hdr_corr_slice.vhd
 XILINX_DEPS += axi_adcfifo.v
 XILINX_DEPS += axi_adcfifo_adc.v
 XILINX_DEPS += axi_adcfifo_constr.xdc
@@ -27,7 +30,7 @@ XILINX_DEPS += ../../quanet/cdc_thru.vhd
 XILINX_DEPS += ../../quanet/cdc_samp.xdc
 XILINX_DEPS += ../../quanet/cdc_samp.vhd
 XILINX_DEPS += ../../quanet/cdc_thru.xdc
-XILINX_DEPS += ../../quanet/pulse_bridge.vhd
-XILINX_DEPS += ../../quanet/pulse_bridge.xdc
+XILINX_DEPS += ../../quanet/cdc_pulse.vhd
+XILINX_DEPS += ../../quanet/cdc_pulse.xdc
 
 include ../../scripts/library.mk

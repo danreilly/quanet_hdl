@@ -1,38 +1,8 @@
-// ***************************************************************************
-// ***************************************************************************
-// Copyright (C) 2014-2023 Analog Devices, Inc. All rights reserved.
+// when syncing, alice sets alice_syncing but bob does not.
+// Bob txes hdr_len frames.  But bob should rx hdr_len*2 frames. search=0.
+// Alice does search.  alice would only save IQ samps for dbg.
 //
-// In this HDL repository, there are many different and unique modules, consisting
-// of various HDL (Verilog or VHDL) components. The individual modules are
-// developed independently, and may be accompanied by separate and unique license
-// terms.
-//
-// The user should read each of these license terms, and understand the
-// freedoms and responsibilities that he or she has by using this source/core.
-//
-// This core is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-// A PARTICULAR PURPOSE.
-//
-// Redistribution and use of source or resulting binaries, with or without modification
-// of this file, are permitted under one of the following two license terms:
-//
-//   1. The GNU General Public License version 2 as published by the
-//      Free Software Foundation, which can be found in the top level directory
-//      of this repository (LICENSE_GPL2), and also online at:
-//      <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
-//
-// OR
-//
-//   2. An ADI specific BSD license, which can be found in the top level directory
-//      of this repository (LICENSE_ADIBSD), and also on-line at:
-//      https://github.com/analogdevicesinc/hdl/blob/main/LICENSE_ADIBSD
-//      This will allow to generate bit files and not release the source code,
-//      as long as it attaches to an ADI device.
-//
-// ***************************************************************************
-// ***************************************************************************
-
+  
 `timescale 1ns/100ps
 
 module axi_adcfifo #(
@@ -57,26 +27,32 @@ module axi_adcfifo #(
   // Slave AXI interface
   input 			  s_axi_aclk,
   input 			  s_axi_aresetn,
+   
+  input [15:0] 			  s_axi_awaddr,
   input 			  s_axi_awvalid,
-  input [10:0] 			  s_axi_awaddr,
   output 			  s_axi_awready,
+   
   input [2:0] 			  s_axi_awprot,
-  input 			  s_axi_wvalid,
+   
   input [31:0] 			  s_axi_wdata,
-  input [ 3:0] 			  s_axi_wstrb,
+  input 			  s_axi_wvalid,
   output 			  s_axi_wready,
-  output 			  s_axi_bvalid,
+  input [ 3:0] 			  s_axi_wstrb, // per byte 1=enable
+   
   output [ 1:0] 		  s_axi_bresp,
+  output 			  s_axi_bvalid,
   input 			  s_axi_bready,
+   
+  input [15:0] 			  s_axi_araddr,
   input 			  s_axi_arvalid,
-  input [10:0] 			  s_axi_araddr,
   output 			  s_axi_arready,
   input [2:0] 			  s_axi_arprot,
+   
+  output [31:0] 		  s_axi_rdata,
+  output [ 1:0] 		  s_axi_rresp,
   output 			  s_axi_rvalid,
   input 			  s_axi_rready,
-  output [ 1:0] 		  s_axi_rresp,
-  output [31:0] 		  s_axi_rdata,
-
+   
    
   // fifo interface
   input 			  adc_rst,
@@ -142,8 +118,13 @@ module axi_adcfifo #(
   output 			  axi_rready
 );
 
+  `include "global_pkg.v"
+   
   // internal signals
 
+   wire [ADC_DATA_WIDTH-1:0] 	  adc_wdata_aug;
+   
+   
   wire                            adc_dwr_s;
   wire    [AXI_DATA_WIDTH-1:0]    adc_ddata_s;
   wire                            axi_rd_req_s;
@@ -157,22 +138,50 @@ module axi_adcfifo #(
   // NuCrypt sigs
   wire meas_noise, meas_noise_adc, dma_xfer_req_rc, s_axi_rst,
        txrx_en, txrx_en_adc;
-  wire [31:0] reg_ctl_w, reg1_w, reg2_w, reg3_w;
+  wire [31:0] reg_ctl_w, reg1_w, reg2_w, reg3_w, reg3_w_adc,
+    reg4_w,  reg4_w_adc, reg5_w, reg5_w_adc, reg6_w,
+    reg2_r, reg3_r, reg4_r, reg5_r, reg6_r;
+
   wire [31:0] reg_samp_r, reg_stat_r;
   reg noise_ctr_en=0, dma_xfer_req_d, xfer_req_event, dma_wready_d, dma_wready_pulse;
   reg noise_ctr_go=0;
   reg noise_ctr_is0=0, noise_trig=0;
   reg [10:0] noise_ctr=0;
-   wire    dac_tx_in_adc;
+  wire  dac_tx_in_adc;
   wire      dma_xfer_req_adc;
   reg  [  2:0]           adc_xfer_req_m = 'd0;
-  reg adc_xfer_req, adc_xfer_req_d;
-  reg 	adc_go, adc_go_d, adc_go_pulse;
+  reg adc_xfer_req, adc_xfer_req_d, dac_tx_pre=0;
+  reg 	adc_go=0, adc_go_d=0, adc_go_pulse=0;
   wire  new_go_en, new_go_en_adc, clr_ctrs, adc_go_dma;
   wire [3:0] core_vld_cnt, xfer_req_cnt, charisk_cnt, adc_wr_cnt, adc_go_cnt,
    txrx_cnt,  dma_wready_cnt;
 
-  wire [7:0] adcfifo_ver = 'h01;
+  wire [7:0] adcfifo_ver = 'h02;
+  wire [1:0] osamp_min1, osamp_min1_adc;
+   wire      corrstart, corrstart_adc, search, search_adc;
+   reg search_en=0;
+  wire [G_FRAME_PD_W-1:0] frame_pd_min1;
+  wire [G_PASS_W-1:0]  num_pass_min1;
+  wire [G_HDR_LEN_W-1:0] hdr_len_min1;
+  wire [G_FRAME_QTY_W-1:0] frame_qty_min1;
+  wire [14-1:0] 	  hdr_pwr_thresh;
+  wire [G_CORR_MAG_W-1:0] hdr_thresh;
+//  wire [G_CTR_W-1:0] hdr_oop_ctr, hdr_oop_ctr_adc;
+  wire [14*8-1:0] samps_in;
+  wire [1:0] hdr_subcyc;
+  wire dbg_hdr_pwr_flag, dbg_hdr_det, hdr_sync, hdr_sync_dlyd, corr_vld;
+  wire [G_FRAME_PD_W-1:0] sync_dly;
+  wire [(G_CORR_MAG_W+8)*4-1:0] corr_out;
+  wire [31:0] 			proc_dout;
+  wire [2:0] 			proc_sel;
+  wire [10:0] 			lfsr_rst_st;
+  wire 	alice_syncing, alice_syncing_adc, proc_clr_cnts;
+  wire [7:0] wdata_aug;
+
+
+
+
+       
 
 
    
@@ -180,12 +189,9 @@ module axi_adcfifo #(
   // reg 3
 
 
-
-
-
   assign s_axi_rst = ~s_axi_aresetn;
   axi_regs #(
-    .A_W(11)
+    .A_W(16)
   ) regs (
     .aclk(s_axi_aclk),
     .arstn(s_axi_aresetn),
@@ -194,6 +200,7 @@ module axi_adcfifo #(
     .awaddr(s_axi_awaddr),
     .awvalid(s_axi_awvalid),
     .awready(s_axi_awready),
+//   .awprot(s_axi_awprot),
 
     // wr data chan
     .wdata(s_axi_wdata),
@@ -209,25 +216,42 @@ module axi_adcfifo #(
     .araddr(s_axi_araddr),
     .arvalid(s_axi_arvalid),
     .arready(s_axi_arready),
+//  .arprot(s_axi_arprot),
 
     .rdata(s_axi_rdata),
     .rresp(s_axi_rresp),
     .rvalid(s_axi_rvalid),
     .rready(s_axi_rready),
-			  
-//    .arprot(s_axi_arprot),
-//    .awprot(s_axi_awprot),
 
     .reg0_w(reg_ctl_w),
     .reg1_w(reg1_w),
     .reg2_w(reg2_w),
     .reg3_w(reg3_w),
+    .reg4_w(reg4_w),
+    .reg5_w(reg5_w),
+    .reg6_w(reg6_w),
 
     .reg0_r(reg_ctl_w),	  
     .reg1_r(reg_stat_r),
-    .reg2_r(reg_samp_r),
-    .reg3_r(0));
+    .reg2_r(reg2_r),
+    .reg3_r(reg3_r),
+    .reg4_r(reg4_r),
+    .reg5_r(reg5_r),
+    .reg6_r(reg6_r));
 
+  // reg0 = ctl
+  assign clr_ctrs   = reg_ctl_w[0];
+  assign meas_noise = reg_ctl_w[1];
+  assign txrx_en    = reg_ctl_w[2];
+  assign new_go_en  = 1'b1; //'reg_ctl_w[3];
+  assign osamp_min1 = reg_ctl_w[5:4]; // neu
+  assign search     = reg_ctl_w[6]; // neu
+  assign corrstart  = reg_ctl_w[7]; // neu
+  assign proc_clr_cnts = reg_ctl_w[8]; // neu
+  assign alice_syncing = reg_ctl_w[9]; // neu
+  assign lfsr_rst_st = reg_ctl_w[26:16]; // neu
+
+  // reg1 = stat   
   assign reg_stat_r[31:24] = adcfifo_ver;
   assign reg_stat_r[23:20] = 0; // reserved
   assign reg_stat_r[19:16] = txrx_cnt;
@@ -236,13 +260,49 @@ module axi_adcfifo #(
   assign reg_stat_r[7:4]   = dma_wready_cnt;
   assign reg_stat_r[3:1]   = 0;
   assign reg_stat_r[0]     = dma_xfer_req_rc;
-     
-  assign clr_ctrs   = reg_ctl_w[0];
-  assign meas_noise = reg_ctl_w[1];
-  assign txrx_en    = reg_ctl_w[2];
-  assign new_go_en  = reg_ctl_w[3];
 
-  assign reg_samp_r[11:0] = 0;
+  // reg2 = hdr_corr stats
+  // assign reg3_r[3:0]= hdr_oop_ctr;
+  assign proc_sel = reg2_w[2:0];
+  assign reg2_r = proc_dout;
+   
+
+  assign reg4_r = 32'h00000004;
+  assign reg5_r = 32'h00000005;
+
+
+
+     
+
+  cdc_samp #(.W(32))
+    cdc_samp_reg3 (   
+      .in_data(reg3_w),
+      .out_data(reg3_w_adc),
+      .out_clk(adc_clk));
+  assign num_pass_min1 = reg3_w_adc[28:24]; // neu
+  assign frame_pd_min1 = reg3_w_adc[23:0]; // neu
+
+  cdc_samp #(.W(32))
+    cdc_samp_reg4 (   
+      .in_data(reg4_w),
+      .out_data(reg4_w_adc),
+      .out_clk(adc_clk));
+  assign frame_qty_min1 = reg4_w_adc[31:16]; // neu
+  assign hdr_len_min1   = reg4_w_adc[7:0]; // neu
+ 
+  cdc_samp #(.W(32))
+    cdc_samp_reg5 (   
+      .in_data(reg5_w),
+      .out_data(reg5_w_adc),
+      .out_clk(adc_clk));
+  assign hdr_pwr_thresh = reg5_w_adc[13:0]; // neu
+  assign hdr_thresh     = reg5_w_adc[23:14]; // neu
+
+
+  assign sync_dly = reg6_w[23:0];
+  assign reg6_r = reg6_w;
+   
+//  assign reg_samp_r[11:0] = 0;
    
       
       
@@ -255,7 +315,7 @@ module axi_adcfifo #(
   ) xfer_req_cross (
     .clk_in_bad (adc_rst),
     .clk_in (adc_clk),
-    .d_in (adc_xfer_req_m[2]),
+    .d_in (dac_tx_pre),
     .clk_out_bad (1'b0),
     .clk_out (dac_clk),
     .d_out ( dac_tx ));
@@ -308,7 +368,7 @@ module axi_adcfifo #(
   pulse_ctr #(
     .W(4)
   ) txrx_ctr (
-    .pulse (tx_rx_en),
+    .pulse (txrx_en),
     .pulse_clk   (s_axi_aclk),
     .clk   (s_axi_aclk),
     .clr   (clr_ctrs),
@@ -338,18 +398,40 @@ module axi_adcfifo #(
   always @(posedge adc_clk) begin
      // mimicing ADC's cdc methodology
      adc_xfer_req_m <= {adc_xfer_req_m[1:0], dma_xfer_req};
+     if (alice_syncing_adc)
+       // This FPGA is Alice.
+       // alice has synced to Bob's headers and is now
+       // inserting her own header into the frame somewhere.
+       // Bob analyzes this to learn Alice's insertion latency
+       // so that sync_dly can be set properly.
+       dac_tx_pre <= hdr_sync_dlyd;
+     else // "normal"
+       // alice wants to save iq samples.  DMA is ready to store them.
+       // Now request DAC to generate headers
+       dac_tx_pre <= adc_xfer_req_m[2];
 
-     // We only take samples while txrx_en_adc is high.
+       // For now I want to save IQ samples while searching,
+       // so I can debug it.
+       // But maybe in future we will not always want to.
+       search_en <= search_adc & adc_go;
+     
+     
+     // We only save samples while txrx_en_adc is high.
      // When dma req goes high, we signal the dac, and when it acks that,
      // that is when we start taking samples.
      // After that, dma request can go up and down, but we ignore it,
      // and keep taking samples.  This is in case software can't keep up,
      // in which case we keep cramming data into the DDR so we don't
      // loose any consecutive data.
-     if (new_go_en_adc)
-       adc_go <= txrx_en_adc & ((dac_tx_in_adc & adc_xfer_req_m[2]) | adc_go);
-     else // older method
-       adc_go <= adc_xfer_req_m[2] & (dac_tx_in_adc | adc_go);
+     //
+     // really ought to be called "save_go"
+     adc_go <= txrx_en_adc &
+	       (  
+		(adc_xfer_req_m[2] &
+		 (search_adc | dac_tx_in_adc))
+		| adc_go );
+///     else // older method
+//       adc_go <= adc_xfer_req_m[2] & (dac_tx_in_adc | adc_go);
      adc_go_d <= adc_go;
      adc_go_pulse <= adc_go & ~adc_go_d;
      
@@ -371,6 +453,9 @@ module axi_adcfifo #(
      
   end // always @ (posedge adc_clk)
 
+
+
+   
    
   // instantiations
   // This widens the data from "adc" to "axi" width.
@@ -382,7 +467,7 @@ module axi_adcfifo #(
     .adc_rst (adc_rst),
     .adc_clk (adc_clk),
     .adc_wr (adc_wr),
-    .adc_wdata (adc_wdata), // adc data in
+    .adc_wdata (adc_wdata_aug), // adc data in
     .adc_wovf (adc_wovf),
 
     .adc_dwr (adc_dwr_s), // out
@@ -509,4 +594,70 @@ module axi_adcfifo #(
     .dma_xfer_req (adc_go_dma),
     .dma_xfer_status (dma_xfer_status));
 
+  assign wdata_aug[0] = dbg_hdr_pwr_flag;
+  assign wdata_aug[1] = dbg_hdr_det;
+  assign wdata_aug[2] = hdr_sync;
+  assign wdata_aug[3] = hdr_sync_dlyd;
+  assign wdata_aug[5:4] = hdr_subcyc;
+  assign wdata_aug[7:6] = 0;
+   
+   genvar i;
+   generate
+    for(i=0; i<8; i=i+1)
+      begin
+        assign samps_in[i*14+13:i*14]=adc_wdata[i*16+13:i*16];
+        //augment adc_wdata with signals for dbg
+        assign adc_wdata_aug[i*16+14:i*16] = adc_wdata[i*16+14:i*16];
+        assign adc_wdata_aug[i*16+15]      = wdata_aug[i];
+      end
+   endgenerate
+   
+  cdc_samp #( .W(5) )
+    cdc_samp_i (   
+      .in_data({corrstart, search,          osamp_min1,     alice_syncing}),
+      .out_data({corrstart_adc, search_adc, osamp_min1_adc, alice_syncing_adc}),
+      .out_clk(adc_clk));
+   
+  hdr_corr #(
+    .USE_CORR (0),
+    .SAMP_W             (14),
+    .FRAME_PD_CYCS_W    (G_FRAME_PD_W), // 24
+    .REDUCED_SAMP_W     (8),
+    .HDR_LEN_CYCS_W     (G_HDR_LEN_W),
+    .MAX_SLICES         (4),
+    .FRAME_QTY_W        (G_FRAME_QTY_W),
+    .MEM_D_W            (G_CORR_MEM_D_W), // width of corr vals in corr mem
+    .MAG_W              (G_CORR_MAG_W)
+  ) hdr_corr_inst (
+    .clk                (adc_clk),
+    .rst                (adc_rst),
+		   
+    .osamp_min1         (osamp_min1_adc),
+    .corrstart_in       (corrstart_adc),
+    .search             (search_en),
+    .alice_syncing      (alice_syncing_adc),
+    .frame_pd_min1      (frame_pd_min1),
+    .num_pass_min1      (num_pass_min1),
+    .hdr_len_min1       (hdr_len_min1),
+    .frame_qty_min1     (frame_qty_min1),
+    .hdr_pwr_thresh     (hdr_pwr_thresh),
+    .hdr_thresh         (hdr_thresh),
+//    .hdr_oop_ctr        (hdr_oop_ctr_adc),
+    .samps_in           (samps_in),
+    .dbg_hdr_pwr_flag   (dbg_hdr_pwr_flag),
+    .dbg_hdr_det        (dbg_hdr_det),
+    .hdr_subcyc         (hdr_subcyc),
+    .hdr_sync           (hdr_sync),
+    .hdr_sync_dlyd      (hdr_sync_dlyd),
+    .corr_vld           (corr_vld),
+    .corr_out           (corr_out),
+
+     // below here is in proc clk domain		   
+    .proc_clk(s_axi_aclk),
+    .proc_clr_cnts(proc_clr_cnts),
+    .sync_dly(sync_dly), // cycles it is delayed
+    .proc_sel(proc_sel),
+    .proc_dout(proc_dout),
+    .lfsr_rst_st(lfsr_rst_st));
+   
 endmodule

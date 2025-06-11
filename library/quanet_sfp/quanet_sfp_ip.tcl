@@ -10,7 +10,7 @@ adi_ip_files quanet_sfp [list               \
   "$ad_hdl_dir/library/quanet/cdc_samp.vhd" \
   "$ad_hdl_dir/library/quanet/cdc_samp.xdc" \
   "$ad_hdl_dir/library/quanet/lfsr_w.vhd"   \
-  "axi_reg_array.vhd"                       \
+  "$ad_hdl_dir/library/quanet/axi_reg_array.vhd" \
   "my_gth_wrap.vhd"                         \
   "in_system_ibert_0/in_system_ibert_0.xci" \
   "my_gth/my_gth.xci"                       \

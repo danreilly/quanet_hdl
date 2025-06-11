@@ -70,10 +70,9 @@ proc ad_adcfifo_create {adc_fifo_name adc_data_width adc_dma_data_width adc_fifo
   ad_connect  ddr4 axi_ddr_cntrl/C0_DDR4
   ad_connect  sys_clk axi_ddr_cntrl/C0_SYS_CLK
   puts "will add adcfifo"
-  ad_ip_instance axi_adcfifo $adc_fifo_name
+#  ad_ip_instance axi_adcfifo $adc_fifo_name
+  ad_ip_instance quanet_adc $adc_fifo_name
   puts "done add adcfifo"
-    
-
 
   ad_ip_parameter $adc_fifo_name CONFIG.ADC_DATA_WIDTH $adc_data_width
   ad_ip_parameter $adc_fifo_name CONFIG.DMA_DATA_WIDTH $adc_dma_data_width
@@ -81,8 +80,10 @@ proc ad_adcfifo_create {adc_fifo_name adc_data_width adc_dma_data_width adc_fifo
   ad_ip_parameter $adc_fifo_name CONFIG.DMA_READY_ENABLE 1
   ad_ip_parameter $adc_fifo_name CONFIG.AXI_SIZE 6
   ad_ip_parameter $adc_fifo_name CONFIG.AXI_LENGTH 4
-  ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS 0x80000000
-  ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS_LIMIT 0xbfffffff
+# DBG: this used to be:    
+# ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS 0x80000000
+# ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS_LIMIT 0xbfffffff
+# ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS_LIMIT 0xbfbfffff
 
 
   ad_connect  axi_ddr_cntrl/C0_DDR4_S_AXI  $adc_fifo_name/axi

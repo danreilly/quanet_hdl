@@ -1,7 +1,17 @@
 --
 --  AXI bus register arry
---  last modified 10/15/2014
+
 --  See //mahler/vhdl_and_c_ip/reg_iface/axi_reg_array/*.doc
+
+
+--  arvalid    __-_
+--  arready    ---_
+--  got_ra_nxt __--_
+--  got_ra     ___--_
+--  rdce       ___v
+
+--  rready     __---_
+--  rvalid     ____-_
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -9,7 +19,7 @@ package axi_reg_array_pkg is
 
   component axi_reg_array
     generic (
-      NUM_REGS: in integer := 4;
+      NUM_REGS: in integer;
       A_W: in integer := 32);
     port (
       -- connect these to system
@@ -44,11 +54,11 @@ package axi_reg_array_pkg is
       dbg: out std_logic_vector(3 downto 0);
       
       -- connect these to your hdl code
-      reg_w :  out std_logic_vector(NUM_REGS*32-1 downto 0) := (others => '0');
-      reg_r :  in  std_logic_vector(NUM_REGS*32-1 downto 0) := (others => '0');
+      reg_w_vec :  out std_logic_vector(NUM_REGS*32-1 downto 0);
+      reg_r_vec :  in  std_logic_vector(NUM_REGS*32-1 downto 0);
       -- use the following for register access "side effects"
-      reg_w_pulse : out std_logic_vector(NUM_REGS-1 downto 0) := (others=>'0');
-      reg_r_pulse : out std_logic_vector(NUM_REGS-1 downto 0) := (others=>'0'));
+      reg_w_pulse : out std_logic_vector(NUM_REGS-1 downto 0);
+      reg_r_pulse : out std_logic_vector(NUM_REGS-1 downto 0));
   end component;
 
 end axi_reg_array_pkg;
@@ -56,12 +66,14 @@ end axi_reg_array_pkg;
 
 
 library ieee;
+use ieee.numeric_std.all;
 use ieee.std_logic_1164.all;
 use work.axi_reg_array_pkg.all;
+use work.util_pkg.all;
 
 entity axi_reg_array is
   generic (
-    NUM_REGS: in integer := 4;
+    NUM_REGS: in integer;
     A_W: in integer := 32);
   port (
     -- connect these to system
@@ -75,7 +87,7 @@ entity axi_reg_array is
 
     -- wr data chan
     wdata  : in std_logic_vector(31 downto 0);
-    wvalid : in std_logic;
+    wvalid : in std_logic; -- can assert before awvalid
     wstrb  : in std_logic_vector(3 downto 0);
     wready : out std_logic;
 
@@ -84,6 +96,7 @@ entity axi_reg_array is
     bvalid: out std_logic;
     bready: in std_logic;
 
+    -- read addr
     araddr: in std_logic_vector(A_W-1 downto 0);
     arvalid: in std_logic;
     arready: out std_logic;
@@ -96,18 +109,18 @@ entity axi_reg_array is
     dbg: out std_logic_vector(3 downto 0);
     
     -- connect these to your hdl code
-    reg_w :  out std_logic_vector(NUM_REGS*32-1 downto 0) := (others => '0');
-    reg_r :  in  std_logic_vector(NUM_REGS*32-1 downto 0) := (others => '0');
+    reg_w_vec :  out std_logic_vector(NUM_REGS*32-1 downto 0);
+    reg_r_vec :  in  std_logic_vector(NUM_REGS*32-1 downto 0);
     -- use the following for register access "side effects"
-    reg_w_pulse : out std_logic_vector(NUM_REGS-1 downto 0) := (others=>'0');
-    reg_r_pulse : out std_logic_vector(NUM_REGS-1 downto 0) := (others=>'0'));
+    reg_w_pulse : out std_logic_vector(NUM_REGS-1 downto 0);
+    reg_r_pulse : out std_logic_vector(NUM_REGS-1 downto 0));
 end axi_reg_array;
 
 
 library ieee;
 use ieee.std_logic_unsigned.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_misc.all;
+use ieee.numeric_std.all;
+--use ieee.std_logic_misc.all;
 library work;
 use work.util_pkg.all;
 architecture rtl of axi_reg_array is
@@ -117,6 +130,7 @@ architecture rtl of axi_reg_array is
 
   
   constant ADR_W: integer := u_log2(NUM_REGS-1); -- relevant addr bits
+  signal adr_sav: std_logic_vector(ADR_W-1 downto 0);
   
   constant RESP_OK:     std_logic_vector(1 downto 0) := "00";
   constant RESP_EXOK:   std_logic_vector(1 downto 0) := "01";
@@ -134,7 +148,7 @@ architecture rtl of axi_reg_array is
          got_wa_nxt, got_wd_nxt, got_ra_nxt: std_logic:='0';
 
   signal wdata_l, rdata_l: std_logic_vector(31 downto 0) := (others=>'0');
-  signal reg_r_i : axi_reg_array_t := (others=>(others=>'1'));
+  signal reg_r_i : axi_reg_array_t;
 --  type ac_st_t is (IDL, WACK, RACK);
 --  signal ac_st: ac_st_t := IDL;
 --  signal rd_st: ac_st_t := IDL;
@@ -162,7 +176,7 @@ begin
 
   got_ra_nxt <= not axi_rst
                 and ((not got_ra and (arvalid and arready_l))
-                     or (got_ra and not rready));
+                     or (got_ra and not (rvalid_l and rready)));
 
 
 
@@ -181,7 +195,8 @@ begin
       end if;
 
       if (rvalid_l='0') then
-        rvalid_l <= got_ra_nxt;
+        -- may not be asserted before araddr has been transferred
+        rvalid_l <= got_ra; -- got_ra_nxt;
       else
         rvalid_l <= not rready;
       end if;
@@ -207,6 +222,7 @@ begin
       arready_l <= not axi_rst and not got_ra_nxt;
       if ((arvalid and arready_l)='1') then
         axi_rdce <= u_decode(araddr(ADR_W+1 downto 2), NUM_REGS);
+        adr_sav  <= araddr(ADR_W+1 downto 2);
       end if;
       got_ra   <= got_ra_nxt;
       got_ra_d <= got_ra;
@@ -236,19 +252,21 @@ begin
       else
         reg_r_pulse_i <= (others => '0');
       end if;
-      saw_rdy <=  not axi_rst and (saw_rdy or arvalid);
+--      saw_rdy <=  not axi_rst and (saw_rdy or arvalid);
       had_ra <= had_ra or got_ra;
       had_wa <= had_wa or got_wa;
       had_wd <= had_wd or got_wd;
       done_wt <= done_wt or (bvalid_l and bready);
+
+      rdata_l <= reg_r_i(to_integer(unsigned(adr_sav)));
       
     end if;
   end process;
 
   gen_per_reg: for k in 0 to NUM_REGS-1 generate
   begin
-    reg_w(31+k*32 downto k*32) <= reg_w_i(k);
-    reg_r_i(k) <= reg_r(31+k*32 downto k*32);
+    reg_w_vec(31+k*32 downto k*32) <= reg_w_i(k);
+    reg_r_i(k) <= reg_r_vec(31+k*32 downto k*32);
   end generate;
   reg_w_pulse <= reg_w_pulse_i;
   reg_r_pulse <= reg_r_pulse_i;
@@ -259,19 +277,18 @@ begin
   dbg(3) <= had_ra;
   
   
-  rdata_proc : process(axi_rdce, reg_r_i) is
-    variable tmp : std_logic_vector(31 downto 0):= (others => '0');
-    variable tmpb : std_logic_vector(0 downto 0);
-  begin
-    tmp := (others => '0');
-    -- note: it's guaranteed that only one
-    -- bit in rdce will ever be high at a time.
-    for j in 0 to NUM_REGS-1 loop
-      tmpb(0) := axi_rdce(j);
-      tmp := tmp or (SXT(tmpb, 32) and reg_r_i(j));
-    end loop;
-    rdata_l <= tmp;
-  end process;
+--  rdata_proc : process(axi_rdce, reg_r_i) is
+--    variable tmp : std_logic_vector(31 downto 0):= (others => '0');
+--  begin
+--n    -- note: it's guaranteed that only one
+--    -- bit in rdce will ever be high at a time.
+--    for j in 0 to NUM_REGS-1 loop
+--      tmp := tmp or (u_rpt(axi_rdce(j),32) and reg_r_i(j));
+--    end loop;
+--    rdata_l <= tmp;
+--  end process;
+
+  
   -- rdata must remain stable when rvalid is asserted and rready low
   rdata <= rdata_l;
 

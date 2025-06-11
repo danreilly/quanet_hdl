@@ -1,0 +1,45 @@
+# regextractor.opt
+# This file is read by regextractor.exe
+# and defines how register names and fields are
+# automatically extracted from the vhdl code
+# when it creates the .h file.
+#
+# for a full list of the options you may put into this file,
+# run "regextractor -?"
+
+# source files to process
+# (path relative to this opt file)
+vhdl ..\..\..\quanet_hdl\library\quanet\global_pkg.vhd
+
+
+allow_rw_field_overlap 1
+allow_partial_readback 1
+nowarn_subrange_in_fieldname 1
+print_reg_addrs_in_hex 1
+no_xilinx_includes 1
+
+extract_consts G_.* $1
+
+# constants to be recognized as reg location constants
+regspace dac
+  vhdl ..\..\..\quanet_hdl\library\quanet_dac\quanet_dac.vhd
+
+#  baseaddr 0x44a00000
+  reg_consts REG_.* $1
+
+  writable_regs  reg_[~_]+_w  $1
+  readable_regs  reg_[~_]+_r  $1
+
+regspace adc
+  vhdl ..\..\..\quanet_hdl\library\quanet_adc\quanet_adc.vhd
+
+#  baseaddr 0xaaa00000
+  reg_consts AREG_.* $1
+
+  writable_regs  areg_[~_]+_w  $1
+  readable_regs  areg_[~_]+_r  $1
+
+# regspace corr
+#   vhdl ..\..\..\quanet_hdl\library\quanet_adc\hdr_corr.vhd
+#  
+#  readable_regs  proc_dout_pre_a(#) $1

@@ -36,6 +36,17 @@ call bootgen -arch zynqmp -image ..\zynq.bif -o BOOT.BIN -w
 echo made %DIR%\BOOT.BIN
 call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT.BIN
 
+grep FWVER ..\..\..\..\library\quanet\global_pkg.vhd > tmp1.txt
+cat tmp1.txt | sed -e "s/[^[:digit:]]*//"  > tmp2.txt
+cat tmp2.txt | sed -e "s/[^[:digit:]]*$//" > fwver.txt
+set /p FWVER=<fwver.txt
+echo fwver is %FWVER%
+
+
+git rev-parse HEAD > gitrev.txt
+set /p GITREV=<gitrev.txt
+rem call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT.BIN
+call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT_fwver%FWVER%.BIN
 cd ..
 
 goto :eof

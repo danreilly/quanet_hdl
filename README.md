@@ -1,20 +1,21 @@
 # goals for this repository
 
-Retarget Analog Devices's DAQ3 and AD9081 projects to work with the zcu106.
+Retarget Analog Devices's DAQ3 and AD9081 projects to work with the zcu106,
+or perhaps also the zcu102 if we use that instead.
 Also for general expermentation.
 
+It implements parts of the block diagram that I uploaded to Basecamp
+called "dans_transitional_HDL_block_diagram.jpg".
 
 
 # DAQ3 status
 
-The DAQ3 bitfile for the zcu106 now works.  The device tree is OK, and linux boots.  We can write from the DAC, and read from the ADC.
-
-The new 10G classical link on the zcu106 also works.
+The DAQ3 bitfile for the zcu106 can fully access the DAQ3 ADCs and DACs.  The device tree is OK, and linux boots.
 
 When storing I&Q samples, the DAQ3 HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
 
-# AD9081/AD9988 status
 
+# AD9081/AD9988 status
 
 Supposedly the ad9081 HDL works with both the ad9081evb and the 9988evb.
 AD's overview of their HDL is described:
@@ -31,8 +32,14 @@ To build, go to
 'quanet_hdl/projects/ad9081_fmca_ebz/zcu106'
 and run make.
 
-The bitfile builds and meets timing constraints.  It has not yet been teseted.
+I plugged a 9988 board into a zcu106 with my bitfile and device tree.
+The device tree allows linux to boot.
 
+The driver for the ad7175 power measurement chip runs so it appears in
+iio_info.  This chip is muxed onto the same SPI bus (spi0) as the 9988
+chip, which maybe means spi0 is working.  But the driver for the 9988
+tries to write and read back a byte from a register, and this fails,
+so it errors out.  That is all I've had time to figure out.
 
 
 
@@ -68,41 +75,22 @@ the DAC outputs a "probe".  To implement rapid two-level noise
 measurements, our hardware features an optical switch that operates at
 ~100kHz to alternately block or pass light to the detectors, and this
 control signal must also be driven deterministically to when the ADC
-begins capturing samples.  So we had to change `library/util_dacfifo`
+begins capturing samples.  So I changes `library/util_dacfifo`
 and `library/xilinx/axi_adcfifo`.
 
-We also added a set of register `library/quanet_regs` to be able to
-configure these new features.  These regs are imported/exported to axi_adcfifo
-and util_dacfifo.  This requires making connections in
-`projects/common/daq3_bd.tcl`, which is a bit inconvenient but not yet
-terribly complicated.  Usually in block designs, each IP gets its own
-register space on the AXI bus, but we we hesitant to make changes to
-the existing register sets, so we made a new one.  But we could have
-added the regs to util_dacfifo and axi_adcfifo since they doesn't
-already have any regs.  axi_adcfifo has an axi interface for
-streaming, but no regs.
+These IPs have now been replaced by new IPs called `library/quanet_dac'
+and `library/xilinx/quanet_adc'.
 
 We wanted to keep the HDL compatible with AD's libiio C API:
-https://analogdevicesinc.github.io/libiio/v0.25/libiio/index.html
-So we conditionally delayed the start of the DMA after the rise of the
-dma_req signal (which would normally start the DMA immediately).  Our
-idea was that first, software writes probe (header) content to the
-fifo in `util_dacfifo.v` as a result of `iio_buffer_push(dac_buf)` but this is
-not yet transmitted to the DAC.  Or more often, software would elect to generate
-probes from an LFSR, and not even call `iio_channel_write()` or `iio_buffer_push(dac_buf)`.
-Later, software calls `iio_buffer_refill(adc_buf)`.  This asserts `dma_req` in
-`axi_adcfifo`, and this is passed deterministically from the ADC clock domain
-to the DAC clock domain, and triggers `dac_utilfifo` to generate a pre-determined
-number of probes.
+`https://analogdevicesinc.github.io/libiio/v0.25/libiio/index.html`
+First, C code writes to quanet registers to set the select lines
+to the demux to the recieve DMA, and the mux to the transmit DMA.
+Then C code uses the normal IIO calls such as `iio_channel_write()`,
+`iio_buffer_push(dac_buf)`, and or `iio_buffer_refill(adc_buf)`.
+Generating CDM probes does not require any DMA at all, because
+they're generated from an LFSR.
 
-Actually, and I don't yet know how necessary it is, the `util_dacfifo` only
-commences probes in "probe commencement opportunity" cycles, which occour
-periodically at the probe period.  This is to ensure a deterministic latency
-(even after `iio_buffer_destroy()` and `iio_device_create_buffer()`, which together
-start a new DMA session) to the DAC analog output, in case widenings or
-narrowings of the data width occur further down the datapath out through the GTXs.
-So the this "confirmed probe commencement signal" is sent back from the DAC clock
-domain to the ADC clock domain in `axi_adcfifo`, at which time, the ADC samples are stored.
+
 
 
 # porting Kuiper Linux to the ZCU106
@@ -175,11 +163,21 @@ file, but I just hand-wrote mine for ease of tweaking.
 
 # Register Spaces
 
-Initially I had made a new IP called quanet_regs, that had a slave axi interface.  It implemented registers
-that controlled three other IPs: the util_dacfifo, the axi_adcfifo, and also the quanet_sfp.  I had to make
-connections between them in daq_bd.tcl.
+Initially I had made a new IP called quanet_regs, that had a slave axi
+interface.  It implemented registers that controlled three other IPs:
+the util_dacfifo, the axi_adcfifo, and also the quanet_sfp.  I had to
+make connections between them in daq_bd.tcl.
 
-Then I changed it so that each IP has its own slave axi interface, and its own set of registers.  While this might make the AXI buses consume more resources, this makes the IPs less interdependent.  It also means less connections have to be made in daq_bd.tcl, which becomes simpler.  It also allows each IP to have its own CDC constraints right there in the source code, as opposed to putting those constraints in yet another separate build file (system_constr.xdc).
+Then I changed it so that each IP has its own slave axi interface, and
+its own set of registers.  While this might make the AXI buses consume
+more resources, this makes the IPs less interdependent.  It also means
+less connections have to be made in daq_bd.tcl, which becomes simpler.
+It also allows each IP to have its own CDC constraints right there in
+the source code, as opposed to putting those constraints in yet
+another separate build file (system_constr.xdc).
+
+Register fields are automatically syntactically extracted from the
+HDL source code to produce a .h include file for C.
 
 
 # notes on AD's HDL

@@ -217,7 +217,8 @@ module axi_adcfifo_dma #(
     .inf_valid (dma_wr),
     .inf_last (),
     .inf_data (dma_wdata),
-    .inf_ready (dma_wready));
+    .inf_ready (dma_wready),
+    .int_not_full());
 
   up_xfer_status #(
     .DATA_WIDTH(4)

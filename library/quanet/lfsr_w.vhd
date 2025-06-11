@@ -37,6 +37,32 @@ library ieee;
 use ieee.std_logic_1164.all;
 -- vhdl 2008
 
+library ieee;
+use ieee.std_logic_1164.all;
+package lfsr_w_pkg is
+  
+  component lfsr_w is
+  generic(
+    W: in integer;     -- number of bits to produce per cycle
+    CP: in std_logic_vector);
+  port (
+    d_o: out std_logic_vector(W-1 downto 0);
+    en : in std_logic;
+    
+    d_i: in std_logic_vector(W-1 downto 0);
+    ld : in std_logic; -- loads d_i.  If 0 BER, this syncs lfsr
+
+    rst_st: in std_logic_vector(CP'LENGTH-1 downto 0);
+    rst: in std_logic;                  -- a syncronous reset
+    err: out std_logic;
+    state_nxt: out std_logic_vector(CP'LENGTH-1 downto 0);
+    clk: in std_logic);
+  end component;
+  
+end package;  
+
+library ieee;
+use ieee.std_logic_1164.all;
 entity lfsr_w is
   generic(
     W: in integer;     -- number of bits to produce per cycle
@@ -51,6 +77,7 @@ entity lfsr_w is
     rst_st: in std_logic_vector(CP'LENGTH-1 downto 0);
     rst: in std_logic;                  -- a syncronous reset
     err: out std_logic;
+    state_nxt: out std_logic_vector(CP'LENGTH-1 downto 0);
     clk: in std_logic);
 end lfsr_w;
 
@@ -74,7 +101,7 @@ architecture rtl of lfsr_w is
 --  signal st_new, st, st_post: std_logic_vector(SW-1 downto 0) := CP(CP_W-1 downto 0);
   signal st_new, st, st_post: std_logic_vector(SW-1 downto 0) := u_extr(CP, SW);
   signal rst_int: std_logic := '0';
-  signal rst_st_d: std_logic_vector(CP_W-1 downto 0) := (others => '0');
+  signal state_out_i: std_logic_vector(CP_W-1 downto 0) := (others => '0');
   
   constant CHUNK_W: integer := 16;
   constant NON0_W: integer := (CP_W+CHUNK_W-1)/CHUNK_W;
@@ -115,18 +142,20 @@ begin
 
   rst_int <= rst or st_is0;
 
+
   
   clk_proc: process(clk)
     variable f, b: integer;
   begin
     if (clk'event and clk='1') then
-      -- rst_st_d <= rst_st;
+
       if (rst_int='1') then
         st <= u_extr(rst_st, SW);
       elsif (en='1') then
         st <= st_new;
       end if;
 
+      
       if (wpcp_en='0') then
         wpcp_ctr <= std_logic_vector(to_unsigned(WPCP-1, WPCP_W));
       else
@@ -165,7 +194,7 @@ begin
     st_new(i) <= u_xor(st_post and mask(i));
     dbg_msk(i) <= mask(i);
   end generate;
-
+  state_nxt <= st_new;
 
   d_o <= u_flip(st(W-1 downto 0));
   

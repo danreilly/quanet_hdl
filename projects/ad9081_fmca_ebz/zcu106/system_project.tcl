@@ -41,7 +41,7 @@ source $ad_hdl_dir/projects/scripts/adi_board.tcl
 # lane BW (sps) = .5  * 4 * 250MHz = 0.5Gsps
 # Then bytes per frame (I guess this is bytes per user's clk period) will be
 # bytes_per_frame = M*S*NP / (8*L)
-# example: = 4*4*16 / (8*4) = 16
+# example: = 4*4*16 / (8*8) = 4
 
 # The max lane rate according to JESD204b specification
 # is 12.5Gbps, but higher lane rates might be possible

@@ -132,7 +132,7 @@ set_property         -dict {PACKAGE_PIN L15   IOSTANDARD LVCMOS18               
 set_property         -dict {PACKAGE_PIN K15   IOSTANDARD LVCMOS18                                     } [get_ports rxen[1]          ]    ; ## FMC0_LA10_N         IO_L15N_T2L_N5_AD11N_66
 
 set_property         -dict {PACKAGE_PIN K17   IOSTANDARD LVCMOS18                                     } [get_ports spi0_csb         ]    ; ## FMC0_LA05_P         IO_L20P_T3L_N2_AD1P_66
-set_property         -dict {PACKAGE_PIN J17   IOSTANDARD LVCMOS18                                     } [get_ports spi0_miso        ]    ; ## FMC0_LA05_N         IO_L20N_T3L_N3_AD1N_66
+set_property         -dict {PACKAGE_PIN J17  IOSTANDARD LVCMOS18                                     } [get_ports spi0_miso        ]    ; ## FMC0_LA05_N         IO_L20N_T3L_N3_AD1N_66
 
 set_property         -dict {PACKAGE_PIN L17   IOSTANDARD LVCMOS18                                     } [get_ports spi0_mosi        ]    ; ## FMC0_LA04_P         IO_L21P_T3L_N4_AD8P_66
 set_property         -dict {PACKAGE_PIN L16   IOSTANDARD LVCMOS18                                     } [get_ports spi0_sclk        ]    ; ## FMC0_LA04_N         IO_L21N_T3L_N5_AD8N_66

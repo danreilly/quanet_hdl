@@ -139,6 +139,8 @@ module axi_adcfifo_wr #(
   wire                            axi_req_s;
   wire                            axi_rlast_s;
   wire    [AXI_DATA_WIDTH-1:0]    axi_rdata_s;
+  wire 			  int_not_full;
+   
 
   // binary to grey conversion
 
@@ -402,6 +404,7 @@ module axi_adcfifo_wr #(
     .inf_valid (axi_wvalid),
     .inf_last (axi_wlast),
     .inf_data (axi_wdata),
+    .int_not_full (int_not_full), // dan added. not used anyway.
     .inf_ready (axi_wready));
 
   // buffer

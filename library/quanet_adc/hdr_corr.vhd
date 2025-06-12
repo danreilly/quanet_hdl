@@ -361,7 +361,7 @@ begin
 
   -- The "framer" just counts out a specified qty of frames
   framer_go <= corr_go or framer_go_4search;
-  hold_first_frame <= search and (not hdr_found or hold_after);
+  hold_first_frame <= search and (not hdr_found or hold_after or alice_txing);
   pd_timer_i: period_timer
     generic map (
       PD_LEN_W => FRAME_PD_CYCS_W,
@@ -438,7 +438,7 @@ begin
 
   -- When in search mode:
   -- Before any header has been found, start the slices
-  -- when we see a power increase.  After a header has been found,
+  -- when we see enough of a power increase.  After a header has been found,
   -- start the slices a little before we expect the header.
 
   pwr_search_go <= search and not hdr_found and hdr_pwr_det_i
@@ -1192,10 +1192,10 @@ begin
   
 --  proc_dout_pre_a(1) <= u_extl(maxsofar_mag, 16)&u_extl(hdr_mag, 16);
   proc_dout_pre_a(1)(25 downto 16) <= best_mag;
-  proc_dout_pre_a(1)(10 downto 0)  <= hdr_mag;
+  proc_dout_pre_a(1)( 9 downto 0)  <= hdr_mag;
   
   proc_dout_pre_a(2)(27 downto 16) <= pwr_events_per_100us;
-  proc_dout_pre_a(2)(23 downto  0) <= hdr_rel_sum_i;
+  proc_dout_pre_a(2)(15 downto  0) <= hdr_rel_sum_i;
   
   proc_dout_pre_a(3) <= u_extl(hdr_det_cnt, 16)&u_extl(hdr_pwr_cnt, 16);
 

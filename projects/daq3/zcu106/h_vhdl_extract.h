@@ -1,15 +1,15 @@
 // h_vhdl_extract.h
 // hardware access constants
 // This file was automatically generated
-// by Register Extractor (ver 4.14) on Mon Jun  9 13:52:25 2025
+// by Register Extractor (ver 4.14) on Wed Jun 11 22:05:58 2025
 // compile version Mon Jun  9 09:57:20 2025
 // current dir:  C:\reilly\proj\quanet\quanet_hdl\projects\daq3\zcu106
 // DO NOT MODIFY THIS FILE!
 
 // source files:
-//    ..\..\scripts\..\..\..\quanet_hdl\library\quanet\global_pkg.vhd
-//    ..\..\scripts\..\..\..\quanet_hdl\library\quanet_dac\quanet_dac.vhd
-//    ..\..\scripts\..\..\..\quanet_hdl\library\quanet_adc\quanet_adc.vhd
+//    ../../scripts/..\..\..\quanet_hdl\library\quanet\global_pkg.vhd
+//    ../../scripts/..\..\..\quanet_hdl\library\quanet_dac\quanet_dac.vhd
+//    ../../scripts/..\..\..\quanet_hdl\library\quanet_adc\quanet_adc.vhd
 
 #ifndef __H_VHDL_EXTRACT_H__
 #define __H_VHDL_EXTRACT_H__
@@ -18,7 +18,7 @@
 // version constants
 #define H_VHDL_EXTRACT_VER (4)
 #define H_VHDL_EXTRACT_SUBVER (14)
-#define H_VHDL_EXTRACT_DATE "Mon Jun  9 13:52:25 2025"
+#define H_VHDL_EXTRACT_DATE "Wed Jun 11 22:05:58 2025"
 #define H_VHDL_EXTRACT_DIR "C:\reilly\proj\quanet\quanet_hdl\projects\daq3\zcu106"
 
 

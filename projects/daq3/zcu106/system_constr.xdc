@@ -106,6 +106,8 @@ set_property  -dict {PACKAGE_PIN  V7  } [get_ports tx_ref_clk_n] ; ## D05  FMC_H
 set_property  -dict {PACKAGE_PIN  K13 IOSTANDARD LVCMOS18} [get_ports j3_6]
 set_property  -dict {PACKAGE_PIN  L14 IOSTANDARD LVCMOS18} [get_ports j3_8]
 set_property  -dict {PACKAGE_PIN  G23 IOSTANDARD LVCMOS18} [get_ports j3_24]
+set_property  -dict {PACKAGE_PIN  K14 IOSTANDARD LVCMOS18} [get_ports j3_12]
+set_property  -dict {PACKAGE_PIN  J14 IOSTANDARD LVCMOS18} [get_ports j3_10]
 
 # Note that data order is a bit scrambled
 set_property  -dict {PACKAGE_PIN  V4  } [get_ports rx_data_p[0]]                                      ; ## A10  FMC_HPC0_DP3_M2C_P

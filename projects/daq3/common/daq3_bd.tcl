@@ -86,7 +86,7 @@ ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_DEST $dac_data_width
 #ad_dacfifo_create $dac_fifo_name $dac_data_width $dac_data_width $dac_fifo_address_width
   ad_ip_instance quanet_dac $dac_fifo_name
 #  ad_ip_parameter $dac_fifo_name CONFIG.DATA_WIDTH $dac_data_width
-#  ad_ip_parameter $dac_fifo_name CONFIG.ADDRESS_WIDTH $dac_fifo_address_width
+  ad_ip_parameter $dac_fifo_name CONFIG.MEM_A_W $dac_fifo_address_width
 
 # adc peripherals
 
@@ -268,12 +268,16 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 puts "Quanet connections1"
 # dac_xfer_out_port not used anymore
 # create_bd_port -dir O dac_xfer_out_port
+create_bd_port -dir O ser_tx
+create_bd_port -dir I ser_rx
 create_bd_port -dir O hdr_vld
 #ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
 ad_connect  axi_ad9152_fifo/hdr_vld    hdr_vld
+ad_connect  axi_ad9152_fifo/ser_tx     ser_tx
+ad_connect  axi_ad9152_fifo/ser_rx     ser_rx
 
 #ad_connect  util_dacfifo/regs_w                 axi_ad9152_fifo/regs_w
 # ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r
@@ -349,3 +353,5 @@ ad_cpu_interrupt ps-10 mb-15 axi_ad9152_jesd/irq
 ad_cpu_interrupt ps-11 mb-14 axi_ad9680_jesd/irq
 ad_cpu_interrupt ps-12 mb-13 axi_ad9152_dma/irq
 ad_cpu_interrupt ps-13 mb-12 axi_ad9680_dma/irq
+
+ad_cpu_interrupt ps-14 mb-11 $dac_fifo_name/irq

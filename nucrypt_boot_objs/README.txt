@@ -41,18 +41,9 @@ Image
   copy to your SD card as /boot/Image
 
 zcu106_9988_BOOT_fwver#.BIN - for a zcu106 with a 9986 board.
-                 Also, every "released" firmware version should exist
-	         as a commit in the git repository with label
-		 9988_fwver#
-
-
 
 
 zc706_BOOT.BIN - This is the BOOT.BIN for the zc706 we used at happy camper.
-
-
-
-
 
 
 zynqmp-zcu102-rev10-fmcdaq3  - This is a copy of the corresponding dir on the SD card.

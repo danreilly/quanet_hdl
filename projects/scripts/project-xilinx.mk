@@ -75,11 +75,13 @@ M_DEPS += $(HDL_PROJECT_PATH)../scripts/adi_env.tcl
 M_DEPS += $(HDL_PROJECT_PATH)scripts/adi_board.tcl
 M_DEPS += $(EXTERNAL_DEPS)
 
+$(info lib deps $(LIB_DEPS))
+
 M_DEPS += $(foreach dep,$(LIB_DEPS),$(HDL_LIBRARY_PATH)$(dep)/component.xml)
 
 .PHONY: all lib clean clean-all
 
-all: h_vhdl_include.c external_dependencies $(PROJECT_NAME).sdk/system_top.xsa
+all: h_vhdl_include.h external_dependencies $(PROJECT_NAME).sdk/system_top.xsa
 
 lib: $(M_DEPS)
 
@@ -111,9 +113,9 @@ MODE ?= "default"
 H_DEPS = quanet/global_pkg.vhd quanet_dac/quanet_dac.vhd quanet_adc/quanet_adc.vhd
 H_REQS += $(foreach dep,$(H_DEPS),$(HDL_LIBRARY_PATH)$(dep))
 
-h_vhdl_include.c: $(H_REQS)
+h_vhdl_include.h: $(H_REQS)
 	echo "running regextractor from project-xilinx.mk:"
-	../../scripts/regextractor.exe -o ../../scripts/regextractor.opt -i h_vhdl_extract.h
+	-../../scripts/regextractor.exe -o ../../scripts/regextractor.opt -i h_vhdl_extract.h
 
 
 

@@ -39,7 +39,9 @@ regspace adc
   writable_regs  areg_[~_]+_w  $1
   readable_regs  areg_[~_]+_r  $1
 
-# regspace corr
-#   vhdl ..\..\..\quanet_hdl\library\quanet_adc\hdr_corr.vhd
+#regspace corr
+#
+#  vhdl ..\..\..\quanet_hdl\library\quanet_adc\hdr_corr.vhd
 #  
 #  readable_regs  proc_dout_pre_a(#) $1
+

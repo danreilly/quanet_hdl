@@ -9,7 +9,8 @@ use ieee.std_logic_1164.all;
 -- frame_ctr   2222222222222222111111111000000000222222
 -- frame_last  -------__________________---------------
 
--- frame_first ______-_________________________________
+-- frame_first_pul___-_________________________________
+-- frame_first    ____---------________________
 -- frame_tx    ______-________-________-_______________
 
 
@@ -21,7 +22,7 @@ use ieee.std_logic_1164.all;
 -- txing        _______------------------------------------------
 -- frame_ctr      2222222222222222111111111000000000222222222111111
 -- frame_last     -------__________________---------_______________
--- frame_first    ______-__________________________-_______________
+-- frame_first_pul______-__________________________-_______________
 -- frame_tx       ______-________-________-________-________-_____
 
 
@@ -43,9 +44,10 @@ entity frame_ctl is
     frame_qty_min1 : in std_logic_vector(FRAME_QTY_W-1 downto 0);
 
     -- control signals indicate when to transmit
-    frame_first : out std_logic;
-    frame_tx    : out std_logic; -- pulse at beginning of headers
-    txing     : out std_logic); -- remains high during pauses, until after final pause
+    frame_first     : out std_logic;
+    frame_first_pul : out std_logic;
+    frame_tx        : out std_logic; -- pulse at beginning of headers
+    txing           : out std_logic); -- remains high during pauses, until after final pause
 end frame_ctl;
 
 library ieee;
@@ -100,9 +102,15 @@ begin
           frame_last   <= u_b2b(unsigned(frame_ctr)=1);
         end if;
       end if;
+
+      if ((rst or (not txing_i and not tx_pend))='1') then
+        frame_first <= '0';
+      elsif (pd_ctr_atlim='1') then
+        frame_first <= frame_last;
+      end if;
       
     end if;
   end process;
-  frame_first <= pd_ctr_atlim and tx_pend and frame_last;
-  frame_tx    <= pd_ctr_atlim and (tx_pend or (txing_i and not frame_last));  
+  frame_first_pul <= pd_ctr_atlim and tx_pend and frame_last;
+  frame_tx        <= pd_ctr_atlim and (tx_pend or (txing_i and not frame_last));  
 end architecture rtl;

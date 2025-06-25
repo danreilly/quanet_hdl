@@ -207,7 +207,6 @@ begin
         hdr_ctr_atlim <= u_b2b(unsigned(hdr_ctr)=1);
       end if;
 
-
     end if;
   end process;
 

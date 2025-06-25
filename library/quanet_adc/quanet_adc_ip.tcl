@@ -30,6 +30,8 @@ adi_ip_files quanet_adc [list \
   "$ad_hdl_dir/library/quanet/lfsr_w.vhd" \
   "$ad_hdl_dir/library/quanet/uram_infer.vhd" \
   "$ad_hdl_dir/library/quanet/gen_hdr.vhd" \
+  "$ad_hdl_dir/library/quanet/ctr.vhd" \
+  "imbal_mult/imbal_mult.xci" \
   "pwr_det.vhd" \
   "period_timer.vhd" \
   "hdr_corr_slice.vhd" \

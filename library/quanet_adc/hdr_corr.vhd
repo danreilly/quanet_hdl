@@ -52,8 +52,10 @@ package hdr_corr_pkg is
 
     -- Once a header has been detected, this pulses periodically
     -- at the header period.  To be used in QSDC for payload insertion.
+    dbg_pwr_event_iso : out std_logic; -- means sufficient power was detected
     hdr_pwr_det    : out std_logic; -- means sufficient power was detected
     dbg_hdr_det     : out std_logic; -- will preceed hdr sync
+    met_init_o      : out std_logic;
     hdr_subcyc      : out std_logic_vector(1 downto 0);
     hdr_sync        : out std_logic;
     hdr_found_out   : out std_logic;
@@ -120,8 +122,10 @@ entity hdr_corr is
 
     -- Once a header has been detected, this pulses periodically
     -- at the header period.  To be used in QSDC for payload insertion.
+    dbg_pwr_event_iso : out std_logic; -- means sufficient power was detected
     hdr_pwr_det: out std_logic; -- will preceed hdr det
     dbg_hdr_det     : out std_logic; -- will preceed hdr sync
+    met_init_o      : out std_logic;
     hdr_subcyc      : out std_logic_vector(1 downto 0);
     hdr_sync        : out std_logic;
     hdr_found_out   : out std_logic;
@@ -413,6 +417,7 @@ begin
       pwr_event         => pwr_event_pre, -- means pwr is thresh above avg
       pwr_event_iso     => pwr_event_iso, -- "isolated" power event.
       pwr_avg_max       => pwr_avg_max);  -- max avg pwr since last clr
+  dbg_pwr_event_iso <= pwr_event_iso;
   hdr_pwr_det_i <= pwr_event_pre and met_init;
 
   tk: timekeeper
@@ -1061,7 +1066,7 @@ begin
   hdr_sync_dlyd <= hdr_sync_dlyd_i;
   
   dbg_hdr_det <= hdr_det; -- export for dbg
-
+  met_init_o <= met_init; -- export for dbg
   
   slice_done_p(0) <= hdr_end_pul;
 
@@ -1197,15 +1202,24 @@ begin
   proc_dout_pre_a(2)(27 downto 16) <= pwr_events_per_100us;
   proc_dout_pre_a(2)(15 downto  0) <= hdr_rel_sum_i;
   
-  proc_dout_pre_a(3) <= u_extl(hdr_det_cnt, 16)&u_extl(hdr_pwr_cnt, 16);
+  proc_dout_pre_a(3)(31 downto 16) <= hdr_det_cnt;
+  proc_dout_pre_a(3)(15 downto 0)  <= hdr_pwr_cnt;
 
   proc_dout_pre_a(4)(31 downto 16) <= rst_cnt;
   proc_dout_pre_a(4)(15 downto 0)  <= search_cnt;
+
+  proc_dout_pre_a(5)(31 downto 30) <= "00";
+  proc_dout_pre_a(5)(29 downto 16) <= pwr_avg;
+  proc_dout_pre_a(5)(15 downto 14) <= "00"; 
+ proc_dout_pre_a(5)(13 downto  0) <= pwr_avg_max;
+
+  proc_dout_pre_a(6)(25 downto 16) <= hdr_q;
+  proc_dout_pre_a(6)( 9 downto  0) <= hdr_i;
   
-  proc_dout_pre_a(5) <= u_extl(pwr_avg, 16)&u_extl(pwr_avg_max, 16);
-  proc_dout_pre_a(6) <= u_extl(hdr_q, 16)&u_extl(hdr_i, 16);
-  proc_dout_pre_a(7) <= hdr_cyc_rel & u_extl(hdr_cyc_w, 28);
-  proc_dout_pre_a(8) <= u_extl(hdr_cyc_first, 32);
+  proc_dout_pre_a(7)(28 downto 25) <= hdr_cyc_rel;
+  proc_dout_pre_a(7)(24 downto  0) <= hdr_cyc_w;
+
+  proc_dout_pre_a(8)(23 downto 0) <= hdr_cyc_first;
 
   gen_proc_dout: for k in 0 to 8 generate
   begin

@@ -4,7 +4,7 @@ use ieee.std_logic_1164.all;
 package global_pkg is
 
   constant G_FWVER: integer := 2;
-  
+  constant G_S_AXI_CLK_FREQ_HZ: real := 100.0e6;
   -- The duration of one frame (1 cyc = 4 asamps)
   constant G_FRAME_PD_CYCS_W : integer := 24;
   -- QSDC frames are shorter.
@@ -24,7 +24,7 @@ package global_pkg is
   -- framee_qty is the number of probes to transmit consecutively.
   constant G_FRAME_QTY_W : integer := 16;
   constant G_BODY_CHAR_POLY : std_logic_vector(20 downto 0) := "010000000000000000001";
-  constant G_BODY_RAND_BITS : integer := 4;
+  constant G_CIPHER_W : integer := 2; -- cipher bits per asamp (aka "chip")
   constant G_BODY_LEN_W : integer := 10;
 
   constant G_MAX_SLICES: integer :=  4;

@@ -5,6 +5,8 @@ module system_top (
   output 	 j3_6, // trigger to scope
   output 	 j3_8, // fast switch ctl
   output 	 j3_24, // debug
+  input 	 j3_12, // debug
+  output 	 j3_10, // debug
 		   
   output 	 sfp0_tx_p,
   output 	 sfp0_tx_n,
@@ -278,6 +280,8 @@ module system_top (
     .hdr_vld    (j3_6),				   
     .axi_clk_out(axi_clk), // 250MHz I think
 
+    .ser_rx (j3_12),
+    .ser_tx (j3_10),
 //    .tx_p(sfp0_tx_p),
 //    .tx_n(sfp0_tx_n),
 //    .rx_p(sfp0_rx_p),

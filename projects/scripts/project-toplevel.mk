@@ -6,20 +6,35 @@
 # Assumes this file is in projects/scripts/project-toplevel.mk
 HDL_PROJECT_PATH := $(subst scripts/project-toplevel.mk,,$(lastword $(MAKEFILE_LIST)))
 
+
+
 include $(HDL_PROJECT_PATH)../quiet.mk
 
+$(info AFTER including quiet.mk)
+$(info lib deps $(LIB_DEPS))
+
 SUBDIRS := $(dir $(wildcard */Makefile))
+
+$(info FURTHER DOWN3)
+$(info SUBDIRS $(SUBDIRS))
+$(info LIB_DEPS $(LIB_DEPS))
+
 
 # Create virtual targets "$project/all", "$project/clean", "$project/clean-all"
 SUBDIRS_ALL := $(addsuffix all,$(SUBDIRS))
 SUBDIRS_CLEAN := $(addsuffix clean,$(SUBDIRS))
 SUBDIRS_CLEANALL := $(addsuffix clean-all,$(SUBDIRS))
 
+
+
 .PHONY: all clean clean-all $(SUBDIRS_ALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEANALL)
+
+
 
 all: $(SUBDIRS_ALL)
 clean: $(SUBDIRS_CLEAN)
 clean-all: $(SUBDIRS_CLEANALL)
+
 
 $(SUBDIRS_ALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEANALL):
 	$(MAKE) -C $(@D) $(@F)

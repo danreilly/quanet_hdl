@@ -254,7 +254,7 @@ architecture rtl of quanet_adc is
     std_logic_vector(to_unsigned(G_FWVER, 4));
   signal fwver: std_logic_vector(3 downto 0) := FWVER_CONST;
   
-  constant NUM_REGS: integer := 8;
+  constant NUM_REGS: integer := 9;
   
   signal areg_r_vec, areg_w_vec: std_logic_vector(NUM_REGS*32-1 downto 0);
   type reg_array_t is array(0 to NUM_REGS-1) of std_logic_vector(31 downto 0);
@@ -269,6 +269,7 @@ architecture rtl of quanet_adc is
   constant AREG_HDR:   integer := 5;
   constant AREG_SYNC:  integer := 6;
   constant AREG_PCTL:  integer := 7;
+  constant AREG_DBG:   integer := 8;
 
   -- it is awkward to express x80000000 in vhdl.  I'd rather use
   -- std_logic_vector.  But that doesn't pass to verilog.
@@ -419,6 +420,14 @@ architecture rtl of quanet_adc is
       dma_xfer_req : in std_logic;
       dma_xfer_status: out std_logic_vector(3 downto 0));
   end component;
+
+  component imbal_mult
+    port (
+      clk: std_logic;
+        A: in std_logic_vector(13 downto 0);
+        B: in std_logic_vector(7 downto 0);
+        P: out std_logic_vector(21 downto 0));
+  end component imbal_mult;
   
   signal meas_noise, meas_noise_adc, dma_xfer_req_rc, dma_xfer_req_inadc, dma_xfer_req_inadc_d, s_axi_rst, axi_rst, save_buf_avail, txrx_en: std_logic := '0';
   signal
@@ -429,6 +438,7 @@ architecture rtl of quanet_adc is
     areg_fr1_w, areg_fr1_r,
     areg_fr2_w, areg_fr2_r,
     areg_hdr_w, areg_hdr_r,
+    areg_dbg_w, areg_dbg_r,
     areg_sync_w, areg_sync_r: std_logic_vector(31 downto 0);
 
   signal noise_ctr_en, rxq_sw_ctl_i, dma_xfer_req_d, xfer_req_event, dma_wready_d, dma_wready_pulse: std_logic := '0';
@@ -461,9 +471,13 @@ architecture rtl of quanet_adc is
   signal hdr_pwr_thresh: std_logic_vector(14-1 downto 0);
   signal init_thresh_d16: std_logic_vector(7 downto 0);
   signal hdr_thresh: std_logic_vector(G_CORR_MAG_W-1 downto 0);
+
+
   signal samps_in: std_logic_vector(14*8-1 downto 0);
   signal hdr_subcyc: std_logic_vector(1 downto 0);
-  signal save_after_pwr, hdr_pwr_det, dbg_hdr_det, dbg_framer_going,
+  signal save_after_init, save_after_pwr, save_after_hdr,
+    dbg_pwr_event_iso,
+    hdr_pwr_det, dbg_met_init, dbg_hdr_det, dbg_framer_going,
     hdr_sync, hdr_found,
     hdr_sync_dlyd, corr_vld: std_logic;
   signal sync_dly_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
@@ -480,9 +494,32 @@ architecture rtl of quanet_adc is
   signal adc_ddata_s, axi_ddata_s: std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
   signal adc_dwr_s, axi_rd_req_s, axi_drst_s, axi_dvalid_s, axi_dready_s: std_logic;
   signal axi_rd_addr_s: std_logic_vector(31 downto 0);
-  
+
+  type prod_a_t is array(0 to 3) of std_logic_vector(21 downto 0); 
+  signal prod_a: prod_a_t;
+  signal iq_rebalance: std_logic_vector(7 downto 0);
+  type samp_a_t is array(0 to 3) of std_logic_vector(13 downto 0);
+  signal qq_a_pp, qq_a_p: samp_a_t;
 begin
 
+  gen_chan: for i in 0 to 3 generate
+  begin
+    rebal_mult: imbal_mult
+      port map(
+        clk => adc_clk,
+        A => adc_wdata(i*32+13 downto i*32),
+        B => iq_rebalance,
+        P => prod_a(i));
+    process(adc_clk)
+    begin
+      if (rising_edge(adc_clk)) then
+        qq_a_pp(i) <= adc_wdata(i*32+29 downto i*32+16);
+        qq_a_p(i)  <= qq_a_pp(i);
+        samps_in(i*28+27 downto i*28+14) <= qq_a_p(i);
+      end if;
+    end process;
+    samps_in(i*28+13 downto i*28) <= prod_a(i)(20 downto 7);
+  end generate gen_chan;
 
   hdr_corr_inst: hdr_corr
     generic map(
@@ -516,7 +553,9 @@ begin
       hdr_thresh         => hdr_thresh,
       lfsr_rst_st        => lfsr_rst_st,
       samps_in           => samps_in,
+      dbg_pwr_event_iso  => dbg_pwr_event_iso,
       hdr_pwr_det        => hdr_pwr_det,
+      met_init_o         => dbg_met_init,
       dbg_hdr_det        => dbg_hdr_det,
       dbg_framer_going   => dbg_framer_going,
       hdr_subcyc         => hdr_subcyc,
@@ -627,8 +666,10 @@ begin
   corrstart      <= areg_actl_w(7);
   alice_txing    <= areg_actl_w(8);
   alice_syncing  <= areg_actl_w(9);
-  dbg_hold       <= areg_actl_w(10);
-  lfsr_rst_st    <= areg_actl_w(26 downto 16);
+  save_after_init <= areg_actl_w(11);
+  
+  lfsr_rst_st    <= areg_actl_w(22 downto 12);
+  iq_rebalance   <= areg_actl_w(31 downto 24); -- fixed prec 0 .. 1.9
 
   -- reg1 <= stat   
   areg_stat_r(31 downto 28) <= (others=>'0');
@@ -691,6 +732,18 @@ begin
 
    
       
+  -- dbg = 8
+  reg_dbg_samp: cdc_samp
+    generic map(W =>32)
+    port map(
+      in_data  => areg_w(AREG_DBG),
+      out_data => areg_dbg_w,
+      out_clk  => adc_clk);
+  areg_dbg_r <= areg_w(AREG_DBG);
+  save_after_hdr <= areg_dbg_w(0);
+  dbg_hold       <= areg_dbg_w(1);
+
+
       
  
     
@@ -809,12 +862,15 @@ begin
       
       save_go <= txrx_en and
                  (   (    dma_xfer_req_inadc_d
-                      and u_if(save_after_pwr='1', hdr_pwr_det, dac_tx_in_adc))
+                          and u_if(save_after_hdr='1', dbg_hdr_det,
+                                   u_if(save_after_pwr='1', hdr_pwr_det,
+                                        u_if(save_after_init='1', dbg_met_init,
+                                              dac_tx_in_adc))))
                   or save_go );
 
 
       save_go_d <= save_go;
-      save_go_pulse <= save_go and not save_go_d;
+     save_go_pulse <= save_go and not save_go_d;
       
       noise_ctr_go <= meas_noise and save_go;
       if ((not noise_ctr_go or noise_ctr_is0)='1') then
@@ -987,19 +1043,16 @@ begin
   wdata_aug(2) <= hdr_sync;
   wdata_aug(3) <= hdr_found;
   wdata_aug(4) <= hdr_sync_dlyd;
-  wdata_aug(5) <= dbg_framer_going;
-  wdata_aug(7 downto 5) <= (others=>'0');
+  wdata_aug(5) <= dbg_pwr_event_iso;
+  wdata_aug(7 downto 6) <= (others=>'0');
   
   gen_arr: for i in 0 to 7 generate
   begin
-    samps_in(i*14+13 downto i*14)<=adc_wdata(i*16+13 downto i*16);
+--    samps_in(i*14+13 downto i*14)<=adc_wdata(i*16+13 downto i*16);
     --augment adc_wdata with signals for dbg
     adc_wdata_aug(i*16+14 downto i*16) <= adc_wdata(i*16+14 downto i*16);
     adc_wdata_aug(i*16+15)      <= wdata_aug(i);
   end generate gen_arr;
-   
-   
-
   
 end architecture rtl;
 

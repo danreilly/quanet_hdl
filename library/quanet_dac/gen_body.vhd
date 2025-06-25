@@ -1,8 +1,8 @@
 
 -- This generates an LFSR-based "body" that could be used
--- It is interruptable.  That is, if you issue go_pulse
--- while it's generating a header, it will abort that and start
--- a new header.
+-- It is "any-cycle-restartable".  That is, if you issue go_pulse
+-- while it's generating a header, it will abort that and
+-- immediately  start a new header.
 
 
 -- Example:
@@ -43,10 +43,9 @@ package gen_body_pkg is
       rst : in std_logic;
       osamp_min1     : in std_logic_vector(1 downto 0); -- 0=1, 1=2, or 3=4
       
-   -- units of cycles (typ at 308MHz).  Except zero means lots of cycles, not 1.
+      -- units of cycles (typ at 308MHz).  Except zero means lots of cycles, not 1.
       len_min1 : in std_logic_vector(LEN_W-1 downto 0);
 
---    gen_en         : in  std_logic; -- TODO: MEANINGLESS
       lfsr_state_ld  : in  std_logic; -- sampled when go_pulse=1
 
       lfsr_state_in  : in  std_logic_vector(CP'length-1 downto 0);
@@ -81,7 +80,6 @@ entity gen_body is
 
     osamp_min1    : in std_logic_vector(1 downto 0); -- 0=1, 1=2, or 3=4
 
---    gen_en         : in std_logic; -- if 0, lfsr_state_ld and go_pulse ignored
     lfsr_state_ld  : in std_logic;
     lfsr_state_in  : in std_logic_vector(CP'length-1 downto 0);
     lfsr_state_nxt : out std_logic_vector(CP'length-1 downto 0);

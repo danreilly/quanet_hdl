@@ -18,7 +18,8 @@ package timekeeper_pkg is
       us100_pulse: out std_logic;
       us500_pulse: out std_logic;
       ms_pulse: out std_logic;
-      ms100_pulse: out std_logic);
+      ms100_pulse: out std_logic;
+    s_pulse: out std_logic);
   end component;
 end timekeeper_pkg;
 

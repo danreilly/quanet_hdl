@@ -20,7 +20,9 @@ entity my_gth_wrap is
     txdata    : in std_logic_vector(31 downto 0);
     txusrclk_out : out std_logic;
     rxdata      : out std_logic_vector(31 downto 0);
+
     rxusrclk_out: out std_logic;
+    rxusrclk_vld: out std_logic;
     
     tx_p : out std_logic;
     tx_n : out std_logic;
@@ -113,7 +115,7 @@ architecture rtl of my_gth_wrap is
     txpmaresetdone_out : out STD_LOGIC_VECTOR ( 0 to 0 ));
   end component;
 
-  signal txoutclk, rxoutclk,
+  signal txoutclk, rxoutclk, rx_fsm_reset_done_i,
     txoutclk_rst, rxoutclk_rst,
     txusrclk, rxusrclk, tx_rst_done, rx_rst_done: std_logic;
   signal rxpmaresetdone, txpmaresetdone: std_logic;
@@ -149,7 +151,10 @@ begin
 
   qpllrefclklost <= '0';
   qplllock <= '0';
-  
+
+
+  rxusrclk_vld <= rx_fsm_reset_done_i;
+  rx_fsm_reset_done <= rx_fsm_reset_done_i;
   gthi: my_gth
     port map( 
     gtwiz_userclk_tx_active_in => "1",
@@ -162,7 +167,7 @@ begin
     gtwiz_reset_rx_datapath_in(0)         => '0',
 --    gtwiz_reset_rx_cdr_stable_out       => '0',
     gtwiz_reset_tx_done_out(0) => tx_fsm_reset_done,
-    gtwiz_reset_rx_done_out(0) => rx_fsm_reset_done,
+    gtwiz_reset_rx_done_out(0) => rx_fsm_reset_done_i,
 
     gtwiz_userdata_tx_in  => txdata,
     gtwiz_userdata_rx_out => rxdata,

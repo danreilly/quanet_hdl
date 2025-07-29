@@ -20,7 +20,6 @@ source $ad_hdl_dir/projects/scripts/adi_board.tcl
 #   [RX/TX]_JESD_L : Number of lanes per link
 #   [RX/TX]_JESD_S : Number of samples per frame
 
-# I think this builds just the block diagram:
 adi_project daq3_zcu106 0 [list \
   RX_JESD_M    [get_env_param RX_JESD_M    2 ] \
   RX_JESD_L    [get_env_param RX_JESD_L    4 ] \
@@ -30,7 +29,7 @@ adi_project daq3_zcu106 0 [list \
   TX_JESD_S    [get_env_param TX_JESD_S    1 ] \
 ]
 
-# Dan added my_gth.xci
+# Dan added my_gth.xci and the ibert
 adi_project_files daq3_zcu106 [list \
   "../common/daq3_spi.v" \
   "system_top.v" \

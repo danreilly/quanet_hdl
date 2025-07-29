@@ -1,28 +1,45 @@
 nucrypt_boot_objs/README.txt
 
+To build the .bit file:
+
+  cd projects/<PROJNAME>/<BOARDNAME>
+  make
+
+Then run
+
+  build_boot.bat
+  
+To pack the bitfile inside a BOOT.BIN file.
+I used to keep copies of the latest BOOT.BINs here.
+But now I keep them in their respective build directories in
+
+    quanet_hdl/projects/<PROJNAME>/<BOARDNAME>/latest/BOOT.BIN
+
+The register map (the h_vhdl_include.h file) change from
+build to build.  They are kept next to the BOOT.BIN also in the
+"latest" folder.   The project makefile produces h_vhdl_extract.h from the vhdl sources.
+(see regextractor.opt, and global_pkg.vhd, quanet_dac.vhd, quanet_adc.vhd)
+
+Per-IP resource utilization reports are also put into "latest"
 
 
-zcu106_BOOT_fwver###.BIN
+The embedded code running on the PS (see my board_code repo) must be
+compiled with the register map appropriate for the bitfile it talks
+to.  Embedded code can read the FWVER register in the HDL, to see
+if it matches the FWVER constant defined in h_vhdl_include.h,
+as a sanity check.
 
-  This is a BOOT.bin for a zcu106 with a DAQ3 board.  The
-  projects/daq3/zcu106 makefile compiled it from the sources
-  corrsponding to the specified firmware version, which is defined in
-  quanet/global_pkg.vhd as the FWVER constant. The firmware version is
-  revealed in a hardware register implemented by the HDL.  Board-level
-  (or other-level) C code might require certain firmware versions, so
-  this is a sanity check.
+There may be multiple day-to-day commits to my HDL repository.
+This is work in progress.  When a milestone is reached,
+I'll tag both commits in the hdl repo and the board_code repo.
+Then I'll start using a new FWVER in both.
 
-  The makefiles also produce h_vhdl_extract.h from the vhdl sources.
-  Then the projects/daq3/zcu106/build_boot.bat script packed up the .BIN.
 
-  Copy this to your SD card as /boot/BOOT.BIN
-  or (what I often do) run the dl1.bat or dl2.bat,
-  which copies not only the .BIN but the h_vhdl_extract.h also
+Copy this to your SD card as /boot/BOOT.BIN
+or (what I often do) run the dl1.bat or dl2.bat,
+which copies not only the .BIN but the h_vhdl_extract.h also.
 
-  Also, every "released" firmware version should exist as a commit in
-  the git repository with label daq3_fwver#
 
-  TODO: automate a way to keep track of this.
 
 
 zynqmp-zcu106-fmcdaq3.dtb

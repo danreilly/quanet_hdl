@@ -31,6 +31,12 @@ set TX_SAMPLES_PER_CHANNEL [expr $TX_NUM_OF_LANES * 32 / \
 set dac_fifo_name axi_ad9152_fifo
 set dac_data_width [expr $TX_SAMPLE_WIDTH * $TX_NUM_OF_CONVERTERS * $TX_SAMPLES_PER_CHANNEL]
 
+# Dans note:
+# I tested reduction of width
+set dac_dma_width [expr $dac_data_width / 2]
+# also, S is the number of samples per converter per frame.
+# it's typically 1.
+
 # RX parameters
 set RX_NUM_OF_LANES $ad_project_params(RX_JESD_L)      ; # L
 set RX_NUM_OF_CONVERTERS $ad_project_params(RX_JESD_M) ; # M
@@ -39,6 +45,9 @@ set RX_SAMPLE_WIDTH 16                                 ; # N/NP
 
 set RX_SAMPLES_PER_CHANNEL [expr $RX_NUM_OF_LANES * 32 / \
                                 ($RX_NUM_OF_CONVERTERS * $RX_SAMPLE_WIDTH)] ; # L * 32 / (M * N)
+# In this terminology, there are a certain number of "channels"
+# processed per cycle.  In the daq3 zcu102, that's 4 channels per cycle.
+# That makes the adc clk 1.2333GHz/4=308.33MHz
 
 set adc_fifo_name axi_ad9680_fifo
 set adc_data_width [expr $RX_SAMPLE_WIDTH * $RX_NUM_OF_CONVERTERS * $RX_SAMPLES_PER_CHANNEL]
@@ -80,13 +89,14 @@ ad_ip_parameter axi_ad9152_dma CONFIG.DMA_LENGTH_WIDTH 24
 ad_ip_parameter axi_ad9152_dma CONFIG.DMA_2D_TRANSFER 0
 ad_ip_parameter axi_ad9152_dma CONFIG.CYCLIC 0
 ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_SRC 128
-ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_DEST $dac_data_width
+ad_ip_parameter axi_ad9152_dma CONFIG.DMA_DATA_WIDTH_DEST $dac_dma_width
 
 # Quanet stuff: instead of util_dacfifo IP we use now our own quanet_dac.
 #ad_dacfifo_create $dac_fifo_name $dac_data_width $dac_data_width $dac_fifo_address_width
   ad_ip_instance quanet_dac $dac_fifo_name
 #  ad_ip_parameter $dac_fifo_name CONFIG.DATA_WIDTH $dac_data_width
   ad_ip_parameter $dac_fifo_name CONFIG.MEM_A_W $dac_fifo_address_width
+  ad_ip_parameter $dac_fifo_name CONFIG.MEM_D_W $dac_dma_width
 
 # adc peripherals
 
@@ -110,6 +120,13 @@ ad_ip_instance util_cpack2 axi_ad9680_cpack [list \
   SAMPLE_DATA_WIDTH $RX_SAMPLE_WIDTH \
   ]
 
+# Dan's note:
+# The adc clk is 308MHz, and adcdata is 128bits
+# the dma ctlrs run at 250MHz.
+# out of the box this had a 64bit destination width
+# and adc_data_width source width. which was 128.
+# So why didnt they make the dest width wider?
+# The PS's S_AXI_HP2_FPD is 128 bits wide
 ad_ip_instance axi_dmac axi_ad9680_dma
 ad_ip_parameter axi_ad9680_dma CONFIG.DMA_TYPE_SRC 1
 ad_ip_parameter axi_ad9680_dma CONFIG.DMA_TYPE_DEST 0
@@ -157,6 +174,8 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2} {
   # NuCrypt additions related to adcfifo:
   create_bd_port -dir O rxq_sw_ctl
   ad_connect  axi_ad9680_fifo/rxq_sw_ctl rxq_sw_ctl
+  create_bd_port -dir O dbg_clk_sel
+  ad_connect  axi_ad9680_fifo/dbg_clk_sel_o dbg_clk_sel
   # dont have to do this beacause i set associated busif for this
   # ad_connect $sys_cpu_clk    axi_ad9680_fifo/s_axi_aclk
   # ad_connect $sys_cpu_resetn axi_ad9680_fifo/s_axi_aresetn
@@ -268,16 +287,29 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 puts "Quanet connections1"
 # dac_xfer_out_port not used anymore
 # create_bd_port -dir O dac_xfer_out_port
-create_bd_port -dir O ser_tx
-create_bd_port -dir I ser_rx
+create_bd_port -dir O ser0_tx
+create_bd_port -dir I ser0_rx
+create_bd_port -dir O ser1_tx
+create_bd_port -dir I ser1_rx
 create_bd_port -dir O hdr_vld
 #ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
-ad_connect  axi_ad9680_fifo/dac_tx axi_ad9152_fifo/dac_tx_in 
-ad_connect  axi_ad9152_fifo/dac_tx_out axi_ad9680_fifo/dac_tx_in 
+ad_connect  axi_ad9680_fifo/frame_sync_o   axi_ad9152_fifo/frame_sync_in
+ad_connect  axi_ad9152_fifo/dac_tx_out     axi_ad9680_fifo/dac_tx_in
+ad_connect  axi_ad9152_fifo/cipher_out     axi_ad9680_fifo/cipher_in
+ad_connect  axi_ad9152_fifo/cipher_out_vld axi_ad9680_fifo/cipher_in_vld
+ad_connect  axi_ad9152_fifo/tx_commence    axi_ad9680_fifo/tx_commence    
 ad_connect  axi_ad9152_fifo/hdr_vld    hdr_vld
-ad_connect  axi_ad9152_fifo/ser_tx     ser_tx
-ad_connect  axi_ad9152_fifo/ser_rx     ser_rx
+ad_connect  axi_ad9152_fifo/ser0_tx    ser0_tx
+ad_connect  axi_ad9152_fifo/ser0_rx    ser0_rx
+ad_connect  axi_ad9152_fifo/ser1_tx    ser1_tx
+ad_connect  axi_ad9152_fifo/ser1_rx    ser1_rx
+
+# rx clk from GTH for frame synchronition
+create_bd_port -dir I sfp_rxclk_in
+create_bd_port -dir I sfp_rxclk_vld
+ad_connect  sfp_rxclk_in  axi_ad9680_fifo/sfp_rxclk_in
+ad_connect  sfp_rxclk_vld axi_ad9680_fifo/sfp_rxclk_vld
 
 #ad_connect  util_dacfifo/regs_w                 axi_ad9152_fifo/regs_w
 # ad_connect  axi_ad9152_fifo/regs_r       qregs/regs_r

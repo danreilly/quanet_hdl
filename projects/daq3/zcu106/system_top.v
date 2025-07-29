@@ -4,9 +4,11 @@
 module system_top (
   output 	 j3_6, // trigger to scope
   output 	 j3_8, // fast switch ctl
+  input 	 j3_10, // ser0 rx
+  output 	 j3_12, // ser0 tx
+  input 	 j3_14, // ser1 rx
+  output 	 j3_16, // ser1 tx
   output 	 j3_24, // debug
-  input 	 j3_12, // debug
-  output 	 j3_10, // debug
 		   
   output 	 sfp0_tx_p,
   output 	 sfp0_tx_n,
@@ -123,8 +125,10 @@ module system_top (
   wire                    tx_sysref;
   wire                    tx_sync;
 
-  wire   si5328_out_c, rec_clk_out;
-  wire 	  dbg_clk, axi_clk, sfp_txclk, gth_rst;
+  wire   si5328_out_c, rec_clk_out, rxq_sw_ctl, si5328_half;
+  wire 	  dbg_clk, dbg_clk_sel, dac_clk, dma_clk, sfp_txclk,
+	  sfp_rxclk_out,sfp_rxclk_vld, ser0_tx, ser1_tx,
+    sfp_rxclk, gth_rst;
   wire [3:0] gth_status;
    
    
@@ -133,7 +137,7 @@ module system_top (
   assign spi_csn_dac = spi_csn[1];
   assign spi_csn_clk = spi_csn[0];
 
-  // instantiations
+
 
   // OK
   IBUFDS_GTE4 i_ibufds_rx_ref_clk (
@@ -216,6 +220,7 @@ module system_top (
     .dio_t (gpio_t[38:32]),
     .dio_i (gpio_o[38:32]),
     .dio_o (gpio_i[38:32]),
+
     .dio_p ({ adc_pd,           // 38
               dac_txen,         // 37
               adc_fdb,          // 36
@@ -243,10 +248,13 @@ module system_top (
   // This emits an LFSR pattern out SFP0.
   // Could be used for testing the system without the classical NIC.
   // in bank 225
-  IBUFDS_GTE4 gtrefclk_ibuf (
+  IBUFDS_GTE4 #(
+      .REFCLK_HROW_CK_SEL(1)
+    ) gtrefclk_ibuf (
       .CEB(0),
       .I(si5328_out_c_p),
       .IB(si5328_out_c_n),
+//      .ODIV2(si5328_half),
       .O(si5328_out_c));
   gth_driver i_gthdrv (
     .tx_p(sfp0_tx_p),
@@ -255,14 +263,16 @@ module system_top (
     .rx_n(sfp0_rx_n),
     .rst(gth_rst),		       
     .status(gth_status),
-    .axi_clk(axi_clk),
+    .dma_clk(dma_clk),
+    .rxclk_out(sfp_rxclk),
+    .rxclk_vld(sfp_rxclk_vld),
     .txclk_out(sfp_txclk),
     .gtrefclk(si5328_out_c));
 //  assign j3_6=sfp_txclk;
    
   // Note: ODDR in ultrascale vs 7series is different
   ODDRE1 recclk_oddr(
-     .C(axi_clk), // 250MHz
+     .C(dac_clk),
      .D1(0),
      .D2(1),
      .SR(0),
@@ -271,17 +281,36 @@ module system_top (
      .I(rec_clk_out),
      .O (rec_clock_p),
      .OB(rec_clock_n));
+  assign sfp_tx_dis = 0;
    
+  assign dbg_clk = dbg_clk_sel ? dac_clk : sfp_rxclk;
+  ODDRE1 dbgclk_oddr(
+     .C(dbg_clk),
+     .D1(0),
+     .D2(1),
+     .SR(0),
+     .Q(sfp_rxclk_out));
    
+  assign j3_8 = sfp_rxclk_out;
+
+ // inverted because of inverting level translator on zcucon board
+ assign j3_12 = ~ser0_tx;
+ assign j3_16 = ~ser1_tx;
 
   system_wrapper i_system_wrapper (
 //    .dac_xfer_out_port (j3_6),
-    .rxq_sw_ctl (j3_8),
+    .rxq_sw_ctl (rxq_sw_ctl),
+    .dbg_clk_sel (dbg_clk_sel),
     .hdr_vld    (j3_6),				   
-    .axi_clk_out(axi_clk), // 250MHz I think
+    .dac_clk_out(dac_clk), // 302MHz
+    .dma_clk_out(dma_clk), // 250MHz I think
+    .sfp_rxclk_in(sfp_rxclk),
+    .sfp_rxclk_vld(sfp_rxclk_vld),
 
-    .ser_rx (j3_12),
-    .ser_tx (j3_10),
+    .ser0_rx (j3_10),
+    .ser0_tx (ser0_tx),
+    .ser1_rx (j3_14),
+    .ser1_tx (ser1_tx),
 //    .tx_p(sfp0_tx_p),
 //    .tx_n(sfp0_tx_n),
 //    .rx_p(sfp0_rx_p),

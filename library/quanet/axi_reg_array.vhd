@@ -129,7 +129,7 @@ architecture rtl of axi_reg_array is
     of std_logic_vector(31 downto 0);
 
   
-  constant ADR_W: integer := u_log2(NUM_REGS-1); -- relevant addr bits
+  constant ADR_W: integer := u_bitwid(NUM_REGS-1); -- relevant addr bits
   signal adr_sav: std_logic_vector(ADR_W-1 downto 0);
   
   constant RESP_OK:     std_logic_vector(1 downto 0) := "00";

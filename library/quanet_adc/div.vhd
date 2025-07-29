@@ -9,11 +9,11 @@ entity div is
   port (
     clk : in std_logic;
     rst : in std_logic;
-    dividend: in std_logic_vector(DIVIDEND_W-1 downto 0);
-    divisor: in std_logic_vector(DIVISOR_W-1 downto 0);
+    dividend: in std_logic_vector(DIVIDEND_W-1 downto 0); -- sampled on go
+    divisor: in std_logic_vector(DIVISOR_W-1 downto 0); -- sampled on go
     go:      in std_logic;
     
-    result_vld: out std_logic;
+    quo_vld: out std_logic; -- 1=both quo and remain are valid
     quo:     out std_logic_vector(QUO_W-1 downto 0);
     remain:  out std_logic_vector(DIVISOR_W-QUO_W-1 downto 0);
     divby0:  out std_logic);
@@ -30,7 +30,7 @@ architecture struct of div is
   signal num_i, div_i: std_logic_vector(DIVIDEND_W downto 0); -- see note in ALIGN state
   signal quo_i: std_logic_vector(QUO_W-1 downto 0);  
   signal ctr: std_logic_vector(CTR_W downto 0);  
-  signal num_gte_div, quo_ovf, result_vld_i, divby0_i: std_logic := '0';
+  signal num_gte_div, quo_ovf, quo_vld_i, divby0_i: std_logic := '0';
 begin
 
   num_gte_div <= u_b2b(unsigned(num_i)>=unsigned(div_i));
@@ -82,12 +82,12 @@ begin
             end if;
         end case;
       end if;
-      result_vld_i <= u_b2b(   ((st=RUN) and (unsigned(ctr)=0))
+      quo_vld_i <= u_b2b(   ((st=RUN) and (unsigned(ctr)=0))
                          or ((st=ALIGN) and (divby0_i='1')));
     end if;
   end process;
 
-  result_vld <= result_vld_i;
+  quo_vld    <= quo_vld_i;
   divby0     <= divby0_i;
   quo        <= quo_i;
   remain     <= num_i(DIVISOR_W-QUO_W-1 downto 0);

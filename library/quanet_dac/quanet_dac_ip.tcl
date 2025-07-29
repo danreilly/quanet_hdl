@@ -34,12 +34,17 @@ adi_ip_files quanet_dac [list \
   "$ad_hdl_dir/library/quanet/event_ctr.vhd" \
   "$ad_hdl_dir/library/quanet/axi_reg_array.vhd" \
   "$ad_hdl_dir/library/quanet/gen_hdr.vhd" \
-  "$ad_hdl_dir/library/quanet/ctr.vhd" \
+  "$ad_hdl_dir/library/quanet/duration_ctr.vhd" \
   "$ad_hdl_dir/library/quanet/timekeeper.vhd" \
   "$ad_hdl_dir/library/quanet/revokable_fifo.vhd" \
+  "$ad_hdl_dir/library/quanet/symbol_reader.vhd" \
+  "qsdc_data_symbolizer.vhd" \
+  "symbolize.vhd" \
+  "preemph.vhd" \
   "frame_ctl.vhd" \
+  "symbolize.vhd" \
   "uart.vhd" \
-  "gen_body.vhd" \
+  "gen_cipher.vhd" \
   "quanet_dac.vhd" \
   "quanet_dac_ooc.ttcl" \
   "quanet_dac_constr.xdc"]

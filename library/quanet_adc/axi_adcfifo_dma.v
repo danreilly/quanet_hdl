@@ -189,6 +189,8 @@ module axi_adcfifo_dma #(
 
   // instantiations
 
+  // asymetrical memory.
+  // write width is typically wider than read width
   ad_mem_asym #(
     .A_ADDRESS_WIDTH (AXI_ADDRESS_WIDTH),
     .A_DATA_WIDTH (AXI_DATA_WIDTH),
@@ -204,16 +206,17 @@ module axi_adcfifo_dma #(
     .addrb (dma_raddr),
     .doutb (dma_rdata_s));
 
-  // This expands 16 bits wid to 128 or whatever.
-  // data comes from ad_mem_asym above.
+
+  // This is a basic shallow fifo
   ad_axis_inf_rx #(
     .DATA_WIDTH(DMA_DATA_WIDTH)
   ) i_axis_inf (
     .clk (dma_clk),
     .rst (dma_rst),
-    .valid (dma_rd_d),
+    .valid (dma_rd_d), // write
     .last (1'd0),
-    .data (dma_rdata_d),
+    .data (dma_rdata_d), // data in
+		
     .inf_valid (dma_wr),
     .inf_last (),
     .inf_data (dma_wdata),

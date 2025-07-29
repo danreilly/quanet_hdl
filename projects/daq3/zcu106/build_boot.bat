@@ -1,7 +1,9 @@
 @echo off
 rem call C:\Xilinx\Vitis\2023.2\.settings64-Vitis.bat
 
-set DIR=daq3_zcu106.sdk
+set PROJ=daq3_zcu106
+
+set DIR=%PROJ%.sdk
 
 rem set S=daq3_zc706.sdk\create_fsbl_project.tcl
 rem echo hsi open_hw_design system_top.xsa                                    > %S
@@ -46,7 +48,12 @@ echo fwver is %FWVER%
 git rev-parse HEAD > gitrev.txt
 set /p GITREV=<gitrev.txt
 rem call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT.BIN
-call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT_fwver%FWVER%.BIN
+call :cp BOOT.BIN            ..\latest
+call :cp ..\%PROJ%.runs\impl_1\system_top_utilization_placed.rpt ..\latest
+call :cp ..\%PROJ%.runs\impl_1\system_top_io_placed.rpt          ..\latest
+call :cp ..\h_vhdl_extract.h ..\latest
+rem call :cp BOOT.BIN            ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT_fwver%FWVER%.BIN
+
 cd ..
 
 goto :eof

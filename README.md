@@ -1,18 +1,57 @@
-# goals for this repository
+# Goals for this repository
 
-Retarget Analog Devices's DAQ3 and AD9081 projects to work with the zcu106,
-or perhaps also the zcu102 if we use that instead.
+Retarget Analog Devices's DAQ3 and AD9081 projects to work with the zcu106 and the zcu102.
 Also for general expermentation.
 
-It implements parts of the block diagram that I uploaded to Basecamp
+The zcu106/daq3 project is half-duplex.
+The zxu102/xxx project will be full-duplex.
+These implement parts of the block diagram that I uploaded to Basecamp
 called "dans_transitional_HDL_block_diagram.jpg".
+
+
+# Building the HDL
+
+To build the .bit file:
+
+  `cd projects/<PROJNAME>/<BOARDNAME>`
+  `make`
+
+Then to pack the bitfile inside a BOOT.BIN file, run
+
+  `build_boot.bat`
+  
+I used to keep copies of the latest BOOT.BINs in nucrypt_boot_objs
+But now I keep them in their respective build directories in
+
+  `quanet_hdl/projects/<PROJNAME>/<BOARDNAME>/latest/BOOT.BIN`
+
+Copy this to /boot/BOOT.BIN on your board.
+Often I run dl1.bat and dl2.bat to do this.
+
+The register map (the `h_vhdl_include.h` file) changes from
+build to build.  So it's kept next to the BOOT.BIN in the
+"latest" folder.   The project makefile produces `h_vhdl_extract.h` from the vhdl sources.
+(see `regextractor.opt`, and `global_pkg.vhd`, `quanet_dac.vhd`, `quanet_adc.vhd`)
+
+Per-IP resource utilization reports are also put into "latest"
+
+The embedded code running on the PS (see my board_code repo) must be
+compiled with the register map appropriate for the bitfile it talks
+to.  Embedded code can read the FWVER register in the HDL, to see
+if it matches the FWVER constant defined in h_vhdl_include.h,
+as a sanity check.
+
+There may be multiple day-to-day commits to these repositories.
+This is work in progress.  When a milestone is reached,
+I'll tag both commits in the hdl repo and the board_code repo.
+Then I'll start using a new FWVER in both.
 
 
 # DAQ3 status
 
 The DAQ3 bitfile for the zcu106 can fully access the DAQ3 ADCs and DACs.  The device tree is OK, and linux boots.
 
-When storing I&Q samples, the DAQ3 HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
+When storing I&Q samples, the zcu106 DAQ3 HDL uses the 2GByte ddr4 ram as a fifo.  It uses a total of four bytes to store one 12-bit I sample and one 12-bit Q sample.  However, this does not limit the capture to just 2G/4 = 512k samples, because the PS simultaneously drains the fifo.  In practice, I have been able to capture 100ms = 117M samples of consecutive samples to a file on the board, with no loss.
 
 
 # AD9081/AD9988 status
@@ -29,7 +68,7 @@ Analog's scripts create the 9081's ADC and DAC fifos differently from the DAQ3 d
 The clkin10 is not connected to the zcu106.  But I'm pretty sure we can use the same clock for tx and rx, and one way is by using the parameter SHARED_DEVCLK = 1.
 
 To build, go to
-'quanet_hdl/projects/ad9081_fmca_ebz/zcu106'
+`quanet_hdl/projects/ad9081_fmca_ebz/zcu106`
 and run make.
 
 I plugged a 9988 board into a zcu106 with my bitfile and device tree.
@@ -43,14 +82,10 @@ so it errors out.  That is all I've had time to figure out.
 
 
 
+# Other files:
 
-# objects
-
-Copy this to /boot/BOOT.BIN on your SD card:
-
-`quanet_hdl/nucrypt_boot_objs/zcu106_BOOT.BIN`
-
-Copy this to the /boot/system.dtb on your SD card: (dont name it devicetree.dtb)
+You can copy this to the /boot/system.dtb on your SD card: (dont name it devicetree.dtb)
+But that file is actually built in my linux repo.
 
 `quanet_hdl/nucrypt_boot_objs/zynqmp-zcu106-fmcdaq3.dtb`
 

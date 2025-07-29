@@ -16,6 +16,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
+use work.global_pkg.all;
 entity pwr_det is
   generic (
     PD_CYCS: integer;
@@ -23,7 +24,8 @@ entity pwr_det is
     SAMP_W : integer); -- 12 - width of one sample from one ADC.
   port (
     clk            : in std_logic;
-    samps_in       : in std_logic_vector(SAMP_W*8-1 downto 0);
+    samps_in_i     : in g_adc_samp_array_t;
+    samps_in_q     : in g_adc_samp_array_t;
     hdr_pwr_thresh : in std_logic_vector(SAMP_W-1 downto 0);
     msk_len_min1_cycs : in std_logic_vector(MSK_LEN_W-1 downto 0);
     pwr_avg        : out std_logic_vector(SAMP_W-1 downto 0); -- over period
@@ -44,8 +46,8 @@ architecture struct of pwr_det is
   constant CTR_W: integer := u_bitwid(PD_CYCS-1);
   signal ctr: std_logic_vector(CTR_W-1 downto 0):=(others=>'0');
   signal ctr_atlim, ctr_atlim_d: std_logic:='0';
-  type samp_a_t is array(0 to 7) of std_logic_vector(SAMP_W-1 downto 0);
-  signal samp_a: samp_a_t;
+
+
   type mag_a_t is array(0 to 3) of std_logic_vector(SAMP_W-1 downto 0);
   signal mag_a, mag_a_d: mag_a_t;
   signal dbg1, dbg2, dbg_max_mag, dbg_over: std_logic_vector(SAMP_W-1 downto 0);
@@ -58,13 +60,9 @@ architecture struct of pwr_det is
   signal msk_atlim, msk_en, event_i: std_logic:= '0';
 begin
 
-  gen_samp_a: for k in 0 to 7 generate
-  begin
-    samp_a(k) <= samps_in((k+1)*SAMP_W-1 downto k*SAMP_W);
-  end generate gen_samp_a;
   gen_mag_a: for k in 0 to 3 generate
   begin
-    mag_a(k) <= u_abs(samp_a(k*2))+u_abs(samp_a(k*2+1));
+    mag_a(k) <= u_abs(samps_in_i(k)+samps_in_q(k));
   end generate gen_mag_a;
 
   dbg1 <=u_max_u(mag_a(0),mag_a(1));

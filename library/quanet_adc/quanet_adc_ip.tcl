@@ -14,6 +14,7 @@ adi_ip_files quanet_adc [list \
   "$ad_hdl_dir/library/common/up_xfer_status.v" \
   "$ad_hdl_dir/library/common/ad_axis_inf_rx.v" \
   "$ad_hdl_dir/library/quanet/global_pkg.vhd" \
+  "$ad_hdl_dir/library/quanet/event_mon.vhd" \
   "$ad_hdl_dir/library/quanet/event_ctr.vhd" \
   "$ad_hdl_dir/library/quanet/event_ctr_periodic.vhd" \
   "$ad_hdl_dir/library/quanet/timekeeper.vhd" \
@@ -29,13 +30,24 @@ adi_ip_files quanet_adc [list \
   "$ad_hdl_dir/library/quanet/axi_reg_array.vhd" \
   "$ad_hdl_dir/library/quanet/lfsr_w.vhd" \
   "$ad_hdl_dir/library/quanet/uram_infer.vhd" \
+  "$ad_hdl_dir/library/quanet/fifo_2clks_infer.vhd" \
   "$ad_hdl_dir/library/quanet/gen_hdr.vhd" \
-  "$ad_hdl_dir/library/quanet/ctr.vhd" \
+  "$ad_hdl_dir/library/quanet/duration_ctr.vhd" \
+  "$ad_hdl_dir/library/quanet/duration_upctr.vhd" \
+  "$ad_hdl_dir/library/quanet/symbol_reader.vhd" \
+  "rebalancer_quad.vhd" \
+  "rebalancer.vhd" \
+  "phase_est.vhd" \
+  "decipher.vhd" \
+  "div.vhd" \
+  "rom_inf.vhd" \
+  "rotate_iq.vhd" \
+  "synchronizer.vhd" \
   "imbal_mult/imbal_mult.xci" \
   "pwr_det.vhd" \
   "period_timer.vhd" \
-  "hdr_corr_slice.vhd" \
   "hdr_corr.vhd" \
+  "hdr_corr_slice.vhd" \
   "axi_adcfifo_adc.v" \
   "axi_adcfifo_dma.v" \
   "axi_adcfifo_wr.v" \

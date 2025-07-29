@@ -18,6 +18,7 @@ package cdc_sync_cross_pkg is
       d_in   : in std_logic_vector(W-1 downto 0);
       clk_out_bad : in std_logic;    
       clk_out : in std_logic;
+      changed : out std_logic; -- could be counted to monitor this CDC
       d_out  : out std_logic_vector(W-1 downto 0));
   end component;
 
@@ -35,6 +36,7 @@ entity cdc_sync_cross is
     d_in   : in std_logic_vector(W-1 downto 0);
     clk_out_bad : in std_logic;    
     clk_out : in std_logic;
+    changed : out std_logic; -- could be counted to monitor this CDC
     d_out  : out std_logic_vector(W-1 downto 0));
 end cdc_sync_cross;
 
@@ -46,10 +48,10 @@ architecture RTL of cdc_sync_cross is
   signal tog_r_i, tog_r, tog_r_u, tog_r_p, tog_r_exp,
     tog_f_i, tog_f, tog_f_u, tog_f_p, tog_f_exp,
     clk_in_bad_u, rst, rst2, rst2_u,
-    ctr_at0, ctr_atlim,
+    ctr_at0, ctr_atlim, changed_i,
     err_r, err_f, outsel: std_logic :='0';
-  signal d_in_0, d_in_1, d_in_0_u, d_in_1_u: std_logic_vector(W-1 downto 0) := (others=>'0');
-  signal ctr: std_logic_vector(1 downto 0) := "00";
+  signal d_in_0, d_in_1, d_in_0_u, d_in_1_u, d_out_i: std_logic_vector(W-1 downto 0) := (others=>'0');
+  signal ctr: std_logic_vector(2 downto 0) := "100";
 
   attribute ASYNC_REG: string;
   -- place tog_r close to tog_r_p.  And tog_f close to tog_f_p.
@@ -135,8 +137,10 @@ begin
     if (rising_edge(clk_out)) then
       
       -- sample the rising and falling edge toggles
-      tog_r_p   <= tog_r_u; -- maybe metastable
-      tog_f_p   <= tog_f_u; -- maybe metastable
+      -- clock jitter should affect only one of these.
+      tog_r_p   <= tog_r_u;
+      tog_f_p   <= tog_f_u;
+
       tog_r     <= not tog_r_p;
       tog_f     <= not tog_f_p;
       
@@ -145,23 +149,29 @@ begin
 
       -- ctr provides hysterisis.  It counts up or down votes.
       if (rst2_u='1') then
-        ctr       <= "10";
+        ctr       <= "100";
         ctr_at0   <= '0';
         ctr_atlim <= '0';
         outsel    <= '0';
+        changed_i <= '0';
       else
         -- fall errors vote to use rise
-        if ((not err_r and err_f and not ctr_atlim)='1') then
+        if (ctr_atlim='1') then
+          ctr       <= "100";
+          ctr_at0   <= '0';
+          ctr_atlim <= '0';
+        elsif ((not err_r and err_f and not ctr_atlim)='1') then
           ctr       <= std_logic_vector(unsigned(ctr)+1);
           ctr_at0   <= '0';
-          ctr_atlim <= ctr(1) and not ctr(0); -- u_b2b((unsigned)ctr=2);
+          ctr_atlim <= ctr(2) and ctr(1) and not ctr(0);
         -- rise errors vote to use fall
         elsif ((   err_r and not err_f and not ctr_at0)='1') then
           ctr       <= std_logic_vector(unsigned(ctr)-1);
-          ctr_at0   <= not ctr(1) and ctr(0); -- u_b2b((unsigned)ctr=1;)
           ctr_atlim <= '0';
+          ctr_at0   <= not ctr(2) and not ctr(1) and ctr(0);
         end if;
-        
+
+        changed_i  <= ctr_atlim or ctr_at0;
         if (ctr_atlim='1') then -- use rise
           outsel <= not tog_r;
         elsif (ctr_at0='1') then -- use fall
@@ -173,10 +183,12 @@ begin
       end if;
       
       if (outsel='0') then
-        d_out <= d_in_0_u;
+        d_out_i <= d_in_0_u;
       else
-        d_out <= d_in_1_u;
+        d_out_i <= d_in_1_u;
       end if;
     end if;
   end process;
+  d_out <= d_out_i;
+  changed <= changed_i;
 end RTL;

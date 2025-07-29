@@ -54,25 +54,25 @@
 # OOC Synthesis and Hierarchical Designs.
 
 # Free-running clock constraint
-create_clock -period 4.0 [get_ports gtwiz_reset_clk_freerun_in]
+create_clock -period 32.432 [get_ports gtwiz_reset_clk_freerun_in]
 
 # QPLL0 reference clock constraint (will be overridden by required constraint on IBUFDS_GTE4 input in context)
-create_clock -period 10.0 [get_ports gtrefclk00_in[0]]
+create_clock -period 16.216 [get_ports gtrefclk00_in[0]]
 
 # Internal TX user clock constraint (will be overridden by required reference clock constraint propagated through CHANNEL primitive in context)
-create_clock -period 4.0 [get_ports txusrclk_in[0]]
+create_clock -period 32.432 [get_ports txusrclk_in[0]]
 
 # External TX user clock constraint (will be overridden by required reference clock constraint propagated through CHANNEL primitive in context)
-create_clock -period 4.0 [get_ports txusrclk2_in[0]]
+create_clock -period 32.432 [get_ports txusrclk2_in[0]]
 
 # Internal RX user clock constraint (will be overridden by required reference clock constraint propagated through CHANNEL primitive in context)
-create_clock -period 4.0 [get_ports rxusrclk_in[0]]
+create_clock -period 32.432 [get_ports rxusrclk_in[0]]
 
 # External RX user clock constraint (will be overridden by required reference clock constraint propagated through CHANNEL primitive in context)
-create_clock -period 4.0 [get_ports rxusrclk2_in[0]]
+create_clock -period 32.432 [get_ports rxusrclk2_in[0]]
 
 # DRP clock constraint for CHANNEL primitive
-create_clock -period 4.0 [get_ports drpclk_in[0]]
+create_clock -period 32.432 [get_ports drpclk_in[0]]
 
 # False path constraints
 # ----------------------------------------------------------------------------------------------------------------------

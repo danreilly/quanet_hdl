@@ -75,7 +75,7 @@ architecture struct of hdr_corr_slice is
   -- the +2 is because there are four values added per cycle.
   constant SUM_EXTRA_W: integer := u_bitwid(HDR_LEN_CYCS_W)+3; -- avoid ovf
   constant SUM_W: integer := SUM_EXTRA_W + SAMP_W;
-  signal start_d, start_dd, hdr_end_pul_d: std_logic := '0';
+  signal hdr_end_pul_d: std_logic := '0';
   signal hdr_in_d: std_logic_vector(3 downto 0);
 --  type hdr_a_t is array(0 to 3) of std_logic_vector(3 downto 0);
 --  signal hdr_a, start_a: hdr_a_t;
@@ -166,10 +166,8 @@ begin
   process(clk)
   begin
     if (rising_edge(clk)) then
-      hdr_in_d <= hdr_in;
+--      hdr_in_d <= hdr_in;
       hdr_out  <= hdr_in;
-      start_d  <= start_in;
-      start_dd <= start_d;
       hdr_end_pul_d <= hdr_end_pul;
       for d in 0 to 3 loop -- four samples per cycle
         if (start_in='1') then

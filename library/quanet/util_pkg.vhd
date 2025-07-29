@@ -61,8 +61,8 @@ package util_pkg is
   function u_max_u(l, r: std_logic_vector) -- unsigned
     return std_logic_vector;
 
-  function u_log2(a: integer)
-    return integer;
+--  function u_log2(a: integer)
+--    return integer;
   -- desc: returns number of bits reqd to hold integer a:
   -- 0->0, 1->1, 2->2, 3->2, 4->3, 5->3
 
@@ -91,7 +91,20 @@ package util_pkg is
 
   function u_add_s(a: std_logic_vector; b: std_logic_vector)
     return std_logic_vector;
-  -- add signed arith
+  function u_sub_s(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
+  -- add & subtract signed arith
+
+  function u_clamp_s(a: std_logic_vector; l: integer)
+    return std_logic_vector;
+  -- shortens a signed vector to be l bits, clamping at maxint and minint.
+  -- for example: clamp_s("000010",4)="0010"
+  --              clamp_s("001010",4)="0111"
+  --              clamp_s("100110",4)="1000"
+  
+  function u_add_s_clamp(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
+  -- add signed arith, clipping if too large
   
   function u_add_u(a: std_logic_vector; b: std_logic_vector)
    return std_logic_vector;
@@ -128,6 +141,10 @@ package util_pkg is
     return std_logic_vector;
   -- shift right signed (arithmatic)
 
+  function u_trunc(v: std_logic_vector; w: integer)
+    return std_logic_vector;
+  -- truncate, ignoring any discarded bits
+  
   function u_clip_s(v: std_logic_vector; w: integer)
     return std_logic_vector;
   -- Clip signed value to new shorter width    
@@ -410,7 +427,7 @@ package body util_pkg is
     end if;
   end;
 
-  function u_log2(a: integer) return integer is
+  function u_log2_BUGG(a: integer) return integer is
   -- returns number of bits reqd to hold integer a:
   -- 0->0, 1->1, 2->2, 3->2, 4->3, 5->3
     variable p,e: integer;
@@ -480,11 +497,41 @@ package body util_pkg is
    end function u_b2g;
 
   function u_add_s(a: std_logic_vector; b: std_logic_vector)
-   return std_logic_vector is
+    return std_logic_vector is
+  -- length of return vector is length of longer vector a or b
   begin
     return std_logic_vector(signed(a)+signed(b));
   end function u_add_s;
+  
+  function u_sub_s(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector is
+  -- length of return vector is length of longer vector a or b
+  begin
+    return std_logic_vector(signed(a)-signed(b));
+  end function u_sub_s;
 
+  function u_clamp_s(a: std_logic_vector; l: integer)
+  -- shortens a signed vector to be l bits, clamping at maxint and minint.
+    return std_logic_vector is
+    variable aa: std_logic_vector(a'length-1 downto 0) := a;
+  begin
+    if (aa(aa'left-1 downto l-1)=u_rpt(aa(aa'left),aa'length-l)) then
+      return aa(l-1 downto 0);
+    else
+      return aa(aa'left)&u_rpt(not aa(aa'left), l-1);
+    end if;
+  end function u_clamp_s;
+  
+  function u_add_s_clamp(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector is
+    constant W: integer := a'length;    
+   variable s: std_logic_vector(a'length downto 0);    
+  begin
+    s := std_logic_vector(signed(a(a'left)&a) + signed(b(b'left)&b));
+    return u_clamp_s(s, W);
+  end function u_add_s_clamp;
+
+  
   function u_add_u(a: std_logic_vector; b: std_logic_vector)
    return std_logic_vector is
   begin
@@ -547,6 +594,14 @@ package body util_pkg is
     return v;
   end function u_shift_right_s;
 
+
+  function u_trunc(v: std_logic_vector; w: integer)
+    return std_logic_vector is
+    variable vv: std_logic_vector(v'length-1 downto 0) := v;
+  begin
+    return vv(w-1 downto 0);
+  end function u_trunc;
+  
   function u_clip_s(v: std_logic_vector; w: integer)
     return std_logic_vector is
     variable vv: std_logic_vector(v'length-1 downto 0) := v;

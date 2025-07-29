@@ -526,6 +526,7 @@ proc adi_project_run {project_name} {
       }
 
       # Define a list of IPs for which to generate report utilization
+      # Dan added the adc and dac fifos, but this might not work for all designs.
       set IP_list {
         ad_ip_jesd_204_tpl_adc
         ad_ip_jesd_204_tpl_dac
@@ -537,13 +538,16 @@ proc adi_project_run {project_name} {
         util_adxcvr
         axi_dmac
         util_cpack2
-        util_upack2
+	util_upack2
+	quanet_adc
+	quanet_dac
       }
 
       foreach IP_name $IP_list {
-	set output_file ${ad_project_dir}${IP_name}_resource_utilization.log
+	set output_file ${ad_project_dir}latest/${IP_name}_resource_utilization.log
         file delete $output_file
-        foreach IP_instance [ get_cells -quiet -hierarchical -filter " ORIG_REF_NAME =~ $IP_name || REF_NAME =~ $IP_name " ] {
+	foreach IP_instance [ get_cells -quiet -hierarchical -filter " ORIG_REF_NAME =~ $IP_name || REF_NAME =~ $IP_name " ] {
+	  puts "reporting %{IP_name} utilization"
           report_utilization -hierarchical -hierarchical_depth 1 -cells $IP_instance -file $output_file -append -quiet
           report_property $IP_instance -file $output_file -append -quiet
           set report_file [ open $output_file a ]

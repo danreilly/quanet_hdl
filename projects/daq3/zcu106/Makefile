@@ -6,6 +6,10 @@
 
 PROJECT_NAME := daq3_zcu106
 
+ADI_GENERATE_UTILIZATION = 1
+export ADI_GENERATE_UTILIZATION
+
+
 M_DEPS += ../common/daq3_spi.v
 M_DEPS += ../common/daq3_bd.tcl
 M_DEPS += ../../scripts/adi_pd.tcl

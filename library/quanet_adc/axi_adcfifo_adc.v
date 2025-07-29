@@ -116,7 +116,7 @@ module axi_adcfifo_adc #(
   // This module may be misnamed.
   // I think it's really a clocked CDC mechanism, like my cdc_samp.
   // and it could be used for more than just status.
-  // Perhaps whoever named it failed to think in a genenral manner.
+  //
   // anyway, only the OVF status is used.
   up_xfer_status #(
     .DATA_WIDTH(4)

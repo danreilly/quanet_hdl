@@ -532,8 +532,8 @@ begin
     generic map( W => 4)
     port map (
       in_data(1 downto 0)   => parity,
-      in_data(2)           => xon_xoff_en,
-      in_data(3)           => rts_cts_en,
+      in_data(2)            => xon_xoff_en,
+      in_data(3)            => rts_cts_en,
       out_data(1 downto 0)  => parity_refclk,
       out_data(2)           => xon_xoff_en_refclk,
       out_data(3)           => rts_cts_en_refclk,

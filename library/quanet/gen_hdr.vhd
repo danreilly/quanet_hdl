@@ -25,8 +25,8 @@
 --  lfsr_rst        ____-______________-______-__
 --  lfsr_en         ____--------________
 --  lfsr_data       _____ABCDEFGHHHHHHHH
---  hdr_vld         ______--------_____
 --  hdr_end_pre     ____________-_____
+--  dout_vld        ______--------_____
 --  dout            ______ABCDEFGH_____
 --
 
@@ -56,9 +56,10 @@ package gen_hdr_pkg is
 
       en: in std_logic;
 
-      hdr_vld      : out std_logic; -- high only during the headers
+      hdr_end_pre2 : out std_logic; -- high before before last valid cycle
       hdr_end_pre  : out std_logic; -- high before last valid cycle
       cyc_cnt_down : out std_logic_vector(HDR_LEN_W-1 downto 0);
+      dout_vld     : out std_logic; -- high only during the headers
       dout         : out std_logic_vector(3 downto 0));
   end component;
   
@@ -88,9 +89,10 @@ entity gen_hdr is
 
     hdr_len_min1_cycs : in std_logic_vector(HDR_LEN_W-1 downto 0); -- units of cycles at 308MHz
 
-    hdr_vld      : out std_logic; -- high only during the headers
+    hdr_end_pre2 : out std_logic;
     hdr_end_pre  : out std_logic;
     cyc_cnt_down : out std_logic_vector(HDR_LEN_W-1 downto 0);
+    dout_vld     : out std_logic; -- high only during the headers
     dout         : out std_logic_vector(3 downto 0));
 end gen_hdr;
 
@@ -104,7 +106,7 @@ architecture rtl of gen_hdr is
   signal hdr_ctr: std_logic_vector(HDR_LEN_W-1 downto 0) := (others=>'0');
 
   signal tx, tx_pend, tx_pend_first, pd_ctr_atlim, lsfr_rst, lfsr_en,
-    hdr_vld_i, hdr_ctr_atlim, lfsr_rst, hdr_ctr_en, end_pul_i
+    dout_vld_i, hdr_ctr_atlim_pre, hdr_ctr_atlim, lfsr_rst, hdr_ctr_en, end_pul_i
     : std_logic:='0';
 
   signal lfsr4_data: std_logic_vector(0 downto 0);
@@ -194,7 +196,7 @@ begin
         dout <= w4; 
       end if;
 
-      hdr_vld_i <= hdr_ctr_en; -- ((gen_en and go_pulse) or hdr_vld_i) and not (rst or hdr_end);
+      dout_vld_i <= hdr_ctr_en; -- ((gen_en and go_pulse) or dout_vld_i) and not (rst or hdr_end);
       
       -- count the cycles in each hdr
       hdr_ctr_en <= not rst and (
@@ -204,6 +206,7 @@ begin
         hdr_ctr_atlim <= '0';
       elsif ((hdr_ctr_en and en)='1') then
         hdr_ctr       <= std_logic_vector(unsigned(hdr_ctr)-1);
+        hdr_ctr_atlim_pre <= u_b2b(unsigned(hdr_ctr)=2);
         hdr_ctr_atlim <= u_b2b(unsigned(hdr_ctr)=1);
       end if;
 
@@ -211,7 +214,8 @@ begin
   end process;
 
   cyc_cnt_down <= hdr_ctr;
-  hdr_vld      <= hdr_vld_i;
+  dout_vld      <= dout_vld_i;
+  hdr_end_pre2  <= hdr_ctr_en and en and hdr_ctr_atlim_pre;
   hdr_end_pre  <= hdr_ctr_en and en and hdr_ctr_atlim;
   
 end rtl;

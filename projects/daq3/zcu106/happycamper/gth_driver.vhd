@@ -11,7 +11,10 @@ entity gth_driver is
     rst : in std_logic;
     status : out std_logic_vector(3 downto 0);
     
-    axi_clk : in std_logic;
+    dma_clk : in std_logic;
+    rxclk_out : out std_logic;
+    rxclk_vld : out std_logic;
+    
     txclk_out : out std_logic;
     gtrefclk : in std_logic);
 end gth_driver;
@@ -43,7 +46,9 @@ architecture RTL of gth_driver is
     txdata: in std_logic_vector(31 downto 0);
     txusrclk_out: out std_logic;
     rxdata: out std_logic_vector(31 downto 0);
+    
     rxusrclk_out: out std_logic;
+    rxusrclk_vld: out std_logic;
     
     tx_p : out std_logic;
     tx_n : out std_logic;
@@ -162,7 +167,7 @@ begin
     generic map(
       DRPCLK_PD_NS => 4)
     port map(
-      freerun_clk => axi_clk,
+      freerun_clk => dma_clk,
       
       drp_sel_pll => '0',
       drp_sel_gt  => '0',
@@ -178,6 +183,7 @@ begin
       txusrclk_out => txclk,
       rxdata       => rxdata,
       rxusrclk_out => rxclk,
+      rxusrclk_vld => rxclk_vld,
  
       eyescanreset_in => eyescanreset,
       rxrate_in       => rxrate,
@@ -222,6 +228,9 @@ begin
       rxlpmen_o(0)      => rxlpmen,
       
       rxoutclk_i(0)     => rxclk,
-      clk => axi_clk);
+      clk => dma_clk);
+
+  rxclk_out <= rxclk;
+
   
 end RTL;

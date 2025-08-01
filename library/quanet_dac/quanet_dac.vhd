@@ -316,7 +316,7 @@ architecture rtl of quanet_dac is
   signal frame_pd_min1: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
 
     
-  signal tx_unsync, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld, tx_always, tx_0,
+  signal tx_unsync, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld, tx_always, pm_hdr_disable,
       pm_hdr_go, pm_hdr_go_pre, pm_preemph_en,
     lfsr_hdr_vld, im_hdr_vld, im_hdr_last, im_body_vld, im_body_last,
     tx_req_p, frame_sync_qualified, tx_req_d, clr_cnts, memtx_to_pm,
@@ -377,7 +377,7 @@ architecture rtl of quanet_dac is
   signal qsdc_log2m: std_logic_vector(1 downto 0);
   
 
-  signal qsd_frame_go,
+  signal qsdc_frame_go,
     qsdc_data_go, qsdc_data_going, qsdc_prime, qsdc_mem_ren, mem_ren_pre,
     qsdc_symbolizer_rst,
     sym_last, dbits_en,
@@ -403,7 +403,7 @@ architecture rtl of quanet_dac is
     ser_clr_errs, ser_rst, ser_tx_mt, ser_tx_full,
     ser_xon_xoff_en, ser_set_params, ser_set_flowctl,
     ser_frame_err,ser_parity_err, ser_saw_xoff_timo,
-    ser_clr_ctrs, tx_commence_dac,
+    ser_clr_ctrs, tx_commence_dac, tx_commence_aclk,
     ser_rx_ovf, ser_tx_ovf: std_logic := '0';
   signal ser_ctr_sel: std_logic_vector(uart_ctr_sel_w-1 downto 0);
   signal ser_ctr: std_logic_vector(uart_ctr_w-1 downto 0);
@@ -424,10 +424,13 @@ architecture rtl of quanet_dac is
   signal dma_lastvld: std_logic;
   signal dma_last_cnt, dma_lastvld_cnt: std_logic_vector(2 downto 0);
   signal mem_raddr_lim_min1: std_logic_vector(15 downto 0);
-  signal frame_go_cnt: std_logic_vector(7 downto 0);
+  signal frame_go_cnt, qsdc_frame_go_cnt: std_logic_vector(7 downto 0);
   signal qsdc_bitdur_min1_codes: std_logic_vector(8 downto 0);
   constant QSDC_BITCODE_W: integer := G_QSDC_BITCODE'length;
-  
+
+
+  signal dbg_sym_vld, dbg_sym_clr: std_logic;
+  signal dbg_sym: std_logic_vector(11 downto 0);
 begin
 
 
@@ -536,9 +539,9 @@ begin
   cipher_en      <= reg_ctl_w(30); -- bob sets to scramble frame bodies
   memtx_to_pm    <= reg_ctl_w(29); -- 
   tx_always      <= reg_ctl_w(28); -- used for dbg to view on scope
-  tx_0           <= reg_ctl_w(27); -- header contains zeros
+  pm_hdr_disable <= reg_ctl_w(27); -- header has no PM modulation
   memtx_circ     <= reg_ctl_w(26); -- circular xmit from mem
-  alice_syncing  <= reg_ctl_w(25); -- means i am alice, doing sync
+  alice_syncing  <= reg_ctl_w(25); -- disables pm hdr if alice
   tx_dbits       <= reg_ctl_w(23); -- alice transmits data
   simple_im_hdr_en <= reg_ctl_w(22); -- use vals from IM register
   alice_txing    <= reg_ctl_w(21); -- set for qsdc
@@ -558,10 +561,13 @@ begin
          or (qsdc_tx_irq_en and qsdc_data_done_i);
   
   -- reg pctl
-  gth_rst    <= reg_pctl_w(31);
-  clr_cnts   <= reg_pctl_w(30);
-  ser_sel    <= reg_pctl_w(29);
-  reg_pctl_r <= reg_pctl_w;
+  gth_rst     <= reg_pctl_w(31);
+  clr_cnts    <= reg_pctl_w(30);
+  ser_sel     <= reg_pctl_w(29);
+  dbg_sym_clr <= reg_pctl_w(28);
+  reg_pctl_r(31 downto 16) <= reg_pctl_w(31 downto 16);
+  reg_pctl_r(12 downto 1)  <= dbg_sym;
+  reg_pctl_r(0)            <= dbg_sym_vld;
   
   -- reg status
   reg_status_r(31 downto 24) <= (others=>'0');
@@ -647,15 +653,16 @@ begin
 --  reg_dbg_r(5)          <= dbg_drp_busy;
 --  reg_dbg_r(4)          <= dbg_proc_req;
   reg_dbg_r(31 downto 25) <= reg_dbg_w(31 downto 25);
-  reg_dbg_r(24 downto 17)  <= frame_go_cnt;
 --  reg_dbg_r(17  downto 15) <= dma_lastvld_cnt;
 --  reg_dbg_r(14  downto 12) <= dma_last_cnt;
---  reg_dbg_r(13  downto 12) <= ser_ctr;
-  reg_dbg_r(11) <= ser_rx_ovf;
-  reg_dbg_r(10) <= ser_tx_ovf;
-  reg_dbg_r(9)  <= ser_saw_xoff_timo;
-  reg_dbg_r(8)  <= ser_parity_err;
-  reg_dbg_r(7)  <= ser_frame_err;
+  reg_dbg_r(21)           <= tx_commence_aclk;
+  reg_dbg_r(20 downto 13) <= frame_go_cnt;
+  reg_dbg_r(12 downto 5)  <= qsdc_frame_go_cnt;
+  reg_dbg_r(4) <= ser_rx_ovf;
+  reg_dbg_r(3) <= ser_tx_ovf;
+  reg_dbg_r(2)  <= ser_saw_xoff_timo;
+  reg_dbg_r(1)  <= ser_parity_err;
+  reg_dbg_r(0)  <= ser_frame_err;
 
 
   -- if the module is not in initialization phase, it should go
@@ -802,7 +809,7 @@ begin
   
   -- Phase Modulation for header
   pm_hdr_go_pre <= (is_bob or alice_syncing)
-                   and frame_go and hdr_use_lfsr and not tx_0;
+                   and frame_go and hdr_use_lfsr and not pm_hdr_disable;
   pm_dly: duration_ctr
      generic map (
        LEN_W => 6)
@@ -928,6 +935,16 @@ begin
       clr   => clr_cnts,
       cnt   => frame_go_cnt);
   
+  qsdc_frame_go_ctr: event_ctr
+    generic map(W => 8)
+    port map(
+      clk   => dac_clk,
+      event => qsdc_frame_go,
+      
+      rclk  => s_axi_aclk,
+      clr   => clr_cnts,
+      cnt   => qsdc_frame_go_cnt);
+  
 
 --  dma_last_ctr: event_ctr
 --    generic map(W => 3)
@@ -968,15 +985,23 @@ begin
       in_data(0)  => tx_commence,
       out_data(0) => tx_commence_dac,
       out_clk     => dac_clk);
+
+  commence_aclk_samp: cdc_samp
+    generic map(W=>1)
+    port map (
+      in_data(0)  => tx_commence_dac,
+      out_data(0) => tx_commence_aclk,
+      out_clk     => s_axi_aclk);
+
   
-  qsd_frame_go <= alice_txing and frame_sync_qualified and not dbody_done;
+  qsdc_frame_go <= alice_txing and frame_sync_qualified and not dbody_done;
   qsd_pos_ctr_i: duration_ctr -- delay from frame_go to qsdc_go
     generic map(
       LEN_W => 8)
     port map(
       clk      => dac_clk,
       rst      => dac_rst,
-      go_pul   => qsd_frame_go,
+      go_pul   => qsdc_frame_go,
       len_min1 => qsdc_pos_min1_cycs,
       sig_last => qsdc_data_go); -- start of QSD data insertion
 
@@ -1112,7 +1137,7 @@ begin
       DAC_W     => DAC_D_W)
     port map(
       clk   => dac_clk,
-      rst   => dac_rst,
+      rst   => qsdc_symbolizer_rst,
       prime => qsdc_prime,
       en    => qsdc_data_going,
 
@@ -1129,7 +1154,12 @@ begin
 
       dout_done  => dbody_done,
       dout       => dbody_data,
-      dout_vld   => dbody_vld);
+      dout_vld   => dbody_vld,
+
+      s_axi_aclk   => s_axi_aclk,
+      dbg_dout     => dbg_sym,
+      dbg_dout_vld => dbg_sym_vld,
+      dbg_dout_clr => dbg_sym_clr);
 
 
   pm_preemph: preemph

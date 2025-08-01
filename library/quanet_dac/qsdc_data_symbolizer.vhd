@@ -40,7 +40,13 @@ package qsdc_data_symbolizer_pkg is
       log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
       dout_done: out std_logic;
       dout      : out std_logic_vector(DAC_W*4-1 downto 0);
-      dout_vld  : out std_logic);
+      dout_vld  : out std_logic;
+
+      -- dbg
+      s_axi_aclk   : in std_logic;
+      dbg_dout     : out std_logic_vector((LOG2M_W+1)*4-1 downto 0);
+      dbg_dout_vld : out std_logic;
+      dbg_dout_clr: in std_logic);
   end component;
 end package qsdc_data_symbolizer_pkg;
 
@@ -74,7 +80,13 @@ entity qsdc_data_symbolizer is
     log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
     dout_done: out std_logic;
     dout      : out std_logic_vector(DAC_W*4-1 downto 0);
-    dout_vld  : out std_logic);
+    dout_vld  : out std_logic;
+
+    -- dbg
+    s_axi_aclk: in std_logic;
+    dbg_dout     : out std_logic_vector((LOG2M_W+1)*4-1 downto 0);
+    dbg_dout_vld : out std_logic;
+    dbg_dout_clr: in std_logic);
 end qsdc_data_symbolizer;
 
 
@@ -83,6 +95,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util_pkg.all;
 use work.symbol_reader_pkg.all;
+use work.cdc_samp_pkg.all;
+use work.cdc_pulse_pkg.all;
 architecture rtl of qsdc_data_symbolizer is
   constant OCC_W: integer := u_bitwid(MEM_W);
   constant NEW_OCC:std_logic_vector(OCC_W-1 downto 0):=
@@ -96,7 +110,8 @@ architecture rtl of qsdc_data_symbolizer is
   signal shreg, bits1_w, bits2_w, bits3_w: std_logic_vector(MEM_W-1 downto 0);
   signal bits0, bits1, bits2, bits3: std_logic_vector(LOG2M_MAX-1 downto 0);
   signal shreg_shift, shreg_atlim, shreg_last, prime_d, prime_dd, mem_done, mem_done_d,
-    shreg_done_i, code_r, mem_rd_i, din_vld, code_rd, sym_last, all_done, code_last,
+    dbg_vld, dbg_vld_clr, dout_vld_i,
+    shreg_done_i, code_r, mem_rd_i, din_vld, code_rd, sym_last, dout_done_i, code_last,
     symlen_is1, bitdur_ctr_atlim: std_logic:='0';
   signal symlen_asamps: std_logic_vector(1 downto 0);
   signal bitdur_ctr: std_logic_vector(BITDUR_W-1 downto 0);
@@ -107,8 +122,8 @@ architecture rtl of qsdc_data_symbolizer is
   signal shift_amt_pre: std_logic_vector(LOG2M_W+1 downto 0);
   signal shift_amt: std_logic_vector(SHIFT_W-1 downto 0);
 
-  signal sympad: std_logic_vector(DAC_W-LOG2M_MAX-2 downto 0) := (others=>'0');
-  signal dout_pre: std_logic_vector(4*2-1 downto 0);
+  signal sympad: std_logic_vector(DAC_W-(LOG2M_W+1)-1 downto 0) := (others=>'0');
+  signal dbg_dout_sav, dout_pre: std_logic_vector((LOG2M_W+1)*4-1 downto 0);
 begin
 
   mem_rd <= mem_rd_i;
@@ -142,7 +157,10 @@ begin
 
       -- data from memory is stored in this shift register
       din_vld      <= mem_rd_i;
-      if (din_vld='1') then
+      if ((prime or rst)='1') then
+        shreg_last  <= '0';
+        shreg_atlim <= '0';
+      elsif (din_vld='1') then
         shreg       <= u_if(mem_done_d='0', mem_data, u_rpt('0',MEM_W));
         shreg_occ   <= NEW_OCC;
         shreg_atlim <= u_b2b(unsigned(NEW_OCC)=1);
@@ -165,20 +183,27 @@ begin
       end if;  
 
 
+      sym_last    <= not (prime or rst) and (sym_last or (code_rd and code_last));
+      dout_done_i <= not (prime or rst) and (dout_done_i or (code_rd and sym_last));
 
-      sym_last <= not (prime or rst) and (sym_last or (code_rd and code_last));
-      dout_done <= not (prime or rst) and (all_done or (code_rd and sym_last));
-      
+      if (dbg_vld_clr='1') then
+        dbg_vld      <= '0';
+      elsif ((not dbg_vld and dout_vld_i)='1') then
+        dbg_dout_sav <= dout_pre;
+        dbg_vld      <= '1';
+      end if;
+        
     end if;
   end process;
 
+  dout_done <= dout_done_i;
 
   code_last <= bitdur_ctr_atlim and shreg_atlim and mem_done;
   sym_rdr: symbol_reader
     generic map(
       M_MAX     => M_MAX,
       LOG2M_MAX => LOG2M_MAX,
-      LOG2M_W   => 2,
+      LOG2M_W   => LOG2M_W,
       SYMLEN_W  => SYMLEN_W,
       DIN_W     => CODE_W)
     port map(
@@ -192,16 +217,42 @@ begin
       
       symlen_min1_asamps => symlen_min1_asamps,
       -- when this component generates M-PSK, M is determined by:
-      log2m  => log2m,
-      -- TODO: why doesnt log2m come from symlen asamps???!!1
+      log2m  => log2m, -- the modulation
+
       
       dout     => dout_pre,
-      dout_vld => dout_vld);
+      dout_vld => dout_vld_i);
+  dout_vld <= dout_vld_i;
+
 
   gen_out: for k in 0 to 3 generate
   begin
-    dout((k+1)*DAC_W-1 downto k*DAC_W) <= dout_pre(k*2+1 downto k*2) & u_rpt('0', DAC_W-2);
+    dout((k+1)*DAC_W-1 downto k*DAC_W) <=   dout_pre((k+1)*(LOG2M_W+1)-1 downto k*(LOG2M_W+1))
+                                          & u_rpt('0', DAC_W-(LOG2M_W+1));
   end generate gen_out;
+
+  dout_samp: cdc_samp
+    generic map(W=>(LOG2M_W+1)*4)
+    port map(
+      in_data  => dbg_dout_sav,
+      out_data => dbg_dout,
+      out_clk  => s_axi_aclk);
+
+  dbg_vld_samp: cdc_samp
+    generic map(W=>1)
+    port map(
+      in_data(0)  => dbg_vld,
+      out_data(0) => dbg_dout_vld,
+      out_clk     => s_axi_aclk);
+  
+  dout_clr_samp: cdc_pulse
+    port map(
+      in_pulse  => dbg_dout_clr,
+      in_clk    => s_axi_aclk,
+      out_pulse => dbg_vld_clr,
+      out_clk   => clk);
+  
+
   
 end architecture rtl;
 

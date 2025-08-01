@@ -65,7 +65,7 @@ architecture rtl of decipher is
   type cipher_array_t is array(0 to 3) of std_logic_vector(LOG2M_W-1 downto 0);
   signal c: cipher_array_t;
 
-  signal syms: std_logic_vector(LOG2M_W*4-1 downto 0); -- left aligned
+  signal syms: std_logic_vector((LOG2M_W+1)*4-1 downto 0); -- left aligned
   signal syms_vld: std_logic;
   signal en_d: std_logic:='0';
 
@@ -123,7 +123,7 @@ begin
   
   gen_quad: for i in 0 to 3 generate
   begin
-    c(i) <= syms(LOG2M_W*(i+1)-1 downto LOG2M_W*i);
+    c(i) <= syms((LOG2M_W+1)*(i+1)-1 downto (LOG2M_W+1)*i+1);
 
     clk_per_proc: process(clk) is
     begin

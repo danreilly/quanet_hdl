@@ -6,6 +6,8 @@
 -- fifo-like interface.
 
 
+
+
 library ieee;
 use ieee.std_logic_1164.all;
 package symbol_reader_pkg is
@@ -30,7 +32,7 @@ package symbol_reader_pkg is
       -- when this component generates M-PSK, M is determined by:
       log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
       
-      dout: out std_logic_vector(LOG2M_W*4-1 downto 0); -- left aligned
+      dout: out std_logic_vector((LOG2M_W+1)*4-1 downto 0); -- left aligned
       dout_vld: out std_logic);
   end component;
   
@@ -58,7 +60,7 @@ entity symbol_reader is
       
     -- when this component generates M-PSK, M is determined by:
     log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
-    dout: out std_logic_vector(LOG2M_W*4-1 downto 0); -- left aligned
+    dout: out std_logic_vector((LOG2M_W+1)*4-1 downto 0); -- left aligned
     dout_vld: out std_logic);
 end symbol_reader;
 
@@ -80,8 +82,9 @@ architecture rtl of symbol_reader is
   signal shreg_occ: std_logic_vector(OCC_W-1 downto 0);
   signal shreg, bits1_w, bits2_w, bits3_w: std_logic_vector(DIN_W-1 downto 0);
   signal bits0, bits1, bits2, bits3: std_logic_vector(LOG2M_MAX-1 downto 0);
+  signal dbgbits0: std_logic_vector(LOG2M_MAX downto 0);
   signal shreg_ld, shreg_shift, shreg_last, prime_d,
-    symlen_is1, cyc_ctr_atlim: std_logic:='0';
+    dout_vld_i, symlen_is1, cyc_ctr_atlim: std_logic:='0';
   signal symlen_asamps: std_logic_vector(1 downto 0);
   signal cyc_ctr: std_logic_vector(SYMLEN_W-3 downto 0);
   signal left_adj: std_logic_vector(LOG2M_W-1 downto 0);
@@ -91,7 +94,7 @@ architecture rtl of symbol_reader is
   signal shift_amt: std_logic_vector(SHIFT_W-1 downto 0);
 
 
-  signal sym0,sym1,sym2,sym3: std_logic_vector(LOG2M_W-1 downto 0);
+  signal sym0,sym1,sym2,sym3: std_logic_vector(LOG2M_W downto 0);
 
   
 begin
@@ -142,12 +145,12 @@ begin
       else
         dout <= sym0 & sym0 & sym0 & sym0;
       end if;
-      dout_vld <= en;
+      dout_vld_i <= en;
     end if;
 
     
   end process;
-  
+  dout_vld <= dout_vld_i;
   bits0 <= shreg(LOG2M_MAX-1 downto 0);
   bits1_w <= u_shift_right_u(shreg, log2m);
   bits2_w <= u_shift_right_u(shreg, log2m&'0');
@@ -155,10 +158,11 @@ begin
   bits1 <= bits1_w(LOG2M_MAX-1 downto 0);
   bits2 <= bits2_w(LOG2M_MAX-1 downto 0);
   bits3 <= bits3_w(LOG2M_MAX-1 downto 0);
-  sym0 <= u_trunc(u_shift_left(bits0&'1', left_adj),LOG2M_W);
-  sym1 <= u_trunc(u_shift_left(bits1&'1', left_adj),LOG2M_W);
-  sym2 <= u_trunc(u_shift_left(bits2&'1', left_adj),LOG2M_W);
-  sym3 <= u_trunc(u_shift_left(bits3&'1', left_adj),LOG2M_W);
+  dbgbits0 <= u_shift_left(bits0&'1', left_adj);
+  sym0 <= u_trunc(u_shift_left(bits0&'1', left_adj),LOG2M_W+1);
+  sym1 <= u_trunc(u_shift_left(bits1&'1', left_adj),LOG2M_W+1);
+  sym2 <= u_trunc(u_shift_left(bits2&'1', left_adj),LOG2M_W+1);
+  sym3 <= u_trunc(u_shift_left(bits3&'1', left_adj),LOG2M_W+1);
   
 end architecture rtl;
 

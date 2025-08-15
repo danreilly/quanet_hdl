@@ -7,6 +7,11 @@
 source ../../scripts/adi_env.tcl
 source $ad_hdl_dir/library/scripts/adi_ip_xilinx.tcl
 
+# project_name is not defined.  Maybe IPs are intended to be chip-independent.
+#regexp {([A-Za-z0-9]+)_([A-Za-z0-9]+)} $project_name ma m1 board
+set board zcu106
+puts "board name: $board"
+
 adi_ip_create quanet_adc
 adi_ip_files quanet_adc [list \
   "$ad_hdl_dir/library/common/ad_mem.v" \
@@ -43,7 +48,7 @@ adi_ip_files quanet_adc [list \
   "rom_inf.vhd" \
   "rotate_iq.vhd" \
   "synchronizer.vhd" \
-  "imbal_mult/imbal_mult.xci" \
+  "$board/imbal_mult/imbal_mult.xci" \
   "pwr_det.vhd" \
   "period_timer.vhd" \
   "hdr_corr.vhd" \

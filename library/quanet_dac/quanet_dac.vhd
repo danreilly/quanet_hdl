@@ -13,7 +13,8 @@ package quanet_dac_pkg is
     s_axi_aclk: in std_logic;
     s_axi_aresetn: in std_logic;
     irq   : out std_logic;
-    
+
+    cipher_en_out        : out std_logic; -- passed to Bob's RX side
     cipher_out           : out std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
     cipher_out_vld       : out std_logic;
 
@@ -112,6 +113,7 @@ entity quanet_dac is
     s_axi_aresetn: in std_logic;
     irq   : out std_logic;
     
+    cipher_en_out        : out std_logic; -- passed to Bob's RX side
     cipher_out           : out std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
     cipher_out_vld       : out std_logic;
     
@@ -280,16 +282,16 @@ architecture rtl of quanet_dac is
       pd_tic : out std_logic;
       
       tx_always: in std_logic;
+      tx_indefinite: in std_logic;
       tx_commence: in std_logic;
-      tx_req: in std_logic; -- request transission by pulsing high for one cycle
-
+      frame_sync_qual: in std_logic; -- request transission by pulsing high for one cycle
       frame_qty_min1 : in std_logic_vector(FRAME_QTY_W-1 downto 0);
 
       -- control signals indicate when to transmit
       frame_first     : out std_logic;
       frame_first_pul : out std_logic;
-      frame_tx        : out std_logic; -- pulse at beginning of headers
-      txing           : out std_logic); -- remains high during pauses, until after final pause
+      frame_go        : out std_logic); -- pulse at beginning of headers
+--      txing           : out std_logic); -- remains high during pauses, until after final pause
   end component;
 
   component preemph is
@@ -316,7 +318,8 @@ architecture rtl of quanet_dac is
   signal frame_pd_min1: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
 
     
-  signal tx_unsync, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld, tx_always, pm_hdr_disable,
+  signal tx_unsync, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld,
+      tx_always, tx_indefinite, pm_hdr_disable,
       pm_hdr_go, pm_hdr_go_pre, pm_preemph_en,
     lfsr_hdr_vld, im_hdr_vld, im_hdr_last, im_body_vld, im_body_last,
     tx_req_p, frame_sync_qualified, tx_req_d, clr_cnts, memtx_to_pm,
@@ -356,10 +359,9 @@ architecture rtl of quanet_dac is
   constant CIPHER_M_MAX: integer := G_MAX_CIPHER_M*2; -- for experimentation
   constant CIPHER_LOG2M_MAX: integer := u_bitwid(CIPHER_M_MAX-1);
   constant CIPHER_LOG2M_W: integer := u_bitwid(CIPHER_LOG2M_MAX);
-  
-  constant BODY_LFSR_W: integer := 21; -- std_logic_vector(G_BODY_CHAR_POLY)'length;
-  signal cipher_rst_st: std_logic_vector(BODY_LFSR_W-1 downto 0) := '0'&X"abcde"; --
---21 bits
+
+  signal cipher_rst_st: std_logic_vector(G_CIPHER_LFSR_W-1 downto 0)
+    := G_CIPHER_RST_STATE; --21 bits
   signal im_body, im_hdr: std_logic_vector(15  downto 0);
   signal body_pad: std_logic_vector(15-G_CIPHER_W downto 0) := (others=>'0');
   signal lfsr_hdr: std_logic_vector(3 downto 0);
@@ -542,6 +544,7 @@ begin
   pm_hdr_disable <= reg_ctl_w(27); -- header has no PM modulation
   memtx_circ     <= reg_ctl_w(26); -- circular xmit from mem
   alice_syncing  <= reg_ctl_w(25); -- disables pm hdr if alice
+  tx_indefinite  <= reg_ctl_w(24); -- runs until stopped
   tx_dbits       <= reg_ctl_w(23); -- alice transmits data
   simple_im_hdr_en <= reg_ctl_w(22); -- use vals from IM register
   alice_txing    <= reg_ctl_w(21); -- set for qsdc
@@ -754,15 +757,16 @@ begin
       pd_min1   => frame_pd_min1,
       pd_tic    => frame_pd_tic,
       
-      tx_always      => tx_always,
-      tx_commence    => tx_commence_dac,
-      frame_qty_min1 => frame_qty_min1,
-      tx_req         => frame_sync_qualified, -- an input. 
+      tx_always       => tx_always,
+      tx_indefinite   => tx_indefinite,
+      tx_commence     => tx_commence_dac,
+      frame_qty_min1  => frame_qty_min1,
+      frame_sync_qual => frame_sync_qualified, -- an input. 
 
       -- control signals indicate when to transmit
       frame_first     => frame_first,
       frame_first_pul => frame_first_pul,
-      frame_tx        => frame_go);   -- pulse at beginning of frames
+      frame_go        => frame_go);   -- pulse at beginning of frames
 --      txing       => txing);   -- remains high during pauses, until after final pause
 
 
@@ -852,14 +856,17 @@ begin
           else (others=>'0') when (lfsr_hdr(0)='0')
           else u_rpt((not twopi_tog)&u_rpt(twopi_tog, DAC_D_W-1), 4);
 
+  cipher_en_out <= cipher_en;
   cipher_prime <=    (cipher_en and not cipher_en_d)
-                  or (cipher_en and frame_go and cipher_same);
+                     or (cipher_en and frame_go and cipher_same);
+  -- cipher_same is a debug thing.  Makes the cipher the same for every frame.
+  
   cipher_go <= hdr_end_pre and cipher_en;
   -- for Bob's RANDOM PM body which is M-psk.
   cipher_i : gen_cipher
     generic map(
       LEN_W     => G_BODY_LEN_W,
-      CP        => G_BODY_CHAR_POLY,
+      CP        => G_CIPHER_CHAR_POLY,
       M_MAX     => CIPHER_M_MAX,
       LOG2M_MAX => CIPHER_LOG2M_MAX+1,
       LOG2M_W   => CIPHER_LOG2M_W,

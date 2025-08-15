@@ -53,6 +53,11 @@ ad_ip_parameter sys_ps8 CONFIG.PSU__USE__IRQ1 1
 ad_ip_parameter sys_ps8 CONFIG.PSU__GPIO_EMIO__PERIPHERAL__ENABLE 1
 ad_ip_parameter sys_ps8 CONFIG.PSU__GPIO_EMIO_WIDTH 39
 
+# Dan added this to make a DRP clock:
+ad_ip_parameter sys_ps8 CONFIG.PSU__FPGA_PL3_ENABLE 1
+ad_ip_parameter sys_ps8 CONFIG.PSU__CRL_APB__PL3_REF_CTRL__SRCSEL {IOPLL}
+ad_ip_parameter sys_ps8 CONFIG.PSU__CRL_APB__PL3_REF_CTRL__FREQMHZ 25
+ad_ip_parameter sys_ps8 CONFIG.PSU__PL_CLK3_BUF true
 
 # PS iic0 is on mio 14,15 and goes to a bunch of board chips.
 # PS iic1 is on mio 16,17 and goes to others inc fmc hpc0 iic sda/dcl.
@@ -93,6 +98,9 @@ ad_ip_parameter sys_500m_rstgen CONFIG.C_EXT_RST_WIDTH 1
 ad_connect  sys_cpu_clk  sys_ps8/pl_clk0
 ad_connect  sys_250m_clk sys_ps8/pl_clk1
 ad_connect  sys_500m_clk sys_ps8/pl_clk2
+ad_connect  drp_clk      sys_ps8/pl_clk3
+create_bd_port -dir O drp_clk_out
+ad_connect sys_ps8/pl_clk3 drp_clk_out
 
 ad_connect  sys_ps8/pl_resetn0 sys_rstgen/ext_reset_in
 ad_connect  sys_cpu_clk sys_rstgen/slowest_sync_clk

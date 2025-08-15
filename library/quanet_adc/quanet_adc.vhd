@@ -31,8 +31,8 @@ package quanet_adc_pkg is
       AXI_DATA_WIDTH   : integer := 512; -- the AXI to the DDR that is.
       DMA_READY_ENABLE : integer :=   1;
       AXI_LENGTH       : integer :=   4; -- actually the burst len
-      AXI_A_W          : integer :=   8);
---      AXI_ADDRESS_SIZE : integer := 2**28);
+      AXI_A_W          : integer :=   8;
+      AXI_ADDRESS_SIZE : integer := 536870912);
 --      AXI_ADDRESS       : integer; -- std_logic_vector(31 downto 0) := x"80000000";  -- start addr in DDR
 --      AXI_ADDRESS_LIMIT : integer); -- std_logic_vector(31 downto 0) := x"8fffffff");
     port (
@@ -74,8 +74,10 @@ package quanet_adc_pkg is
       dac_tx_in           : in  std_logic; -- dac is ready
       sfp_rxclk_in        : in  std_logic; -- dac is ready
       sfp_rxclk_vld       : in  std_logic; -- dac is ready
-      cipher_in           : in std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
-      cipher_in_vld       : in std_logic;
+      
+      cipher_en_in        : in  std_logic;
+      cipher_in           : in  std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
+      cipher_in_vld       : in  std_logic;
       dbg_clk_sel_o       : out std_logic;
       
       -- fifo interface
@@ -157,8 +159,8 @@ entity quanet_adc is
      DMA_READY_ENABLE : integer :=  1;
 --     AXI_SIZE : integer :=  2;
      AXI_LENGTH : integer := 4;-- actually the burst length
-     AXI_A_W: integer := 8);
---     AXI_ADDRESS_SIZE : integer := 2**28);
+     AXI_A_W: integer := 8;
+     AXI_ADDRESS_SIZE : integer := 536870912);
 --     AXI_ADDRESS : integer;
 --     AXI_ADDRESS_LIMIT : integer);
   port (
@@ -197,9 +199,10 @@ entity quanet_adc is
     dac_clk             : in  std_logic;
     tx_commence         : out std_logic;
     frame_sync_o        : out std_logic;
-    dac_tx_in           : in  std_logic; -- dac is ready
+    dac_tx_in           : in  std_logic; -- dac txes first frame
     sfp_rxclk_in        : in  std_logic; -- dac is ready
     sfp_rxclk_vld       : in  std_logic; -- dac is ready
+    cipher_en_in        : in  std_logic;
     cipher_in           : in std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
     cipher_in_vld       : in std_logic;
     dbg_clk_sel_o       : out std_logic;
@@ -289,7 +292,9 @@ use work.event_ctr_pkg.ALL;
 library work;
 use work.global_pkg.all;
 use work.util_pkg.all;
+use work.lfsr_w_pkg.all;
 use work.fifo_2clks_infer_pkg.all;
+
 architecture rtl of quanet_adc is
 
   -- This used to be a parameter to axi_adcfifo.
@@ -316,8 +321,9 @@ architecture rtl of quanet_adc is
   constant AREG_CIPHER: integer := 10;
   constant AREG_REBALO: integer := 11;
   constant AREG_DBG:   integer := 12;
+  constant AREG_CIPHER2: integer := 13;
   
-  constant NUM_REGS: integer := 13;
+  constant NUM_REGS: integer := 14;
   
   signal areg_r_vec, areg_w_vec: std_logic_vector(NUM_REGS*32-1 downto 0);
   type reg_array_t is array(0 to NUM_REGS-1) of std_logic_vector(31 downto 0);
@@ -329,7 +335,7 @@ architecture rtl of quanet_adc is
   -- std_logic_vector.  But that doesn't pass to verilog.
   constant  AXI_ADDRESS       : integer := (-2**30)*2; -- std_logic_vector(31 downto 0) := x"80000000";  -- start addr in DDR
 
-  constant  AXI_ADDRESS_SIZE : integer := 2**28;
+--  constant  AXI_ADDRESS_SIZE : integer := 2**28;
   constant  AXI_ADDRESS_LIMIT : integer := AXI_ADDRESS + (AXI_ADDRESS_SIZE - 1); -- std_logic_vector(31 downto 0) := x"8fffffff");
 --  constant  AXI_ADDRESS_LIMIT : integer := AXI_ADDRESS + (2**10 - 1); -- std_logic_vector(31 downto 0) := x"8fffffff");  
 
@@ -493,7 +499,8 @@ architecture rtl of quanet_adc is
       ph_sin : out std_logic_vector(TRIG_W-1 downto 0));
   end component;    
   
-  signal meas_noise, meas_noise_adc, dma_xfer_req_rc, dma_xfer_req_inadc, dma_xfer_req_inadc_d, s_axi_rst, axi_rst, save_buf_avail, txrx_en: std_logic := '0';
+  signal meas_noise, meas_noise_adc, dma_xfer_req_rc, dma_xfer_req_inadc, dma_xfer_req_inadc_d, s_axi_rst, axi_rst,
+    save_buf_avail, save_buf_avail_aclk, txrx_en: std_logic := '0';
   signal
     areg_actl_w, areg_actl_r,
     areg_pctl_w, areg_pctl_r,
@@ -507,6 +514,7 @@ architecture rtl of quanet_adc is
     areg_rebalm_w, areg_rebalm_r,
     areg_rebalo_w, areg_rebalo_r,
     areg_cipher_w, areg_cipher_r,
+    areg_cipher2_w, areg_cipher2_r,
     areg_sync_w, areg_sync_r: std_logic_vector(31 downto 0);
 
   signal noise_ctr_en, rxq_sw_ctl_i, dma_xfer_req_d, xfer_req_event, dma_wready_d, dma_wready_pulse: std_logic := '0';
@@ -554,7 +562,7 @@ architecture rtl of quanet_adc is
   
   signal hdr_subcyc: std_logic_vector(1 downto 0);
   signal save_after_init, save_after_pwr, save_after_hdr,
-    pwr_event_iso, saw_pwr_event,
+    pwr_event_iso, saw_pwr_event, deciph_vld,
     hdr_det, saw_hdr_det, rxbuf_exists,
     ext_frame_ref,
     sync_lock, saw_sync_ool, clr_saw_sync_ool,
@@ -586,15 +594,18 @@ architecture rtl of quanet_adc is
 
   constant CIPHER_LOG2M_MAX: integer := 2; -- (for now).
   constant CIPHER_LOG2M_W: integer := 2; -- (for now).
-  signal decipher_rst, cipher_en, decipher_go, cipher_fifo_mt, cipher_fifo_full,
-    decipher_pre, decipher_pre_d, decipher_prime, decipher_going,
-    cipher_fifo_rd, cipher_rst: std_logic := '0';
-  signal cipher_dly_asamps: std_logic_vector(G_CIPHER_FIFO_A_W+1 downto 0);
+  signal decipher_rst, decipher_en, cipher_en, cipher_en_d, decipher_go_pre, decipher_go, cipher_fifo_mt, cipher_fifo_full,
+    decipher_pre, decipher_pre_d, decipher_prime, decipher_going, cipher_lfsr_rst,
+    cipher_fifo_rd: std_logic := '0';
+  signal cipher_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
+  signal cipher_dly_asamps: std_logic_vector(1 downto 0);
   signal cipher_log2m: std_logic_vector(CIPHER_LOG2M_W-1 downto 0);
-  signal cipher: std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
-  signal cipher_symlen_min1_asamps: std_logic_vector(9 downto 0);
-  signal data_len_min1_cycs: std_logic_vector(G_BODY_LEN_W-1 downto 0);
-
+  signal cipher_symlen_min1_asamps: std_logic_vector(G_CIPHER_SYMLEN_W-1 downto 0);
+  signal cipher_body_len_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal data_len_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal cipher_rst_st: std_logic_vector(G_CIPHER_LFSR_W-1 downto 0) := G_CIPHER_RST_STATE;
+  signal cipher, cipher_lfsr_data: std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
+  
   signal tx_go_cond: std_logic_vector(1 downto 0);
   signal syncro_errsum: std_logic_vector(15 downto 0);
   signal syncro_errsum_ovf: std_logic;
@@ -644,7 +655,7 @@ begin
 
   hdr_corr_inst: hdr_corr
     generic map(
-      USE_CORR => 1,
+      USE_CORR => 0,
       SAMP_W             => 14,
       FRAME_PD_CYCS_W    => G_FRAME_PD_CYCS_W, -- 24
       REDUCED_SAMP_W     => 8,
@@ -737,11 +748,96 @@ begin
     samps_derot_q <= samps_balanced_q;
   end generate gen_no_ph_est;
 
+  gen_any_decipher: if ((G_OPT_GEN_DECIPHER_LFSR>0) or (G_OPT_GEN_CIPHER_FIFO>0)) generate
 
-  gen_decipher: if (G_OPT_GEN_DECIPHER>0) generate
-    
-    decipher_rst <= not cipher_en;
+   decipher_go_pre <= decipher_en and dac_tx_in_adc;
+   decipher_dly_ctr: duration_ctr
+     generic map(
+       LEN_W => G_FRAME_PD_CYCS_W)
+     port map(
+       clk      => adc_clk,
+       rst      => decipher_rst,
+       go_pul   => decipher_go_pre,
+       len_min1 => cipher_dly_min1_cycs,
+       sig_last => decipher_go);
+
+    decipher_i: decipher
+      generic map(
+        M_MAX     => 4,
+        LOG2M_MAX => 2,
+        LOG2M_W   => CIPHER_LOG2M_W,
+        SYMLEN_W  => G_CIPHER_SYMLEN_W,
+        FRAME_PD_W => G_QSDC_FRAME_CYCS_W,
+        CIPHER_W   => G_CIPHER_FIFO_D_W)
+      port map(
+        clk    => adc_clk,
+        prime  => decipher_prime,
+        go     => decipher_go,
+        en     => decipher_going,
+        frame_pd_cycs_min1 => frame_pd_min1(G_QSDC_FRAME_CYCS_W-1 downto 0),
+        ii     => samps_derot_i,
+        iq     => samps_derot_q,
+        dly_asamps => cipher_dly_asamps,
+        symlen_min1_asamps => cipher_symlen_min1_asamps,
+        body_len_min1_cycs => cipher_body_len_min1_cycs,
+        log2m  => cipher_log2m, -- the modulation used
+        cipher_rd => cipher_fifo_rd,
+        cipher => cipher,
+        o_vld  => deciph_vld,
+        oi     => samps_deciph_i,
+        oq     => samps_deciph_q);
+   
+    process(adc_clk)
+    begin
+      if (rising_edge(adc_clk)) then
+        -- goes high the first time cipher fifo has something in it
+        cipher_en_d <= cipher_en;
+--        decipher_pre <= not cipher_rst and (not cipher_fifo_mt or decipher_pre);
+--        decipher_pre_d <= decipher_pre;
+        
+        decipher_going <= (decipher_go or decipher_going)
+                            and not decipher_rst;
+      end if;
+    end process;
+   
+    decipher_rst   <= not cipher_en;
+    decipher_prime <= cipher_en and not cipher_en_d;
+
+  end generate gen_any_decipher;
+  
+  gen_cipher_lfsr: if (G_OPT_GEN_DECIPHER_LFSR>0) generate
+    -- we use a pure LFSR, so we re-create the pseudo-random sequence
+    -- instead of queuing random values from Bob's TX side to his RX side.
+    -- So we don't have to use any BRAMs.
+    cipher_lfsr_rst <= decipher_prime;
+    cipher_lfsr: lfsr_w
+      generic map(
+--      W  => 4*CIPHER_LOG2M_MAX,  -- or LCM of all possible log2m's.  Or add bitshift after
+        W  => G_CIPHER_FIFO_D_W,
+        CP => G_CIPHER_CHAR_POLY)
+      port map(
+        en  => cipher_fifo_rd,
       
+        d_i => (others=>'0'),
+        ld  => '0',
+
+        rst_st    => cipher_rst_st,
+        rst       => cipher_lfsr_rst,
+--        state_nxt => cipher_lfsr_state_nxt,
+
+        d_o       => cipher_lfsr_data,
+      
+        clk       => adc_clk);
+    -- we want "first" bit to be lsb.
+    cipher <= u_flip(cipher_lfsr_data);
+    
+  end generate gen_cipher_lfsr;
+  
+  gen_cipher_fifo: if (G_OPT_GEN_CIPHER_FIFO>0) generate
+    -- Bob's using a "true" random number generator (TRNG), or perhaps seeding an LFSR
+    -- or counting-mode cipher such as AES from a TRNG or /dev/random.  As his
+    -- transmit side generates this, it enques these values in this "cipher fifo".
+    -- After a fixed delay, Bob's recieve side starts to dequeue these values.
     cipher_fifo: fifo_2clks_infer
       generic map(
         A_W  => G_CIPHER_FIFO_A_W,
@@ -759,55 +855,9 @@ begin
         rd_en  => cipher_fifo_rd,
         dout   => cipher,
         mt     => cipher_fifo_mt); -- 1 during rst
-
-   decipher_dly_ctr: duration_ctr
-     generic map(
-       LEN_W => G_CIPHER_FIFO_A_W)
-     port map(
-       clk      => adc_clk,
-       rst      => cipher_rst,
-       go_pul   => dac_tx_in_adc,
-       len_min1 => cipher_dly_asamps(G_CIPHER_FIFO_A_W+1 downto 2),
-       sig_last => decipher_go);
-
-    process(adc_clk)
-    begin
-      if (rising_edge(adc_clk)) then
-        -- goes high the first time cipher fifo has something in it
-        decipher_pre <= not cipher_rst and (not cipher_fifo_mt or decipher_pre);
-        decipher_pre_d <= decipher_pre;
-        
-        decipher_going <= (decipher_go or decipher_going)
-                            and not cipher_rst;
-      end if;
-    end process;
-
-    decipher_prime <= decipher_pre and not decipher_pre_d;
-    decipher_i: decipher
-      generic map(
-        M_MAX     => 4,
-        LOG2M_MAX => 2,
-        LOG2M_W   => CIPHER_LOG2M_W,
-        SYMLEN_W  => 10, -- TODO: change to G_SYMLEN_ASAMPS_W,
-        BODYLEN_W => G_BODY_LEN_W,
-        CIPHER_W  => G_CIPHER_FIFO_D_W)
-      port map(
-        clk    => adc_clk,
-        prime  => decipher_prime,
-        en     => decipher_going,
-        frame_pulse => sync_ref, -- TODO: probably wrong.
-        ii     => samps_derot_i,
-        iq     => samps_derot_q,
-        symlen_min1_asamps => cipher_symlen_min1_asamps,
-        body_len_min1_cycs => data_len_min1_cycs,
-        log2m  => cipher_log2m, -- the modulation used
-        cipher_rd => cipher_fifo_rd,
-        cipher => cipher,
-        oi     => samps_deciph_i,
-        oq     => samps_deciph_q);
-
-  end generate gen_decipher;
-  gen_no_decipher: if (G_OPT_GEN_DECIPHER<=0) generate
+  end generate gen_cipher_fifo;
+  
+  gen_no_decipher: if ((G_OPT_GEN_DECIPHER_LFSR<=0) and (G_OPT_GEN_CIPHER_FIFO<=0)) generate
     samps_deciph_i <= samps_derot_i;
     samps_deciph_q <= samps_derot_q;
   end generate gen_no_decipher;
@@ -897,6 +947,7 @@ begin
   areg_r(AREG_REBALM) <= areg_rebalm_r;
   areg_r(AREG_REBALO) <= areg_rebalo_r;
   areg_r(AREG_CIPHER) <= areg_cipher_r;
+  areg_r(AREG_CIPHER2) <= areg_cipher_r;
   areg_r(AREG_DBG)    <= areg_dbg_r;
 
   -- pctl
@@ -920,7 +971,8 @@ begin
   save_after_init <= areg_actl_w(11);
   lfsr_rst_st     <= areg_actl_w(22 downto 12);
   phase_est_en    <= areg_actl_w(23);
-  resync          <= areg_actl_w(24); -- new 7/23
+  resync          <= areg_actl_w(24);
+  decipher_en     <= areg_actl_w(25);
 
   -- reg stat
   areg_stat_r(31 downto 30) <= (others=>'0');
@@ -986,10 +1038,17 @@ begin
   -- reg cipher
   areg_cipher_r <= areg_w(AREG_CIPHER);
   areg_cipher_w <= areg_w_adc(AREG_CIPHER);
-  cipher_en                 <= areg_cipher_w(0);
+--  cipher_en                 <= areg_cipher_w(0);
   cipher_log2m              <= areg_cipher_w(2 downto 1);
-  cipher_symlen_min1_asamps <= areg_cipher_w(12 downto 3);
-  cipher_dly_asamps         <= areg_cipher_w(G_CIPHER_FIFO_A_W+2+12 downto 13);
+  cipher_symlen_min1_asamps <= areg_cipher_w(8 downto 3);
+  cipher_body_len_min1_cycs <= areg_cipher_w(G_QSDC_FRAME_CYCS_W+12 downto 13); -- 22:13
+                            
+
+  areg_cipher2_r <= areg_w(AREG_CIPHER2);
+  areg_cipher2_w <= areg_w_adc(AREG_CIPHER2);
+  cipher_dly_min1_cycs <= areg_cipher2_w(G_FRAME_PD_CYCS_W-1 downto 0); -- 23:0
+  cipher_dly_asamps    <= areg_cipher2_w(31 downto 30);
+  
 
   -- reg ctl2
   areg_ctl2_r <= areg_w(AREG_CTL2);
@@ -1000,7 +1059,8 @@ begin
   
   -- reg dbg
   areg_dbg_w <= areg_w_adc(AREG_DBG);
-  areg_dbg_r(31 downto 24) <= areg_w(AREG_DBG)(31 downto 24);
+  areg_dbg_r(31 downto 25) <= areg_w(AREG_DBG)(31 downto 25);
+  areg_dbg_r(24)           <= save_buf_avail_aclk;
   areg_dbg_r(23 downto 0)  <= ref_frame_dur;
   save_after_hdr <= areg_dbg_w(31);
   dbg_hold       <= areg_dbg_w(30);
@@ -1069,12 +1129,14 @@ begin
   
   -- for dbg
   req_samp_aclk: cdc_samp
-    generic map(W => 2)
+    generic map(W => 3)
     port map(
      in_data(0)  => dma_xfer_req_d,
      in_data(1)  => adc_rst,
+     in_data(2)  => save_buf_avail,
      out_data(0) => dma_xfer_req_rc,
      out_data(1) => adc_rst_axi,
+     out_data(2) => save_buf_avail_aclk,
      out_clk     => s_axi_aclk);
 
   ref_frame_dur_samp: cdc_samp
@@ -1085,10 +1147,12 @@ begin
      out_clk  => s_axi_aclk);
 
   req_samp_in_adc: cdc_samp
-    generic map(W => 1)
+    generic map(W => 2)
     port map(
      in_data(0)  => dma_xfer_req,
+     in_data(1)  => cipher_en_in, -- adc clk domain
      out_data(0) => dma_xfer_req_inadc,
+     out_data(1) => cipher_en,
      out_clk     => adc_clk);
 
 

@@ -1,8 +1,11 @@
 ####################################################################################
 ## Copyright (c) 2018 - 2023 Analog Devices, Inc.
 ### SPDX short identifier: BSD-1-Clause
-## Auto-generated, do not modify!
+## Auto-generated, do not modify!  (Well, I did.)
 ####################################################################################
+
+# What is the diff btw XILINX_DEPS and GENERIC_DEPS????!!
+
 
 LIBRARY_NAME := quanet_adc
 
@@ -46,5 +49,6 @@ XILINX_DEPS += ../quanet/cdc_thru.xdc
 XILINX_DEPS += ../quanet/cdc_pulse.vhd
 XILINX_DEPS += ../quanet/cdc_pulse.xdc
 XILINX_DEPS += ../quanet/gen_hdr.vhd
+XILINX_DEPS += ../quanet/gen_cipher.vhd
 
 include ../scripts/library.mk

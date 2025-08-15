@@ -413,19 +413,21 @@ proc adi_project_files {project_name project_files} {
           # See:  https://adaptivesupport.amd.com/s/question/0D54U0000784tuLSAQ/vivado-20231-crashes-when-importing-an-ultrascale-transceiver-wizard-xci?language=en_US
 	
 	  # puts "DBG: ip name {$ipname}"
-	  # puts "proj dir is {$ad_project_dir} and proj name is {$project_name}"
+	  puts "DBG: proj dir is {$ad_project_dir} and proj name is {$project_name}"
+	    
 	  file mkdir $project_name.srcs/sources_1/ip/$ipname
-	  file mkdir daq3_zcu106.gen/sources_1/ip
+	  file mkdir $project_name.gen/sources_1/ip
 	  
 	  # Still not sure which is best to use.
-	  puts "adding xci"
-#	  file copy -force $pname/$ipname.xci daq3_zcu106.gen/sources_1/ip/$ipname
-	  file copy -force $pname/$ipname daq3_zcu106.gen/sources_1/ip
-	  file copy -force $pname/$ipname.xci daq3_zcu106.srcs/sources_1/ip/$ipname
-	  file copy -force $pname/$ipname.xml daq3_zcu106.srcs/sources_1/ip/$ipname
-	  add_files -norecurse -fileset sources_1 daq3_zcu106.srcs/sources_1/ip/$ipname/$ipname.xci
-
-#	  puts "importing xci"
+	  puts "will copy xci and pre-generated files"
+#	  file copy -force $ipname/$ipname.xci $project_name.gen/sources_1/ip/$ipname
+	  file copy -force ip/$ipname/$ipname     $project_name.gen/sources_1/ip
+	  puts "dbg2"
+	  file copy -force ip/$ipname/$ipname.xci $project_name.srcs/sources_1/ip/$ipname
+        # file copy -force $pname/$ipname.xml $project_name.srcs/sources_1/ip/$ipname
+	  puts "copied files"
+	  add_files -norecurse -fileset sources_1 $project_name.srcs/sources_1/ip/$ipname/$ipname.xci
+	  puts "done adding xci"
 #	  import_files -norecurse -fileset sources_1 $pname/$ipname.xci
 	  
 #	  puts "reading xci"

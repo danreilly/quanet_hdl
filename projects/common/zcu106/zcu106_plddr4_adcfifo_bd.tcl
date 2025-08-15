@@ -78,7 +78,8 @@ proc ad_adcfifo_create {adc_fifo_name adc_data_width adc_dma_data_width adc_fifo
   ad_ip_parameter $adc_fifo_name CONFIG.AXI_DATA_WIDTH 512
   ad_ip_parameter $adc_fifo_name CONFIG.DMA_READY_ENABLE 1
   ad_ip_parameter $adc_fifo_name CONFIG.AXI_LENGTH 4
-#  ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS_SIZE 0x10000000
+    
+  ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS_SIZE [expr 0x40000000]
 # DBG: this used to have:    
 # ad_ip_parameter $adc_fifo_name CONFIG.AXI_SIZE 6
 # ad_ip_parameter $adc_fifo_name CONFIG.AXI_ADDRESS 0x80000000

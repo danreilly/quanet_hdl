@@ -3,14 +3,12 @@ use ieee.std_logic_1164.all;
 
 package global_pkg is
 
-  constant G_FWVER: integer := 2;
+  constant G_FWVER: integer := 3;
 
   constant G_OPT_GEN_PH_EST: integer := 1;
-  constant G_OPT_GEN_DECIPHER: integer := 1;
+  constant G_OPT_GEN_CIPHER_FIFO: integer := 0;
+  constant G_OPT_GEN_DECIPHER_LFSR: integer := 1;
 
-
-  constant G_CIPHER_FIFO_A_W : integer := 6;
-  constant G_CIPHER_FIFO_D_W : integer := 16;
   
   constant G_S_AXI_CLK_FREQ_HZ: real := 100.0e6;
   -- The duration of one frame (1 cyc = 4 asamps)
@@ -22,6 +20,16 @@ package global_pkg is
   -- QSDC frames are shorter.
   constant G_QSDC_FRAME_CYCS_W : integer := 10;
 
+
+  constant G_CIPHER_SYMLEN_W: integer := 6;
+  -- The cipher fifo (which is NOT currently used, but suppose it were)
+  -- holds the cipher for a full optical round trip.  So its depth
+  -- times width must be of the same order as max round trip times TRNG generation
+  -- rate, which could be about G_FRAME_PD_CYCS_W
+  constant G_CIPHER_FIFO_A_W : integer := 8;
+  constant G_CIPHER_FIFO_D_W : integer := 16;
+
+  
   constant G_CIPHER_SYMLEN_ASAMPS_W: integer := 8;
   
   -- The transmit stuff (util_dacfifo) is clocked at a max of 308MHz,
@@ -37,7 +45,9 @@ package global_pkg is
   -- framee_qty is the number of probes to transmit consecutively.
   constant G_FRAME_QTY_W : integer := 16;
   
-  constant G_BODY_CHAR_POLY : std_logic_vector(20 downto 0) := "010000000000000000001";
+  constant G_CIPHER_CHAR_POLY : std_logic_vector(20 downto 0) := "010000000000000000001";
+  constant G_CIPHER_RST_STATE : std_logic_vector(20 downto 0) := '0'&X"abcde";
+  constant G_CIPHER_LFSR_W: integer := 21;
 
   constant G_MAX_CIPHER_M: integer := 4; -- max is 8-psk
   -- Note: the DAC MAX CIPHER M is 8 !!

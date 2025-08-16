@@ -4,7 +4,7 @@
 ## Auto-generated, do not modify!
 ####################################################################################
 
-PROJECT_NAME := daq3_zcu106
+PROJECT_NAME := quanet_zcu106
 
 ADI_GENERATE_UTILIZATION = 1
 export ADI_GENERATE_UTILIZATION
@@ -19,8 +19,8 @@ M_DEPS += ../../common/zcu106/zcu106_plddr4_adcfifo_bd.tcl
 M_DEPS += ../../common/xilinx/dacfifo_bd.tcl
 M_DEPS += ../../../library/jesd204/scripts/jesd204.tcl
 M_DEPS += ../../../library/common/ad_iobuf.v
-M_DEPS += happycamper/my_gth_wrap.vhd
-M_DEPS += happycamper/gth_driver.vhd
+#M_DEPS += happycamper/my_gth_wrap.vhd
+#M_DEPS += happycamper/gth_driver.vhd
 
 # This should really be called IP_DEPS.
 # This is the list of IPs that must be "made" before
@@ -49,4 +49,8 @@ LIB_DEPS += quanet_dac
 LIB_DEPS += xilinx/axi_adxcvr
 LIB_DEPS += xilinx/util_adxcvr
 
+
+
 include ../../scripts/project-xilinx.mk
+
+all: ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga

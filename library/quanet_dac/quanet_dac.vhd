@@ -1,3 +1,8 @@
+
+-- TODO:
+-- dac_tx_out should be delayed by pm_dly cycs also!!!
+
+
 library ieee;
 use ieee.std_logic_1164.all;
 use work.global_pkg.all;
@@ -809,7 +814,8 @@ begin
        sig_o    => im_body_vld);
 
 
-
+-- todo: delete alice_syncing.  Use pm_hdr_disable instead.
+-- dont require isbob for pm_hdr either.  
   
   -- Phase Modulation for header
   pm_hdr_go_pre <= (is_bob or alice_syncing)

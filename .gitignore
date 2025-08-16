@@ -123,4 +123,4 @@ matlab/log/d250303
 matlab/log/d250304
 matlab/log/*
 projects/daq3/zcu106/mem_init_sys.txt
-projects/daq3/zcu106/latest
+projects/*/*/latest

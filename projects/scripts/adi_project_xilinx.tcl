@@ -164,6 +164,7 @@ proc adi_project_create {project_name mode parameter_list device {board "not-app
   global ad_hdl_dir
   global ad_ghdl_dir
   global ad_project_dir
+  global qnet_project_name
   global p_board
   global p_device
   global sys_zynq
@@ -173,6 +174,9 @@ proc adi_project_create {project_name mode parameter_list device {board "not-app
   global ADI_USE_INCR_COMP
   global use_smartconnect
 
+  # not sure what other name to use
+  set qnet_project_name $project_name
+  
   if {![info exists ::env(ADI_PROJECT_DIR)]} {
     set actual_project_name $project_name
   } else {

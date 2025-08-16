@@ -20,7 +20,7 @@ source $ad_hdl_dir/projects/scripts/adi_board.tcl
 #   [RX/TX]_JESD_L : Number of lanes per link
 #   [RX/TX]_JESD_S : Number of samples per frame
 
-adi_project daq3_zcu106 0 [list \
+adi_project quanet_zcu106 0 [list \
   RX_JESD_M    [get_env_param RX_JESD_M    2 ] \
   RX_JESD_L    [get_env_param RX_JESD_L    4 ] \
   RX_JESD_S    [get_env_param RX_JESD_S    1 ] \
@@ -29,20 +29,14 @@ adi_project daq3_zcu106 0 [list \
   TX_JESD_S    [get_env_param TX_JESD_S    1 ] \
 ]
 
-# Dan added my_gth.xci and the ibert
-adi_project_files daq3_zcu106 [list \
+
+adi_project_files quanet_zcu106 [list \
   "../common/daq3_spi.v" \
   "system_top.v" \
   "../../../library/quanet/util_pkg.vhd" \
-  "../../../library/quanet/lfsr_w.vhd" \
-  "happycamper/gth_driver.vhd" \
-  "happycamper/my_gth_wrap.vhd" \
   "$ad_hdl_dir/library/common/ad_iobuf.v" \
-  "ip/my_gth/my_gth.xci" \
-  "ip/in_system_ibert_0/in_system_ibert_0.xci" \
   "system_constr.xdc" \
-  "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
-
+   "$ad_hdl_dir/projects/common/zcu106/zcu106_system_constr.xdc" ]
 
 # The zc706 system_project.tcl also includes a zc706_plddr3_constr.xdc,
 # which only defines loc and iostds for sys_clk and sys_rst.  But
@@ -51,7 +45,13 @@ adi_project_files daq3_zcu106 [list \
 
 set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
 
+puts "BRINGING IN CORUNDUM STUFF"
+# made by corundum makefiles, then hand edited and renamed
+file copy -force create_project_nc.tcl ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+cd ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+source create_project_nc.tcl
+cd ../../../../../../quanet_hdl/projects/quanet/zcu106
 
-adi_project_run daq3_zcu106
+adi_project_run quanet_zcu106
 
 

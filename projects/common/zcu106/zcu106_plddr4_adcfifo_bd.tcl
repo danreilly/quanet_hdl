@@ -7,9 +7,10 @@
 # generic fifo interface - existence is oblivious to software.
 
 proc ad_adcfifo_create {adc_fifo_name adc_data_width adc_dma_data_width adc_fifo_address_width} {
-  puts "IN ADCFIFO_BD"
-  # puts "  bd/system: [exec ls daq3_zcu106.srcs/sources_1/bd/system]"
+  puts "IN AD_ADCFIFO_CREATE"
+  # puts "  bd/system: [exec ls $project_name.srcs/sources_1/bd/system]"
     
+  global qnet_project_name
   upvar ad_hdl_dir ad_hdl_dir
 
   # the ddr4 ctlr will synchronize its ext_reset_in to the ui_clk to
@@ -37,11 +38,11 @@ proc ad_adcfifo_create {adc_fifo_name adc_data_width adc_dma_data_width adc_fifo
   #  set_property CONFIG.DATA_WIDTH 512 [get_bd_intd_ports axi_ddr_cntrl/C0_DDR4_S_AXI]
     
   # That ad_ip_instance should have made this dir:
-  exec mkdir daq3_zcu106.srcs/sources_1/bd/system/ip
-  exec mkdir daq3_zcu106.srcs/sources_1/bd/system/ip/system_axi_ddr_cntrl_0
+  exec mkdir $qnet_project_name.srcs/sources_1/bd/system/ip
+  exec mkdir $qnet_project_name.srcs/sources_1/bd/system/ip/system_axi_ddr_cntrl_0
 
-  puts "  bd/system: [exec ls daq3_zcu106.srcs/sources_1/bd/system]"
-  puts "  bd/system/ip: [exec ls daq3_zcu106.srcs/sources_1/bd/system/ip]"
+  puts "  bd/system: [exec ls $qnet_project_name.srcs/sources_1/bd/system]"
+  puts "  bd/system/ip: [exec ls $qnet_project_name.srcs/sources_1/bd/system/ip]"
     
   puts "  dest: [get_property IP_DIR [get_ips [get_property CONFIG.Component_Name [get_bd_cells axi_ddr_cntrl]]]]"
     

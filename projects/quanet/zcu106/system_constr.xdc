@@ -6,18 +6,17 @@
 # FMC_HPC 0
 # daq3
 
-set_property  -dict {PACKAGE_PIN  G14 IOSTANDARD LVDS} [get_ports rec_clock_p]
-set_property  -dict {PACKAGE_PIN  F13 IOSTANDARD LVDS} [get_ports rec_clock_n]
-
-set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
-set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
-# Dan added to use the SFP transmitter, for ease of testing
-set_property PACKAGE_PIN Y4 [get_ports sfp0_tx_p]
-set_property PACKAGE_PIN Y3 [get_ports sfp0_tx_n]
-set_property PACKAGE_PIN AA2 [get_ports sfp0_rx_p]
-set_property PACKAGE_PIN AA1 [get_ports sfp0_rx_n]
-
-set_property  -dict {PACKAGE_PIN  AE22 IOSTANDARD LVCMOS12} [get_ports sfp0_tx_dis]
+# set_property  -dict {PACKAGE_PIN  G14 IOSTANDARD LVDS} [get_ports rec_clock_p]
+# set_property  -dict {PACKAGE_PIN  F13 IOSTANDARD LVDS} [get_ports rec_clock_n]
+# 
+# set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
+# set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
+# # Dan added to use the SFP transmitter, for ease of testing
+# set_property PACKAGE_PIN Y4 [get_ports sfp0_tx_p]
+# set_property PACKAGE_PIN Y3 [get_ports sfp0_tx_n]
+# set_property PACKAGE_PIN AA2 [get_ports sfp0_rx_p]
+# set_property PACKAGE_PIN AA1 [get_ports sfp0_rx_n]
+# set_property  -dict {PACKAGE_PIN  AE22 IOSTANDARD LVCMOS12} [get_ports sfp0_tx_dis]
 
 set_property  -dict {PACKAGE_PIN  H11   IOSTANDARD LVDS} [get_ports rec_clock_p]
 set_property  -dict {PACKAGE_PIN  G11   IOSTANDARD LVDS} [get_ports rec_clock_n]

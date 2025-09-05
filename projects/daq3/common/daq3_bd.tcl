@@ -292,6 +292,10 @@ create_bd_port -dir I ser0_rx
 create_bd_port -dir O ser1_tx
 create_bd_port -dir I ser1_rx
 create_bd_port -dir O hdr_vld
+create_bd_port -dir O alice_pm
+create_bd_port -dir O second_im
+ad_connect  axi_ad9152_fifo/alice_pm alice_pm
+ad_connect  axi_ad9152_fifo/second_im second_im
 #ad_connect  axi_ad9152_fifo/dac_xfer_out dac_xfer_out_port
 ad_connect  util_daq3_xcvr/tx_out_clk_0 axi_ad9680_fifo/dac_clk
 ad_connect  axi_ad9680_fifo/frame_sync_o   axi_ad9152_fifo/frame_sync_in

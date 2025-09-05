@@ -8,6 +8,9 @@
 -- for hdr_len_cycs cycles.
 
 
+-- what happens when start_in occurs before prior header ends?
+-- ok as long as hdr_end pul is correct also.
+
 -- For example, suppose the header length is 4 cycles.
 --
 -- start_in  ___-___-____

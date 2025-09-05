@@ -5,10 +5,12 @@ package global_pkg is
 
   constant G_FWVER: integer := 3;
 
+
+  
   constant G_OPT_GEN_PH_EST: integer := 1;
   constant G_OPT_GEN_CIPHER_FIFO: integer := 0;
   constant G_OPT_GEN_DECIPHER_LFSR: integer := 1;
-
+  constant G_OPT_GEN_CDM_CORR: integer := 1;
   
   constant G_S_AXI_CLK_FREQ_HZ: real := 100.0e6;
   -- The duration of one frame (1 cyc = 4 asamps)
@@ -76,10 +78,12 @@ package global_pkg is
   constant G_QSDC_BITDUR_W : integer := 10;
   constant G_QSDC_BITCODE: std_logic_vector(9 downto 0) := "1010011010";
   constant G_QSDC_SYMS_PER_FR_W: integer := 9;
+  constant G_QSDC_SUM_W: integer := 24;
 
-  constant G_SYNC_REF_RXCLK: std_logic_vector(1 downto 0) := "00";
-  constant G_SYNC_REF_PWR  : std_logic_vector(1 downto 0) := "01";
-  constant G_SYNC_REF_CORR : std_logic_vector(1 downto 0) := "10";
+  constant G_SYNC_REF_RXCLK : std_logic_vector(1 downto 0) := "00";
+  constant G_SYNC_REF_PWR   : std_logic_vector(1 downto 0) := "01";
+  constant G_SYNC_REF_CORR  : std_logic_vector(1 downto 0) := "10";
+  constant G_SYNC_REF_TXDLY : std_logic_vector(1 downto 0) := "11";
 
   constant G_TXGOREASON_RXRDY: std_logic_vector(1 downto 0) := "00";
   constant G_TXGOREASON_RXPWR: std_logic_vector(1 downto 0) := "01";

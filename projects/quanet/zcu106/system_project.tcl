@@ -48,6 +48,7 @@ set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
 puts "BRINGING IN CORUNDUM STUFF"
 # made by corundum makefiles, then hand edited and renamed
 file copy -force create_project_nc.tcl ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+file copy -force eth_xcvr_gth_nc.tcl   ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/ip
 cd ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
 source create_project_nc.tcl
 cd ../../../../../../quanet_hdl/projects/quanet/zcu106

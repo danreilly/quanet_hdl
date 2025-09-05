@@ -104,6 +104,8 @@ package util_pkg is
   
   function u_add_s_clamp(a: std_logic_vector; b: std_logic_vector)
     return std_logic_vector;
+  function u_sub_s_clamp(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector;
   -- add signed arith, clipping if too large
   
   function u_add_u(a: std_logic_vector; b: std_logic_vector)
@@ -530,6 +532,16 @@ package body util_pkg is
     s := std_logic_vector(signed(a(a'left)&a) + signed(b(b'left)&b));
     return u_clamp_s(s, W);
   end function u_add_s_clamp;
+
+  function u_sub_s_clamp(a: std_logic_vector; b: std_logic_vector)
+    return std_logic_vector is
+    constant W: integer := a'length;    
+   variable s: std_logic_vector(a'length downto 0);    
+  begin
+    s := std_logic_vector(signed(a(a'left)&a) - signed(b(b'left)&b));
+    return u_clamp_s(s, W);
+  end function u_sub_s_clamp;
+
 
   
   function u_add_u(a: std_logic_vector; b: std_logic_vector)

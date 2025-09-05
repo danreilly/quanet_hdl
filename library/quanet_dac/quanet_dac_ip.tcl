@@ -43,7 +43,6 @@ adi_ip_files quanet_dac [list \
   "symbolize.vhd" \
   "preemph.vhd" \
   "frame_ctl.vhd" \
-  "symbolize.vhd" \
   "uart.vhd" \
   "quanet_dac.vhd" \
   "quanet_dac_ooc.ttcl" \

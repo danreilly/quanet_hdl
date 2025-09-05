@@ -34,7 +34,7 @@ package qsdc_data_symbolizer_pkg is
       
       code : in std_logic_vector(CODE_W-1 downto 0);
       bitdur_min1_codes:  in std_logic_vector(BITDUR_W-1 downto 0);
-      symlen_min1_asamps: in std_logic_vector(SYMLEN_W-1 downto 0);
+      symlen_min1_cycs: in std_logic_vector(SYMLEN_W-1 downto 0);
       
       -- when this component generates M-PSK, M is determined by:
       log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
@@ -72,9 +72,9 @@ entity qsdc_data_symbolizer is
     mem_last : in std_logic;
     mem_rd   : out std_logic;
     
-    code               : in std_logic_vector(CODE_W-1 downto 0);
-    bitdur_min1_codes  : in std_logic_vector(BITDUR_W-1 downto 0);
-    symlen_min1_asamps : in std_logic_vector(SYMLEN_W-1 downto 0);
+    code              : in std_logic_vector(CODE_W-1 downto 0);
+    bitdur_min1_codes : in std_logic_vector(BITDUR_W-1 downto 0);
+    symlen_min1_cycs  : in std_logic_vector(SYMLEN_W-1 downto 0);
       
     -- when this component generates M-PSK, M is determined by:
     log2m : in std_logic_vector(LOG2M_W-1 downto 0); -- log2 of M. 1...LOG2M_MAX
@@ -113,7 +113,9 @@ architecture rtl of qsdc_data_symbolizer is
     dbg_vld, dbg_vld_clr, dout_vld_i,
     shreg_done_i, code_r, mem_rd_i, din_vld, code_rd, sym_last, dout_done_i, code_last,
     symlen_is1, bitdur_ctr_atlim: std_logic:='0';
-  signal symlen_asamps: std_logic_vector(1 downto 0);
+
+  signal symlen_min1_asamps: std_logic_vector(SYMLEN_W+2-1 downto 0);
+  
   signal bitdur_ctr: std_logic_vector(BITDUR_W-1 downto 0);
   signal left_adj: std_logic_vector(LOG2M_W-1 downto 0);
   signal cur_code: std_logic_vector(CODE_W-1 downto 0);
@@ -152,7 +154,7 @@ begin
       prime_d <= prime;
       prime_dd <= prime_d;
       
-      symlen_asamps <= u_inc(symlen_min1_asamps(1 downto 0));
+--      symlen_asamps <= u_inc(symlen_min1_cycs);
 --      shift_amt     <= u_trunc(shift_amt_pre, SHIFT_W);
 
       -- data from memory is stored in this shift register
@@ -199,12 +201,13 @@ begin
   dout_done <= dout_done_i;
 
   code_last <= bitdur_ctr_atlim and shreg_atlim and mem_done;
+  symlen_min1_asamps <= symlen_min1_cycs & "11";
   sym_rdr: symbol_reader
     generic map(
       M_MAX     => M_MAX,
       LOG2M_MAX => LOG2M_MAX,
       LOG2M_W   => LOG2M_W,
-      SYMLEN_W  => SYMLEN_W,
+      SYMLEN_W  => SYMLEN_W+2,
       DIN_W     => CODE_W)
     port map(
       clk     => clk,

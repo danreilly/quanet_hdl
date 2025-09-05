@@ -12,6 +12,8 @@ set adc_fifo_address_width 16
 ## FIFO depth is 8Mb - 500k samples
 # Dan decreased this, because we don't really use it.
 # and the BRAM cascade was having timing trouble.
+# Alice's transmit data is store in this fifo. The capacity is
+# 2^dac_fifo_addr_width * 16*4
 set dac_fifo_address_width 12
 
 

@@ -46,53 +46,57 @@ module axi_adcfifo_wr #(
 
   // request and synchronization
 
-  input                   dma_xfer_req,
+  input 			dma_xfer_req,
+// caused pulses on adc_xfer_req_m -> adc_xfer_init (adc clk)
+// and a condition on adc_xfer_enable.
+   //
+// and axi_xfer_req_m -> axi_xfer_init (axi clk)   
 
   // read interface
 
-  output  reg             axi_rd_req,
-  output  reg [ 31:0]     axi_rd_addr,
+  output reg 			axi_rd_req,
+  output reg [ 31:0] 		axi_rd_addr,
 
   // fifo interface
 
-  input                   adc_rst,
-  input                   adc_clk,
-  input                   adc_wr,
-  input       [AXI_DATA_WIDTH-1:0]  adc_wdata,
+  input 			adc_rst, // in adc clk
+  input 			adc_clk,
+  input 			adc_wr,
+  input [AXI_DATA_WIDTH-1:0] 	adc_wdata,
 
   // axi interface
 
-  input                   axi_clk,
-  input                   axi_resetn,
-  output  reg             axi_awvalid,
-  output      [ 3:0]      axi_awid,
-  output      [ 1:0]      axi_awburst,
-  output                  axi_awlock,
-  output      [ 3:0]      axi_awcache,
-  output      [ 2:0]      axi_awprot,
-  output      [ 3:0]      axi_awqos,
-  output      [ 3:0]      axi_awuser,
-  output      [ 7:0]      axi_awlen,
-  output      [ 2:0]      axi_awsize,
-  output  reg [ 31:0]     axi_awaddr,
-  input                   axi_awready,
-  output                  axi_wvalid,
-  output      [AXI_DATA_WIDTH-1:0]  axi_wdata,
-  output      [AXI_DATA_WIDTH/8-1:0]  axi_wstrb,
-  output                  axi_wlast,
-  output      [ 3:0]      axi_wuser,
-  input                   axi_wready,
-  input                   axi_bvalid,
-  input       [ 3:0]      axi_bid,
-  input       [ 1:0]      axi_bresp,
-  input       [ 3:0]      axi_buser,
-  output                  axi_bready,
+  input 			axi_clk,
+  input 			axi_resetn,
+  output reg 			axi_awvalid,
+  output [ 3:0] 		axi_awid,
+  output [ 1:0] 		axi_awburst,
+  output 			axi_awlock,
+  output [ 3:0] 		axi_awcache,
+  output [ 2:0] 		axi_awprot,
+  output [ 3:0] 		axi_awqos,
+  output [ 3:0] 		axi_awuser,
+  output [ 7:0] 		axi_awlen,
+  output [ 2:0] 		axi_awsize,
+  output reg [ 31:0] 		axi_awaddr,
+  input 			axi_awready,
+  output 			axi_wvalid,
+  output [AXI_DATA_WIDTH-1:0] 	axi_wdata,
+  output [AXI_DATA_WIDTH/8-1:0] axi_wstrb,
+  output 			axi_wlast,
+  output [ 3:0] 		axi_wuser,
+  input 			axi_wready,
+  input 			axi_bvalid,
+  input [ 3:0] 			axi_bid,
+  input [ 1:0] 			axi_bresp,
+  input [ 3:0] 			axi_buser,
+  output 			axi_bready,
 
   // axi status
 
-  output  reg             axi_dwovf,
-  output  reg             axi_dwunf,
-  output  reg             axi_werror
+  output reg 			axi_dwovf,
+  output reg 			axi_dwunf,
+  output reg 			axi_werror
 );
 
   localparam  AXI_BYTE_WIDTH = AXI_DATA_WIDTH/8;
@@ -204,6 +208,8 @@ module axi_adcfifo_wr #(
       end else if ((adc_xfer_addr >= AXI_ADDRESS_LIMIT) || (adc_xfer_enable == 1'b0)) begin
         adc_xfer_limit <= 1'd0;
       end
+      // it seems adc_xfer_addr can only go up to AXI_ADDRESS_LIMIT, and not roll over.
+      // So longer transfers must lower and raise dma_xfer_req.
       if (adc_xfer_init == 1'b1) begin
         adc_xfer_enable <= 1'b1;
         adc_xfer_addr <= AXI_ADDRESS;

@@ -114,8 +114,13 @@ H_DEPS = quanet/global_pkg.vhd quanet_dac/quanet_dac.vhd quanet_adc/quanet_adc.v
 H_REQS += $(foreach dep,$(H_DEPS),$(HDL_LIBRARY_PATH)$(dep))
 
 h_vhdl_include.h: $(H_REQS)
-	echo "running regextractor from project-xilinx.mk:"
-	-../../scripts/regextractor.exe -o ../../scripts/regextractor.opt -i h_vhdl_extract.h
+	-if [ `arch` = x86_64 ]; then \
+		echo "running regextractor from project-xilinx.mk:"; \
+		../../scripts/regextractor.exe -o ../../scripts/regextractor.opt -i h_vhdl_extract.h; \
+	else \
+		echo "WARN: not running regextractor"; \
+		touch h_vhdl_include.h; \
+	fi;
 
 
 

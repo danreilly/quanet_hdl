@@ -15,5 +15,5 @@ set_property top system_top [current_fileset]
 
 add_files -fileset constrs_1 ../fpga_nc.xdc ../lib/axis/syn/vivado/axis_async_fifo.tcl ../lib/axis/syn/vivado/sync_reset.tcl ../lib/eth/syn/vivado/ptp_td_leaf.tcl ../../../../common/syn/vivado/mqnic_port.tcl ../../../../common/syn/vivado/mqnic_ptp_clock.tcl ../../../../common/syn/vivado/mqnic_rb_clk_info.tcl ../../../../common/syn/vivado/rb_drp.tcl ../../../../common/syn/vivado/eth_xcvr_phy_10g_gty_wrapper.tcl ../../../../common/syn/vivado/tdma_ber_ch.tcl
 source ../ip/pcie4_uscale_plus_0.tcl
-source ../ip/eth_xcvr_gth.tcl
+source ../ip/eth_xcvr_gth_nc.tcl
 source ./config.tcl

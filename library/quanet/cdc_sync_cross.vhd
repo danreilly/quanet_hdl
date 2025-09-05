@@ -156,16 +156,16 @@ begin
         changed_i <= '0';
       else
         -- fall errors vote to use rise
-        if (ctr_atlim='1') then
+        if ((ctr_atlim or ctr_at0)='1') then
           ctr       <= "100";
           ctr_at0   <= '0';
           ctr_atlim <= '0';
-        elsif ((not err_r and err_f and not ctr_atlim)='1') then
+        elsif ((not err_r and err_f)='1') then
           ctr       <= std_logic_vector(unsigned(ctr)+1);
           ctr_at0   <= '0';
           ctr_atlim <= ctr(2) and ctr(1) and not ctr(0);
         -- rise errors vote to use fall
-        elsif ((   err_r and not err_f and not ctr_at0)='1') then
+        elsif ((   err_r and not err_f)='1') then
           ctr       <= std_logic_vector(unsigned(ctr)-1);
           ctr_atlim <= '0';
           ctr_at0   <= not ctr(2) and not ctr(1) and ctr(0);

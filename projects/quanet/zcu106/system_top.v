@@ -127,8 +127,9 @@ module system_top #(
     parameter STAT_DMA_ENABLE = 1,
     parameter STAT_PCIE_ENABLE = 1,
     parameter STAT_INC_WIDTH = 24,
-    parameter STAT_ID_WIDTH = 12
-)
+    parameter STAT_ID_WIDTH = 12,
+
+    parameter QNIC_CLK_RECOVER = 0 )
 (
 		   
   output 	 j3_6, // trigger to scope
@@ -137,6 +138,7 @@ module system_top #(
   output 	 j3_12, // ser0 tx
   input 	 j3_14, // ser1 rx
   output 	 j3_16, // ser1 tx
+  output 	 j3_22, // second IM ctl
   output 	 j3_24, // debug
 		   
   input 	 si5328_out_c_p,
@@ -295,9 +297,9 @@ module system_top #(
 
   wire   si5328_out_c, rec_clk_out, rxq_sw_ctl, si5328_half;
   wire 	  dbg_clk, dbg_clk_sel, dac_clk, dma_clk, drp_clk, sfp_txclk,
-	  sfp_rxclk_out,sfp_rxclk_vld, ser0_tx, ser1_tx,
-    sfp_rxclk, gth_rst;
-//  wire [3:0] gth_status;
+	  dbg_clk_out,sfp_rxclk_vld, ser0_tx, ser1_tx, alice_pm, second_im,
+     gth_rst;
+  wire [3:0] gth_status;
 
 
 // Corundum sigs
@@ -465,19 +467,8 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
   // need to do it explicitly in this file.
   // Both of them connect to IIC muxes to control various board-specific stuff.
 
-  // This emits an LFSR pattern out SFP0.
-  // Could be used for testing the system without the classical NIC.
-  // in bank 225
-/*   
-  IBUFDS_GTE4 #(
-      .REFCLK_HROW_CK_SEL(1)
-    ) gtrefclk_ibuf (
-      .CEB(0),
-      .I(si5328_out_c_p),
-      .IB(si5328_out_c_n),
-//      .ODIV2(si5328_half),
-      .O(si5328_out_c));
-*/   
+
+
    
   // Note: ODDR in ultrascale vs 7series is different
   ODDRE1 recclk_oddr(
@@ -490,23 +481,35 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
      .I(rec_clk_out),
      .O (rec_clock_p),
      .OB(rec_clock_n));
-  assign sfp_tx_dis = 0;
-   
-  assign dbg_clk = dbg_clk_sel ? dac_clk : sfp_rxclk;
-  ODDRE1 dbgclk_oddr(
+
+/*   
+ assign dbg_clk = dbg_clk_sel ? dac_clk : sfp0_rx_clk_int;
+ ODDRE1 dbgclk_oddr(
      .C(dbg_clk),
      .D1(0),
      .D2(1),
      .SR(0),
-     .Q(sfp_rxclk_out));
+     .Q(dbg_clk_out));
+*/ 
+//  assign j3_8 = dbg_clk_out;
+  assign j3_8  = dbg_clk_sel ? sfp0_rx_clk_int : alice_pm;
+  assign j3_22 = second_im;
    
-  assign j3_8 = sfp_rxclk_out;
-
  // inverted because of inverting level translator on zcucon board
  assign j3_12 = ~ser0_tx;
  assign j3_16 = ~ser1_tx;
 
-  system_wrapper i_system_wrapper (
+ assign sfp_rxclk_vld = ~sfp0_rx_rst_int;
+
+ assign gth_status = 0; // not true
+
+
+ wire                         sfp0_rx_clk_int;
+
+
+   
+   
+ system_wrapper i_system_wrapper (
 //    .dac_xfer_out_port (j3_6),
     .rxq_sw_ctl (rxq_sw_ctl),
     .dbg_clk_sel (dbg_clk_sel),
@@ -514,7 +517,9 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
     .dac_clk_out(dac_clk), // 302MHz
     .drp_clk_out(drp_clk), // 25MHz
     .dma_clk_out(dma_clk), // 250MHz I think
-    .sfp_rxclk_in(sfp_rxclk),
+    .alice_pm(alice_pm),				   
+    .second_im(second_im),
+    .sfp_rxclk_in(sfp0_rx_clk_int), // from Corundum
     .sfp_rxclk_vld(sfp_rxclk_vld),
 
     .ser0_rx (j3_10),
@@ -544,7 +549,7 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
     .ddr4_reset_n (c0_ddr4_reset_n),
 
     .gth_status(gth_status),
-    .gth_rst(gth_rst),
+    .gth_rst(gth_rst), // no effect!
 				   
 //    .ddr_addr (ddr_addr),
 //    .ddr_ba (ddr_ba),
@@ -1038,7 +1043,6 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
    wire [XGMII_DATA_WIDTH-1:0] 	sfp0_txd_int;
    wire [XGMII_CTRL_WIDTH-1:0] 	sfp0_txc_int;
    wire                         sfp0_cfg_tx_prbs31_enable_int;
-   wire                         sfp0_rx_clk_int;
    wire                         sfp0_rx_rst_int;
    wire [XGMII_DATA_WIDTH-1:0] 	sfp0_rxd_int;
    wire [XGMII_CTRL_WIDTH-1:0] 	sfp0_rxc_int;
@@ -1073,33 +1077,61 @@ parameter AXIS_ETH_RX_USER_WIDTH = (PTP_TS_ENABLE ? PTP_TS_WIDTH : 0) + 1;
 
    wire 			sfp_gtpowergood;
 
-   wire 			sfp_mgt_refclk_0;
-   wire 			sfp_mgt_refclk_0_int;
+
+
+
+   
+   wire 			sfp_mgt_refclk_0,     sfp_mgt_refclk_0_orig,     sfp_mgt_refclk_0_recov;
+   wire 			sfp_mgt_refclk_0_int, sfp_mgt_refclk_0_int_orig, sfp_mgt_refclk_0_int_recov;
    wire 			sfp_mgt_refclk_0_bufg;
 
-   IBUFDS_GTE4 ibufds_gte4_sfp_mgt_refclk_0_inst (
-						  .I     (sfp_mgt_refclk_0_p),
-						  .IB    (sfp_mgt_refclk_0_n),
-						  .CEB   (1'b0),
-						  .O     (sfp_mgt_refclk_0),
-						  .ODIV2 (sfp_mgt_refclk_0_int)
-						  );
+   // This is Corundum's orignal reference clock for the gths.
+   // From mgtrefclk1p/n_226 on bank 226, on U9&U10 = schematic net name user_mgt_si570_clock,
+   IBUFDS_GTE4 ibufds_gte4_sfp_mgt_refclk_orig_inst (.I     (sfp_mgt_refclk_0_p),
+						     .IB    (sfp_mgt_refclk_0_n),
+						     .CEB   (1'b0),
+						     .O     (sfp_mgt_refclk_0_orig),
+						     .ODIV2 (sfp_mgt_refclk_0_int_orig));
 
-   BUFG_GT bufg_gt_sfp_mgt_refclk_0_inst (
-					  .CE      (sfp_gtpowergood),
+  // If we instead want the QNIC to use a "recovered clock",
+  // The SFP must be clocked synchronously with the DAC clk.
+  // This won't be a standard ENET baud rate, but in this case our QNIC
+  // only talks to another QNIC, so it's OK.
+  // In this case, we use the si5328 jitter attenuator to create the SFP reference.
+  // into mgtrefclk1p/n_255, W10&W9 = schem name si5328_out, from the jitter attenuator.
+  IBUFDS_GTE4 #(
+      .REFCLK_HROW_CK_SEL(1)
+    ) gtrefclk_ibuf (
+      .CEB(0),
+      .I(si5328_out_c_p),
+      .IB(si5328_out_c_n),
+      .O(sfp_mgt_refclk_0_recov),
+      .ODIV2(sfp_mgt_refclk_0_int_recov));
+   
+   generate
+      if (QNIC_CLK_RECOVER) begin
+	 assign sfp_mgt_refclk_0     = sfp_mgt_refclk_0_recov;
+         assign sfp_mgt_refclk_0_int = sfp_mgt_refclk_0_int_recov;
+      end else begin
+	 assign sfp_mgt_refclk_0     = sfp_mgt_refclk_0_orig;
+         assign sfp_mgt_refclk_0_int = sfp_mgt_refclk_0_int_orig;
+      end
+   endgenerate
+      
+
+   
+   
+   BUFG_GT bufg_gt_sfp_mgt_refclk_0_bufg_inst (.CE      (sfp_gtpowergood),
 					  .CEMASK  (1'b1),
 					  .CLR     (1'b0),
 					  .CLRMASK (1'b1),
 					  .DIV     (3'd0),
 					  .I       (sfp_mgt_refclk_0_int),
-					  .O       (sfp_mgt_refclk_0_bufg)
-					  );
+					  .O       (sfp_mgt_refclk_0_bufg));
 
    wire 			sfp_rst;
 
-   sync_reset #(
-		.N(4)
-		)
+   sync_reset #(.N(4))
    sfp_sync_reset_inst (
 			.clk(sfp_mgt_refclk_0_bufg),
 			.rst(rst_125mhz_int),

@@ -3,6 +3,11 @@
 -- to the right of the implicit decimal point.
 -- So 010000 = 1, 110000 = -1, 001000 = 0.5, etc.
 
+-- latency 3?
+--
+--  din  ___v____
+--  dout ______v_
+
 library ieee;
 use ieee.std_logic_1164.all;
 use work.global_pkg.all;

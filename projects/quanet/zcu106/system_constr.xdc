@@ -9,8 +9,8 @@
 # set_property  -dict {PACKAGE_PIN  G14 IOSTANDARD LVDS} [get_ports rec_clock_p]
 # set_property  -dict {PACKAGE_PIN  F13 IOSTANDARD LVDS} [get_ports rec_clock_n]
 # 
-# set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
-# set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
+set_property PACKAGE_PIN W10 [get_ports si5328_out_c_p]
+set_property PACKAGE_PIN W9  [get_ports si5328_out_c_n]
 # # Dan added to use the SFP transmitter, for ease of testing
 # set_property PACKAGE_PIN Y4 [get_ports sfp0_tx_p]
 # set_property PACKAGE_PIN Y3 [get_ports sfp0_tx_n]
@@ -110,7 +110,7 @@ set_property  -dict {PACKAGE_PIN  J11 IOSTANDARD LVCMOS18} [get_ports j3_14]
 set_property  -dict {PACKAGE_PIN  K12 IOSTANDARD LVCMOS18} [get_ports j3_16]
 # set_property  -dict {PACKAGE_PIN  L11 IOSTANDARD LVCMOS18} [get_ports j3_18]
 # set_property  -dict {PACKAGE_PIN  L12 IOSTANDARD LVCMOS18} [get_ports j3_20]
-# set_property  -dict {PACKAGE_PIN  G24 IOSTANDARD LVCMOS18} [get_ports j3_24]
+set_property  -dict {PACKAGE_PIN  G24 IOSTANDARD LVCMOS18} [get_ports j3_22]
 set_property  -dict {PACKAGE_PIN  G23 IOSTANDARD LVCMOS18} [get_ports j3_24]
 
 

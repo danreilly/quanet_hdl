@@ -3,11 +3,12 @@
 
 module system_top (
   output 	 j3_6, // trigger to scope
-  output 	 j3_8, // fast switch ctl
+  output 	 j3_8,  // alic PM ctl
   input 	 j3_10, // ser0 rx
   output 	 j3_12, // ser0 tx
   input 	 j3_14, // ser1 rx
   output 	 j3_16, // ser1 tx
+  output 	 j3_22, // second IM ctl
   output 	 j3_24, // debug
 		   
   output 	 sfp0_tx_p,
@@ -127,7 +128,7 @@ module system_top (
 
   wire   si5328_out_c, rec_clk_out, rxq_sw_ctl, si5328_half;
   wire 	  dbg_clk, dbg_clk_sel, dac_clk, dma_clk, drp_clk, sfp_txclk,
-	  sfp_rxclk_out,sfp_rxclk_vld, ser0_tx, ser1_tx,
+	  sfp_rxclk_out,sfp_rxclk_vld, ser0_tx, ser1_tx, alice_pm, second_im,
     sfp_rxclk, gth_rst;
   wire [3:0] gth_status;
    
@@ -282,7 +283,7 @@ module system_top (
      .O (rec_clock_p),
      .OB(rec_clock_n));
   assign sfp_tx_dis = 0;
-   
+/*   
   assign dbg_clk = dbg_clk_sel ? dac_clk : sfp_rxclk;
   ODDRE1 dbgclk_oddr(
      .C(dbg_clk),
@@ -290,8 +291,10 @@ module system_top (
      .D2(1),
      .SR(0),
      .Q(sfp_rxclk_out));
-   
-  assign j3_8 = sfp_rxclk_out;
+*/   
+//  assign j3_8 = sfp_rxclk_out;
+  assign j3_8  = dbg_clk_sel ? sfp_rxclk : alice_pm;
+  assign j3_22 = second_im;
 
  // inverted because of inverting level translator on zcucon board
  assign j3_12 = ~ser0_tx;
@@ -305,6 +308,8 @@ module system_top (
     .dac_clk_out(dac_clk), // 302MHz
     .drp_clk_out(drp_clk), // 25MHz
     .dma_clk_out(dma_clk), // 250MHz I think
+    .alice_pm(alice_pm),				   
+    .second_im(second_im),
     .sfp_rxclk_in(sfp_rxclk),
     .sfp_rxclk_vld(sfp_rxclk_vld),
 

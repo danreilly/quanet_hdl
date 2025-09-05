@@ -85,7 +85,7 @@ begin
                  go_pul or (ctr_en and not ctr_atlim));
       if ((go_pul and (ctr_atlim or not ctr_en)) ='1') then
         ctr       <= len_min1;
-        ctr_atlim <= u_b2b(unsigned(len_min1)=0);
+        ctr_atlim <= go_pul and u_b2b(unsigned(len_min1)=0);
       elsif (ctr_en='1') then
         ctr       <= u_dec(ctr);
         ctr_atlim <= u_b2b(unsigned(ctr)=1);

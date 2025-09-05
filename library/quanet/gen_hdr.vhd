@@ -5,6 +5,8 @@
 -- while it's generating a header, it will abort that and start
 -- a new header.
 
+-- what about hdr_end_pre?
+
 
 -- Example:
 -- hdr_len_min1=3
@@ -17,6 +19,7 @@
 --  hdr_ctr              76543210       765432176543210
 --  hdr_ctr_en      _____--------_______---------------___
 --  hdr_ctr_atlim   ____________-_____________________-___
+--  hdr_ctr_atlimpre___________-______________-______-___
 
 --  lfsr_state_in       a
 --  lfsr_state           abcdefgh
@@ -28,7 +31,7 @@
 --  hdr_end_pre     ____________-_____
 --  dout_vld        ______--------_____
 --  dout            ______ABCDEFGH_____
---
+--  
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -45,7 +48,7 @@ package gen_hdr_pkg is
       -- units of cycles (typ at 308MHz).  Except zero means lots of cycles, not 1.
       hdr_len_min1_cycs : in std_logic_vector(HDR_LEN_W-1 downto 0);
 
-      gen_en         : in  std_logic; -- TODO: MEANINGLESS
+      gen_diff       : in  std_logic;
       
       lfsr_state_ld  : in  std_logic; -- sampled when go_pulse=1
       lfsr_state_in  : in  std_logic_vector(10 downto 0);
@@ -56,7 +59,7 @@ package gen_hdr_pkg is
 
       en: in std_logic;
 
-      hdr_end_pre2 : out std_logic; -- high before before last valid cycle
+--      hdr_end_pre2 : out std_logic; -- high before before last valid cycle
       hdr_end_pre  : out std_logic; -- high before last valid cycle
       cyc_cnt_down : out std_logic_vector(HDR_LEN_W-1 downto 0);
       dout_vld     : out std_logic; -- high only during the headers
@@ -77,7 +80,7 @@ entity gen_hdr is
 
     osamp_min1    : in std_logic_vector(1 downto 0); -- 0=1, 1=2, or 3=4
 
-    gen_en         : in std_logic; -- if 0, lfsr_state_ld and go_pulse ignored
+    gen_diff       : in std_logic;
     lfsr_state_ld  : in std_logic;
     lfsr_state_in  : in std_logic_vector(10 downto 0);
     lfsr_state_nxt : out std_logic_vector(10 downto 0);
@@ -89,7 +92,7 @@ entity gen_hdr is
 
     hdr_len_min1_cycs : in std_logic_vector(HDR_LEN_W-1 downto 0); -- units of cycles at 308MHz
 
-    hdr_end_pre2 : out std_logic;
+--    hdr_end_pre2 : out std_logic;
     hdr_end_pre  : out std_logic;
     cyc_cnt_down : out std_logic_vector(HDR_LEN_W-1 downto 0);
     dout_vld     : out std_logic; -- high only during the headers
@@ -110,9 +113,11 @@ architecture rtl of gen_hdr is
     : std_logic:='0';
 
   signal lfsr4_data: std_logic_vector(0 downto 0);
+  signal lfsr4_data_d: std_logic_vector(0 downto 0);
   signal lfsr2_data: std_logic_vector(1 downto 0);
   signal lfsr1_data: std_logic_vector(3 downto 0);
 
+  signal w4b: std_logic;
   signal w1, w2, w4: std_logic_vector(3 downto 0);
 
   signal lfsr_state_nxt4, lfsr_state_nxt2, lfsr_state_nxt1:
@@ -140,7 +145,8 @@ begin
 --    err    =>
       state_nxt => lfsr_state_nxt4,
       clk    => clk);
-  w4 <= lfsr4_data & lfsr4_data & lfsr4_data & lfsr4_data;
+  w4b <= lfsr4_data(0) xor (gen_diff and lfsr4_data_d(0));
+  w4 <= u_rpt(w4b, 4);
 
   lfsr2: lfsr_w
     generic map(
@@ -188,6 +194,8 @@ begin
   clk_proc: process(clk) is
   begin
     if (rising_edge(clk)) then
+      lfsr4_data_d <= lfsr4_data;
+      
       if (osamp_min1="00") then -- oversamp by 1
         dout <= w1;
       elsif (osamp_min1="01") then -- oversamp by 2
@@ -215,8 +223,8 @@ begin
 
   cyc_cnt_down <= hdr_ctr;
   dout_vld      <= dout_vld_i;
-  hdr_end_pre2  <= hdr_ctr_en and en and hdr_ctr_atlim_pre;
-  hdr_end_pre  <= hdr_ctr_en and en and hdr_ctr_atlim;
+--  hdr_end_pre2  <= hdr_ctr_en and en and hdr_ctr_atlim_pre;
+  hdr_end_pre   <= hdr_ctr_en and en and hdr_ctr_atlim;
   
 end rtl;
   

@@ -98,6 +98,7 @@ module axi_adcfifo_rd #(
 
   reg     [ 31:0]                 axi_rd_addr_h = 'd0;
   reg                             axi_rd = 'd0;
+  reg                             axi_rd_req_d = 'd0;
   reg                             axi_rd_active = 'd0;
   reg     [  2:0]                 axi_xfer_req_m = 'd0;
   reg                             axi_xfer_init = 'd0;
@@ -122,9 +123,10 @@ module axi_adcfifo_rd #(
     end else begin
       if (axi_xfer_init == 1'b1) begin
         axi_rd_addr_h <= AXI_ADDRESS;
-      end else if (axi_rd_req == 1'b1) begin
+      end else if (axi_rd_req_d == 1'b1) begin // DAN
         axi_rd_addr_h <= axi_rd_addr;
       end
+      axi_rd_req_d <= axi_rd_req; // DAN
       if (axi_rd_active == 1'b1) begin
         axi_rd <= 1'b0;
         if ((axi_rvalid == 1'b1) && (axi_rlast == 1'b1)) begin

@@ -40,6 +40,8 @@ adi_ip_files quanet_adc [list \
   "$ad_hdl_dir/library/quanet/duration_ctr.vhd" \
   "$ad_hdl_dir/library/quanet/duration_upctr.vhd" \
   "$ad_hdl_dir/library/quanet/symbol_reader.vhd" \
+  "samp_delayer.vhd" \
+  "samp_cyc_delayer.vhd" \
   "rebalancer_quad.vhd" \
   "rebalancer.vhd" \
   "phase_est.vhd" \

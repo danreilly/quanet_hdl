@@ -22,6 +22,8 @@ package quanet_dac_pkg is
     cipher_en_out        : out std_logic; -- passed to Bob's RX side
     cipher_out           : out std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
     cipher_out_vld       : out std_logic;
+    alice_pm             : out std_logic;
+    second_im            : out std_logic;
 
     -- serial link to QNA board
     ser0_tx: out std_logic;
@@ -63,7 +65,7 @@ package quanet_dac_pkg is
     hdr_vld      : out std_logic; -- used as scope trig
     
     -- A kludgy connection to quanet_sfp
-    gth_status : in  std_logic_vector(3 downto 0); -- axi clk domain
+    gth_status : in  std_logic_vector(3 downto 0);
     gth_rst    : out std_logic;  -- axi clk domain
     
     -- DMA interface
@@ -121,6 +123,8 @@ entity quanet_dac is
     cipher_en_out        : out std_logic; -- passed to Bob's RX side
     cipher_out           : out std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
     cipher_out_vld       : out std_logic;
+    alice_pm             : out std_logic;
+    second_im            : out std_logic;
     
     -- serial link to QNA board
     ser0_tx: out std_logic;
@@ -161,7 +165,7 @@ entity quanet_dac is
     hdr_vld      : out std_logic; -- used as scope trig
     
     -- A kludgy connection to quanet_sfp
-    gth_status : in  std_logic_vector(3 downto 0); -- axi clk domain
+    gth_status : in  std_logic_vector(3 downto 0);
     gth_rst    : out std_logic;  -- axi clk domain
     
     -- DMA interface (data from fpga's PS, maybe from host in future)
@@ -185,12 +189,8 @@ entity quanet_dac is
 
     -- This is from the synchronizer in the rx side:
     frame_sync_in : in std_logic;
-
     -- The transmit side (this module) has its own free-running frame sync.
-
-    -- Alice can also use this constraint for CDM (lidar),
-    -- but when for QSDC she does not.  She must emit (drive PM)
-    -- at exactly the correct time relative to incomming headers from Bob.
+    
     dac_tx_out: out std_logic);
 end quanet_dac;
 
@@ -233,8 +233,9 @@ architecture rtl of quanet_dac is
   constant REG_DBG    : integer := 10;  
   constant REG_CIPHER : integer := 11;  
   constant REG_ALICE  : integer := 12;  
+  constant REG_HDR2   : integer := 13;  
   
-  constant NUM_REGS: integer := 13;
+  constant NUM_REGS: integer := 14;
   
   signal reg_fr1_w, reg_fr1_r,
     reg_fr2_w, reg_fr2_r,
@@ -248,6 +249,7 @@ architecture rtl of quanet_dac is
     reg_dbg_w, reg_dbg_r,
     reg_ser_w, reg_ser_r,
     reg_cipher_w, reg_cipher_r,
+    reg_hdr2_w, reg_hdr2_r,
     reg_hdr_w, reg_hdr_r: std_logic_vector(31 downto 0);
 
   signal reg_r_vec, reg_w_vec: std_logic_vector(NUM_REGS*32-1 downto 0);
@@ -286,11 +288,13 @@ architecture rtl of quanet_dac is
       pd_min1 : in std_logic_vector(FRAME_PD_CYCS_W-1 downto 0); -- in clk cycles
       pd_tic : out std_logic;
       
-      tx_always: in std_logic;
-      tx_indefinite: in std_logic;
-      tx_commence: in std_logic;
-      frame_sync_qual: in std_logic; -- request transission by pulsing high for one cycle
-      frame_qty_min1 : in std_logic_vector(FRAME_QTY_W-1 downto 0);
+      framer_rst      : in std_logic;
+      tx_always       : in std_logic;
+      tx_indefinite   : in std_logic;
+      tx_commence     : in std_logic;
+      alice_syncing   : in std_logic;
+      frame_sync_qual : in std_logic;
+      frame_qty_min1  : in std_logic_vector(FRAME_QTY_W-1 downto 0);
 
       -- control signals indicate when to transmit
       frame_first     : out std_logic;
@@ -318,12 +322,12 @@ architecture rtl of quanet_dac is
   signal axi_rst: std_logic;
   signal reg_w_pulse, reg_r_pulse: std_logic_vector(NUM_REGS-1 downto 0);
 
-  signal lfsr_rst_st: std_logic_vector(10 downto 0);
+  signal lfsr_rst_st, lfsr_rst_st2, lfsr_rst_st_in: std_logic_vector(10 downto 0);
   signal frame_qty_min1, frame_ctr: std_logic_vector(G_FRAME_QTY_W-1 downto 0);
   signal frame_pd_min1: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
 
     
-  signal tx_unsync, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld,
+  signal framer_rst, cipher_en, cipher_en_d, cipher_prime, hdr_use_lfsr, lfsr_ld,
       tx_always, tx_indefinite, pm_hdr_disable,
       pm_hdr_go, pm_hdr_go_pre, pm_preemph_en,
     lfsr_hdr_vld, im_hdr_vld, im_hdr_last, im_body_vld, im_body_last,
@@ -375,8 +379,9 @@ architecture rtl of quanet_dac is
   signal dbg2: std_logic_vector(1 downto 0);
       
   signal is_bob, alice_txing, qsdc_is_dpsk, qs_start0, alice_txing_d, tx_dbits, twopi_tog, lfsr_d,
+    second_im_is_probe, second_im_is_pilot,
     hdr_twopi, im_preemph, simple_im_hdr_en, dbg_zero_raddr: std_logic:='0'; -- reg field
-  signal qsdc_symlen_min1_asamps: std_logic_vector(3 downto 0);
+  signal qsdc_symlen_min1_cycs: std_logic_vector(3 downto 0);
   signal tx_force, qsdc_data_is_qpsk: std_logic; -- reg field. 0=BPSK, 1=QPSK
 
   signal qsdc_data_cycs_min1, qsdc_data_ctr: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
@@ -385,7 +390,8 @@ architecture rtl of quanet_dac is
   
 
   signal qsdc_frame_go,
-    qsdc_data_go, qsdc_data_going, qsdc_prime, qsdc_mem_ren, mem_ren_pre,
+    qsdc_data_go, qsdc_data_go_pre, qsdc_data_go_pre2,
+    qsdc_data_going, qsdc_prime, qsdc_mem_ren, mem_ren_pre,
     qsdc_symbolizer_rst,
     sym_last, dbits_en,
 --    dbits_pre_vld, dbits_pre_needs_data, dbits_pre_needs_data_d,
@@ -398,7 +404,7 @@ architecture rtl of quanet_dac is
 
   signal dbit_enc_d, dbit_enc: std_logic_vector(1 downto 0);
 
-  signal im_hdr_go, im_hdr_simple_go, im_dly_en, im_dly_is0: std_logic;
+  signal im_hdr_go_pre, im_hdr_go, im_hdr_simple_go, im_dly_en, im_dly_is0: std_logic;
   signal im_dly_cycs: std_logic_vector(3 downto 0);
   signal pm_dly_cycs: std_logic_vector(5 downto 0);
 
@@ -424,9 +430,9 @@ architecture rtl of quanet_dac is
     std_logic_vector(to_unsigned(MEM_A_W, 6));
   signal pm_preemph_const: std_logic_vector(2 downto 0);
 
-  signal frame_dly_asamps_min1: std_logic_vector(1 downto 0);
-  signal frame_dly_cycs_min1: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
-  signal frame_sync_dlyd: std_logic; -- used by alice
+--  signal frame_dly_asamps_min1: std_logic_vector(1 downto 0);
+--  signal frame_dly_cycs_min1: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal frame_sync_dlyd, alice_pm_invert: std_logic; -- used by alice
 
   signal dma_lastvld: std_logic;
   signal dma_last_cnt, dma_lastvld_cnt: std_logic_vector(2 downto 0);
@@ -438,6 +444,20 @@ architecture rtl of quanet_dac is
 
   signal dbg_sym_vld, dbg_sym_clr: std_logic;
   signal dbg_sym: std_logic_vector(11 downto 0);
+
+
+  constant CTR_W: integer := 16;
+  constant EVENTS_QTY: integer := 3;
+  constant EVENT_A_LEN: integer := 2**u_bitwid(EVENTS_QTY-1);
+  signal event_v, evclk_v: std_logic_vector(EVENTS_QTY-1 downto 0);
+  type event_cnt_a_t is array(0 to EVENT_A_LEN-1) of std_logic_vector(CTR_W-1 downto 0);  
+  signal event_cnt_a: event_cnt_a_t;
+  signal tx_event_cnt: std_logic_vector(CTR_W-1 downto 0);
+  signal tx_event_cnt_sel: std_logic_vector(1 downto 0);
+
+
+  signal gth_status_rc : std_logic_vector(3 downto 0);
+  
 begin
 
 
@@ -519,6 +539,7 @@ begin
   reg_r(REG_STATUS) <= reg_status_r;
   reg_r(REG_IM)     <= reg_im_r;
   reg_r(REG_HDR)    <= reg_hdr_r;
+  reg_r(REG_HDR2)   <= reg_hdr2_r;
   reg_r(REG_DMA)    <= reg_dma_r;
   reg_r(REG_PCTL)   <= reg_pctl_r;
   reg_r(REG_QSDC)   <= reg_qsdc_r;
@@ -542,13 +563,13 @@ begin
   reg_ctl_w <= reg_w_dac(REG_CTL);
   reg_ctl_r <= reg_w(REG_CTL);
   -- default is to tx syncronously with adc dma.  old AD way was for dma req to start it.
-  tx_unsync      <= reg_ctl_w(31); -- probaly will go away
+  framer_rst     <= reg_ctl_w(31); -- for dbg. probably dont need.
   cipher_en      <= reg_ctl_w(30); -- bob sets to scramble frame bodies
   memtx_to_pm    <= reg_ctl_w(29); -- 
   tx_always      <= reg_ctl_w(28); -- used for dbg to view on scope
   pm_hdr_disable <= reg_ctl_w(27); -- header has no PM modulation
   memtx_circ     <= reg_ctl_w(26); -- circular xmit from mem
-  alice_syncing  <= reg_ctl_w(25); -- disables pm hdr if alice
+  alice_syncing  <= reg_ctl_w(25);
   tx_indefinite  <= reg_ctl_w(24); -- runs until stopped
   tx_dbits       <= reg_ctl_w(23); -- alice transmits data
   simple_im_hdr_en <= reg_ctl_w(22); -- use vals from IM register
@@ -585,7 +606,7 @@ begin
   reg_status_r(14)           <= dac_rst_axi;
   reg_status_r(13 downto 8)  <= frame_sync_in_cnt;
   reg_status_r( 7 downto 4)  <= fwver;
-  reg_status_r( 3 downto 0)  <= gth_status;
+  reg_status_r( 3 downto 0)  <= gth_status_rc;
   
   -- reg IM
   reg_im_w <= reg_w_dac(REG_IM);
@@ -595,6 +616,8 @@ begin
   
   -- reg HDR
   reg_hdr_w <= reg_w_dac(REG_HDR);
+  second_im_is_probe   <= reg_hdr_w(29);
+  second_im_is_pilot   <= reg_hdr_w(28);
   hdr_use_lfsr         <= reg_hdr_w(27); -- header contains lfsr
   hdr_same             <= reg_hdr_w(26); -- tx all the same hdr
   im_preemph           <= reg_hdr_w(25); -- use im preemphasis
@@ -604,6 +627,12 @@ begin
   lfsr_rst_st          <= reg_hdr_w(10 downto 0); -- often x50f
   reg_hdr_r <= reg_w(REG_HDR);
 
+  -- reg HDR2
+  reg_hdr2_w <= reg_w_dac(REG_HDR2);
+  lfsr_rst_st2   <= reg_hdr2_w(10 downto 0); -- often x0a5  
+  reg_hdr2_r <= reg_w(REG_HDR2);
+
+  
   -- reg dma
 --  tx_dbits <= reg_dma_w(0); -- sets dest mem for dma. 0=IMMEM, 1=DMEM
   reg_dma_r <= reg_w(REG_DMA);
@@ -621,7 +650,7 @@ begin
   reg_qsdc_r <= reg_w(REG_QSDC);
   reg_qsdc_w <= reg_w_dac(REG_QSDC);
   qsdc_data_cycs_min1    <= reg_qsdc_w(9 downto 0);   -- dur of body in frame  
-  qsdc_symlen_min1_asamps<= reg_qsdc_w(13 downto 10); -- dur of one QSDC symbol aka chip. 1..8
+  qsdc_symlen_min1_cycs  <= reg_qsdc_w(13 downto 10); -- dur of one QSDC symbol aka chip. 1..8
   qsdc_pos_min1_cycs     <= reg_qsdc_w(21 downto 14); -- offset of data from start of frame
   qsdc_data_is_qpsk      <= reg_qsdc_w(22);  -- 0=bpsk, 1=qpsk
   qsdc_bitdur_min1_codes <= reg_qsdc_w(31 downto 23); -- num code reps per bit, min 1
@@ -631,11 +660,11 @@ begin
   reg_alice_r(31 downto 16) <= waddr_lim_min1; -- for debug
   reg_alice_r(15 downto  0) <= reg_w(REG_ALICE)(15 downto 0);
   reg_alice_w <= reg_w_dac(REG_ALICE);
-  frame_dly_asamps_min1 <= reg_alice_w(1 downto 0); -- TODO: implement
-  frame_dly_cycs_min1   <= reg_alice_w(11 downto 2); -- from synchrnzr to start of frame
+--  frame_dly_asamps_min1 <= reg_alice_w(1 downto 0); -- TODO: implement
+--  frame_dly_cycs_min1   <= reg_alice_w(11 downto 2); -- from synchronizer to start of frame
+  alice_pm_invert       <= reg_alice_w(12);
 
-
-  -- reg ser
+  -- reg SER
   reg_ser_r(31)           <= ser_rx_vld;
   reg_ser_r(30)           <= ser_tx_full;
   reg_ser_r(29 downto 8)  <= reg_ser_w(29 downto 8);
@@ -651,28 +680,66 @@ begin
   ser_rst         <= reg_ser_w(8);
   ser_tx_data     <= reg_ser_w(7 downto 0);
 
+
+  -- reg DBG
+  ser_clr_errs     <= reg_dbg_w(30);
+  ser_ctr_sel      <= reg_dbg_w(29 downto 28);
+  ser_clr_ctrs     <= reg_dbg_w(27);
+  tx_force         <= reg_dbg_w(26);
+  tx_event_cnt_sel <= reg_dbg_w(25 downto 24);
   
-  -- reg DBG = 10
-  ser_clr_errs <= reg_dbg_w(30);
-  ser_ctr_sel  <= reg_dbg_w(29 downto 28);
-  ser_clr_ctrs <= reg_dbg_w(27);
-  tx_force     <= reg_dbg_w(26);
 --  reg_dbg_r(6)          <= dbg_drp_proc_won;
 --  reg_dbg_r(5)          <= dbg_drp_busy;
 --  reg_dbg_r(4)          <= dbg_proc_req;
-  reg_dbg_r(31 downto 25) <= reg_dbg_w(31 downto 25);
+  reg_dbg_r(31 downto 24) <= reg_dbg_w(31 downto 24);
 --  reg_dbg_r(17  downto 15) <= dma_lastvld_cnt;
 --  reg_dbg_r(14  downto 12) <= dma_last_cnt;
-  reg_dbg_r(21)           <= tx_commence_aclk;
-  reg_dbg_r(20 downto 13) <= frame_go_cnt;
-  reg_dbg_r(12 downto 5)  <= qsdc_frame_go_cnt;
+  reg_dbg_r(23)           <= tx_commence_aclk;
+--  reg_dbg_r(22 downto 16) <= foo_cnt;
+  reg_dbg_r(21 downto  6) <= tx_event_cnt;
   reg_dbg_r(4) <= ser_rx_ovf;
   reg_dbg_r(3) <= ser_tx_ovf;
-  reg_dbg_r(2)  <= ser_saw_xoff_timo;
-  reg_dbg_r(1)  <= ser_parity_err;
-  reg_dbg_r(0)  <= ser_frame_err;
+  reg_dbg_r(2) <= ser_saw_xoff_timo;
+  reg_dbg_r(1) <= ser_parity_err;
+  reg_dbg_r(0) <= ser_frame_err;
 
+--  frame_sync_dly: duration_ctr
+--     generic map (
+--       LEN_W => G_QSDC_FRAME_CYCS_W)
+--     port map(
+--       clk      => dac_clk,
+--       rst      => '0',
+--       go_pul   => frame_sync_in,
+--       len_min1 => frame_dly_cycs_min1,
+--       sig_last => frame_sync_dlyd);
 
+  frame_ctl_i: frame_ctl
+    generic map(
+      FRAME_PD_CYCS_W => G_FRAME_PD_CYCS_W,
+      FRAME_QTY_W     => G_FRAME_QTY_W)
+    port map(
+      clk => dac_clk,
+      rst => dac_rst, -- will reset internal cyc ctr
+
+      -- The period counter is free running
+      pd_min1   => frame_pd_min1,
+      pd_tic    => frame_pd_tic,
+
+      framer_rst      => framer_rst,
+      tx_always       => tx_always,
+      tx_indefinite   => tx_indefinite,
+      tx_commence     => tx_commence_dac,
+      alice_syncing   => alice_syncing,
+      frame_qty_min1  => frame_qty_min1,
+      frame_sync_qual => frame_sync_qualified, -- an input. 
+
+      -- control signals indicate when to transmit
+      frame_first     => frame_first,  -- determines when lfsr is rst
+      frame_first_pul => frame_first_pul,
+      frame_go        => frame_go);   -- pulse at beginning of frames
+--      txing       => txing);   -- remains high during pauses, until after final pause
+
+  
   -- if the module is not in initialization phase, it should go
   -- into reset at a positive edge of dma_xfer_req
   dma_xfer_pul <= dma_xfer_req_d and not dma_xfer_req_dd;
@@ -747,47 +814,19 @@ begin
       out_clk   => dac_clk);
 
 
-  
---  framer_go <= frame_sync_qualified and not alice_syncing;
-  -- This is the free-running frame counter.
-  frame_ctl_i: frame_ctl
-    generic map(
-      FRAME_PD_CYCS_W => G_FRAME_PD_CYCS_W,
-      FRAME_QTY_W     => G_FRAME_QTY_W)
-    port map(
-      clk => dac_clk,
-      rst => dac_rst, -- will reset internal cyc ctr
-
-      -- The period counter is free running
-      pd_min1   => frame_pd_min1,
-      pd_tic    => frame_pd_tic,
-      
-      tx_always       => tx_always,
-      tx_indefinite   => tx_indefinite,
-      tx_commence     => tx_commence_dac,
-      frame_qty_min1  => frame_qty_min1,
-      frame_sync_qual => frame_sync_qualified, -- an input. 
-
-      -- control signals indicate when to transmit
-      frame_first     => frame_first,
-      frame_first_pul => frame_first_pul,
-      frame_go        => frame_go);   -- pulse at beginning of frames
---      txing       => txing);   -- remains high during pauses, until after final pause
 
 
--- this was a bug  
---  im_hdr_go_pre <= not alice_txing and not alice_syncing
---                   and frame_go;
   
   -- Possibly delay IM signal a few cycles
   -- so Bob's IM and PM are synchronized optically
+  im_hdr_go_pre <= is_bob and frame_go;
   im_dly: duration_ctr
      generic map (
        LEN_W => 4)
      port map(
        clk      => dac_clk,
        rst      => '0',
-       go_pul   => frame_go, -- was im_hdr_go_pre,
+       go_pul   => im_hdr_go_pre,
        len_min1 => im_dly_cycs,
        sig_last => im_hdr_go);
 
@@ -830,7 +869,9 @@ begin
        len_min1 => pm_dly_cycs,
        sig_last => pm_hdr_go);
     
-  lfsr_ld <= (frame_first or hdr_same) and pm_hdr_go;
+  lfsr_ld <= (frame_first or hdr_same or tx_indefinite) and pm_hdr_go;
+  lfsr_rst_st_in <= lfsr_rst_st2 when ((tx_indefinite and not frame_first)='1')
+                    else lfsr_rst_st;
   gen_hdr_i: gen_hdr
     generic map(
       HDR_LEN_W => G_HDR_LEN_W)
@@ -840,10 +881,10 @@ begin
       osamp_min1   => osamp_min1,
       hdr_len_min1_cycs => hdr_len_min1_cycs,
 
-      gen_en => '0', -- MEANINGLESS		     
+      gen_diff => '0',
 
       lfsr_state_ld      => lfsr_ld,
-      lfsr_state_in      => lfsr_rst_st,
+      lfsr_state_in      => lfsr_rst_st_in,
 --      lfsr_state_nxt     => lfsr_state_nxt,
 --      lfsr_state_nxt_vld => lfsr_state_nxt_vld,
       
@@ -902,6 +943,15 @@ begin
       dout          => cipher_data);
   dbg_cipher_data <= cipher_data(15 downto 0);
                    
+
+  gth_status_samp:  cdc_samp
+    generic map(
+      W => 4)
+    port map(
+      in_data  => gth_status,
+      out_data => gth_status_rc,
+      out_clk  => s_axi_aclk);
+
   
   mem_waddr_lim_min1_samp:  cdc_samp
     generic map(
@@ -938,27 +988,29 @@ begin
       clr   => clr_cnts,
       cnt   => frame_sync_in_cnt);
 
-  frame_go_ctr: event_ctr
-    generic map(W => 8)
-    port map(
-      clk   => dac_clk,
-      event => frame_go,
-      
-      rclk  => s_axi_aclk,
-      clr   => clr_cnts,
-      cnt   => frame_go_cnt);
-  
-  qsdc_frame_go_ctr: event_ctr
-    generic map(W => 8)
-    port map(
-      clk   => dac_clk,
-      event => qsdc_frame_go,
-      
-      rclk  => s_axi_aclk,
-      clr   => clr_cnts,
-      cnt   => qsdc_frame_go_cnt);
+
+
+  event_v(0) <= frame_go;
+  evclk_v(0) <= dac_clk;
+  event_v(1) <= frame_first_pul;
+  evclk_v(1) <= dac_clk;
+  event_v(2) <= qsdc_frame_go;
+  evclk_v(2) <= dac_clk;
+  gen_event_ctrs: for k in 0 to EVENTS_QTY-1 generate
+  begin
+    event_ctr_i: event_ctr
+      generic map (W => CTR_W)
+      port map(
+        clk   => evclk_v(k),
+        event => event_v(k),
+        rclk  => s_axi_aclk,
+        clr   => clr_cnts,
+        cnt   => event_cnt_a(k));
+  end generate gen_event_ctrs;
+  tx_event_cnt <= event_cnt_a(to_integer(unsigned(tx_event_cnt_sel)));
   
 
+  
 --  dma_last_ctr: event_ctr
 --    generic map(W => 3)
 --    port map(
@@ -981,15 +1033,6 @@ begin
 --      cnt   => dma_lastvld_cnt);
   
   
-  frame_sync_dly: duration_ctr
-     generic map (
-       LEN_W => G_QSDC_FRAME_CYCS_W)
-     port map(
-       clk      => dac_clk,
-       rst      => '0',
-       go_pul   => frame_sync_in, -- rename as frame_sync_in
-       len_min1 => frame_dly_cycs_min1,
-       sig_last => frame_sync_dlyd);
 
   
   commence_samp: cdc_samp
@@ -1007,7 +1050,7 @@ begin
       out_clk     => s_axi_aclk);
 
   
-  qsdc_frame_go <= alice_txing and frame_sync_qualified and not dbody_done;
+
   qsd_pos_ctr_i: duration_ctr -- delay from frame_go to qsdc_go
     generic map(
       LEN_W => 8)
@@ -1016,7 +1059,7 @@ begin
       rst      => dac_rst,
       go_pul   => qsdc_frame_go,
       len_min1 => qsdc_pos_min1_cycs,
-      sig_last => qsdc_data_go); -- start of QSD data insertion
+      sig_last => qsdc_data_go_pre2); -- starts QSD data insertion
 
 
   
@@ -1035,9 +1078,12 @@ begin
       
       -- frame_sync_in is a dac_clk domain signal from adc fifo. pulses once per frame.
       frame_sync_qualified <=     (tx_commence_dac or tx_always)
-                              and u_if(is_bob='1', frame_pd_tic, frame_sync_dlyd);
+                              and u_if(is_bob='1', frame_pd_tic, frame_sync_in);
 
 
+      qsdc_frame_go <= alice_txing and frame_sync_qualified and not dbody_done;
+      qsdc_data_go_pre <= qsdc_data_go_pre2;
+      qsdc_data_go     <= qsdc_data_go_pre;
       
 -- mem_ren      ___--------___
 -- mem_raddr       01234567
@@ -1127,7 +1173,14 @@ begin
       else
         pm_data <= (others=>'0');
       end if;
-      
+
+      -- Greg said we should drive Alice's modulator from a cmos output instead
+      -- of from a DAC.
+      alice_pm <= pm_data_vld and (alice_pm_invert xor pm_data(DAC_D_W-1));
+
+      -- More DC-coupled.  On/Off.  For CDM probes or ext ratio enhancement
+      second_im <=    (lfsr_hdr_vld and second_im_is_probe and lfsr_hdr(0))
+                   or (lfsr_hdr_vld and second_im_is_pilot);
     end if;
   end process;
 --  dbits_pre_needs_data <= alice_txing and not dbits_pre_vld;
@@ -1159,8 +1212,8 @@ begin
       mem_rd    => qsdc_mem_ren,
 
       code => G_QSDC_BITCODE,
-      bitdur_min1_codes  => qsdc_bitdur_min1_codes,
-      symlen_min1_asamps => qsdc_symlen_min1_asamps, 
+      bitdur_min1_codes => qsdc_bitdur_min1_codes,
+      symlen_min1_cycs  => qsdc_symlen_min1_cycs, 
       
       -- when this component generates M-PSK, M is determined by:
       log2m  => qsdc_log2m,

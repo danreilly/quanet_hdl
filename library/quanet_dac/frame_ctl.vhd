@@ -1,19 +1,33 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
--- tx_commenc  __-------------------------------------
--- frame_sync_qual__-________-________-________-______
--- txing      _______---------------------------______
--- tx_done     _________________________________------
--- frame_ctr    22222222222222111111111000000000222222
--- frame_last   _______________________---------______
+-- tx_commenc     _---------------------------
+-- frame_sync_qual__-___-___-___-___-___-___-_
+-- frame_ctr_en   ____------------____________
+-- tx_done        ________________------------
+-- frame_ctr      2222222211110000222222222222
+-- frame_ctr_is0  ____________----____________
+-- frame_ctr_1st  ____----________------------
+-- frame_first_pul____-_______________________
+-- frame_first    _____----___________________
+-- frame_go       _____-___-___-______________
 
--- frame_first_pul__-_________________________________
--- frame_first    ___---------__________________------
--- frame_go    _____-________-________-______________
 
 
 
+-- When syncing
+
+-- tx_commenc     __--------------------------------
+-- frame_sync_qual___-___-___-___-___-___-___-___-__
+-- frame_ctr_en   ____------------------------______
+-- tx_done        ____________________________------
+-- frame_ctr      2222222211110000222211110000222222
+-- frame_ctr_is0  ____________----________----______
+-- frame_ctr_1st  ____----________----________------
+-- sync_ctr_is0   ________________------------______
+-- frame_first_pul____-_____________________________
+-- frame_first    _________________----_____________
+-- frame_go       _________________-___-___-________
 
 entity frame_ctl is
   generic (
@@ -27,10 +41,11 @@ entity frame_ctl is
     pd_min1 : in std_logic_vector(FRAME_PD_CYCS_W-1 downto 0); -- in clk cycles
     pd_tic : out std_logic;
 
-    
-    tx_always    : in std_logic;
-    tx_indefinite: in std_logic;
-    tx_commence  : in std_logic; -- once hi stays hi till teardown
+    framer_rst    : in std_logic;
+    tx_always     : in std_logic;
+    tx_indefinite : in std_logic;
+    tx_commence   : in std_logic; -- once hi stays hi till teardown
+    alice_syncing : in std_logic;
     frame_sync_qual: in std_logic; -- request transission by pulsing high for one cycle
 
     frame_qty_min1 : in std_logic_vector(FRAME_QTY_W-1 downto 0);
@@ -39,7 +54,6 @@ entity frame_ctl is
     frame_first     : out std_logic;
     frame_first_pul : out std_logic;
     frame_go        : out std_logic); -- pulse at beginning of headers
---    txing           : out std_logic); -- remains high during pauses, until after final pause
 end frame_ctl;
 
 library ieee;
@@ -47,13 +61,20 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util_pkg.all;
 architecture rtl of frame_ctl is
-  signal pd_ctr_atlim, frame_last, tx_pend, txing_i, frame_first_i, tx_done: std_logic := '0';
+  signal pd_ctr_atlim, frame_last, frame_ctr_is0, frame_ctr_is0_d,
+    tx_pend, frame_ctr_en, frame_ctr_en_d, frame_first_i, init,
+    frame_ctr_1st,
+    frame_sync_qual_d,  frame_ctr_stop,  sync_ctr_is0, tx_done: std_logic := '0';
   signal pd_ctr: std_logic_vector(FRAME_PD_CYCS_W-1 downto 0) := (others=>'0');
   signal frame_ctr: std_logic_vector(FRAME_QTY_W-1 downto 0) := (others=>'0');
+  signal sync_ctr: std_logic_vector(0 downto 0) := (others=>'0');
 begin
-  -- b2b stands for "Boolean to Bit".  It's a very useful conversion.
+
   pd_tic <= pd_ctr_atlim;
---  txing <= txing_i;
+
+
+  frame_ctr_stop <= frame_ctr_is0 and (not alice_syncing or sync_ctr_is0);
+  
   clk_proc: process(clk) is
   begin
     if (rising_edge(clk)) then
@@ -70,26 +91,35 @@ begin
 
       -- This stuff below is separate.
 
---      txing_i <= tx_always or (tx_commence and
---               (   (frame_sync_qual and not tx_done)
---                   or (txing_i and
---                       (tx_indefinite or (not (frame_last and frame_sync_qual))))));
-      if (tx_always='1') then
-        txing_i <= '1';
+      if (framer_rst='1') then -- probably dont need. for dbg.
+        frame_ctr_en <= '0';
       elsif (frame_sync_qual='1') then
-        txing_i <= (tx_indefinite or not (frame_last or tx_done)) and
-                   tx_commence;
+        frame_ctr_en <= tx_commence and (tx_indefinite or not (frame_ctr_stop or tx_done));
       end if;
       
-      tx_done <= not tx_indefinite and not tx_always and tx_commence and
-                 ((txing_i and frame_last and frame_sync_qual) or tx_done);
+      tx_done <= not tx_indefinite and not tx_always and tx_commence and not framer_rst
+                 and ((frame_ctr_en and frame_sync_qual and frame_ctr_stop) or tx_done);
       
-      -- transmit a certain number of headers
-      if ((not tx_commence or (frame_sync_qual and frame_last))='1') then
+      -- transmit a certain number of frames per cell
+      if ((not frame_ctr_en or (frame_sync_qual and frame_ctr_is0))='1') then
         frame_ctr     <= frame_qty_min1;
+        frame_ctr_is0 <= '0';
+        frame_ctr_1st <= '1';
       elsif (frame_sync_qual='1') then
         frame_ctr     <= u_dec(frame_ctr);
+        frame_ctr_is0 <= u_b2b(unsigned(frame_ctr)=1);
+        frame_ctr_1st <= '0';
       end if;
+      -- Since frames are always longer than 1 cycle, it works.
+
+      if ((not frame_ctr_en or (frame_sync_qual and frame_ctr_is0 and sync_ctr_is0))='1') then
+        sync_ctr     <= "1";
+        sync_ctr_is0 <= '0';
+      elsif ((alice_syncing and frame_sync_qual and frame_ctr_is0)='1') then
+        sync_ctr     <= u_dec(sync_ctr);
+        sync_ctr_is0 <= '1';
+      end if;
+      
       
       if (tx_commence='0') then
         frame_last <= '0';
@@ -101,17 +131,28 @@ begin
         end if;
       end if;
 
-      if (frame_sync_qual='1') then
-        frame_first_i <= tx_commence and not txing_i and not tx_done;
+
+
+      frame_sync_qual_d <= frame_sync_qual;
+      
+      -- to trigger saving in quanet_adc... happens once.
+      frame_first_pul <= tx_commence and not frame_ctr_en and not tx_done and frame_sync_qual;
+
+      frame_ctr_en_d <= frame_ctr_en;
+      frame_ctr_is0_d <= frame_ctr_is0;
+      if (frame_sync_qual_d='1') then
+        frame_first_i <= frame_ctr_en and frame_ctr_1st and ((not alice_syncing or sync_ctr_is0)
+                                                             or tx_indefinite); 
       end if;
-      
-      frame_first_pul <= tx_commence and not txing_i and not tx_done and frame_sync_qual;
-      
+
+      init <= not (frame_ctr_en or tx_done);
+      frame_go        <= frame_sync_qual_d and
+                         (tx_always or
+                            (frame_ctr_en and (not alice_syncing or sync_ctr_is0)));
+
     end if;
   end process;
   frame_first     <= frame_first_i;
 
-  frame_go        <= frame_sync_qual and
-                     ((tx_commence and (tx_indefinite or (not frame_last and not tx_done)))
-                                 or tx_always);
+
 end architecture rtl;

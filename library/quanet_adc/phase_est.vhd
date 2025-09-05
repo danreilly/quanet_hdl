@@ -1,25 +1,25 @@
 
--- This expects inputs to remain valid for a whole frame:
--- hdr_vld ___-______
+
+-- go      ___-______
 -- hdr_i      aaaaaaa
 -- hdr_q      aaaaaaa
 
 library ieee;
 use ieee.std_logic_1164.all;
-use work.global_pkg.all;
 entity phase_est is
   generic (
     MAG_W: integer;
       TRIG_W: integer);
   port(
     clk           : in std_logic;
-    en             : in std_logic;
-    hdr_vld       : in std_logic;
+    en            : in std_logic;
+    go       : in std_logic;
     hdr_i         : in std_logic_vector(MAG_W-1 downto 0);
     hdr_q         : in std_logic_vector(MAG_W-1 downto 0);
     hdr_mag       : in std_logic_vector(MAG_W-1 downto 0);
     ph_cos : out std_logic_vector(TRIG_W-1 downto 0);
-    ph_sin : out std_logic_vector(TRIG_W-1 downto 0));
+    ph_sin : out std_logic_vector(TRIG_W-1 downto 0);
+    ph_vld_pre : out std_logic);
 end phase_est;
 
 library ieee;
@@ -27,12 +27,11 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 library work;
 use work.util_pkg.all;
-use work.cdc_samp_pkg.all;
-use work.cdc_pulse_pkg.all;
-use work.global_pkg.all;
-use work.gen_hdr_pkg.all;
-use work.uram_infer_pkg.all;
-use work.period_timer_pkg.all;
+--use work.cdc_samp_pkg.all;
+--use work.cdc_pulse_pkg.all;
+--use work.gen_hdr_pkg.all;
+--use work.uram_infer_pkg.all;
+--use work.period_timer_pkg.all;
 architecture struct of phase_est is
 
   -- The rom holds trig values (sin and cos)
@@ -74,9 +73,9 @@ architecture struct of phase_est is
   constant COS45: std_logic_vector(TRIG_W-1 downto 0) :=
     std_logic_vector(to_unsigned(integer(0.70710678*2**(TRIG_W-1)), TRIG_W));
   
-  signal sgn_i, sgn_q, iltq, iltq_pre, ph45_pre, ph45, ph0, div_go,
+  signal sgn_i, sgn_q, iltq, iltq_pre, ph45_pre, ph45, ph0, ph0_pre, div_go,
     rom_vld, rom_vld_d, div_rst,
-    div_vld: std_logic;
+    div_vld: std_logic := '0';
   signal hdr_i_abs, hdr_q_abs,
     hdr_i_abs_pre, hdr_q_abs_pre, div_num, div_denom
 
@@ -90,23 +89,27 @@ begin
   hdr_i_abs_pre <= u_abs(hdr_i);  
   hdr_q_abs_pre <= u_abs(hdr_q);
   iltq_pre <= u_b2b(hdr_i_abs_pre < hdr_q_abs_pre);
+  ph0_pre  <= u_b2b((unsigned(hdr_i)=0) and (unsigned(hdr_q)=0));
   ph45_pre <= u_b2b(hdr_i_abs_pre = hdr_q_abs_pre);
+  
   process(clk)
   begin
     if (rising_edge(clk)) then
-      if (hdr_vld='1') then
+      if (go='1') then
         iltq  <= iltq_pre;
-        ph45  <= ph45_pre;
+        ph45  <= ph45_pre and not ph0_pre;
         ph0   <= u_b2b(unsigned(div_num)=0);
         sgn_i <= hdr_i(MAG_W-1);
         sgn_q <= hdr_q(MAG_W-1);
         div_denom <= hdr_mag;
 
+        hdr_i_abs <= hdr_i_abs_pre;
+        hdr_q_abs <= hdr_q_abs_pre;
+        
         -- manhattan sum.  Instead of dividing by the norm 2 magnitude,
         -- dividing by the norm 1 mag is easier and good enough.
       end if;
-      div_go    <= hdr_vld;
-
+      div_go    <= go;
 
       -- the lesser of sum_i_abs or sum_q_abs,
       -- go to the divider (below)
@@ -124,6 +127,7 @@ begin
         ph_sin_p <= u_if(iltq='1', '0'&ph0&rom_out(ROM_W*2-1 downto ROM_W),
                                    "00"&rom_out(ROM_W-1 downto 0));
       end if;
+      rom_vld_d <= rom_vld;
       if (en='0') then
         ph_cos <= "01"&u_rpt('0',TRIG_W-2);
         ph_sin <= (others=>'0');
@@ -131,17 +135,18 @@ begin
         ph_cos <= u_if(sgn_i='1', u_neg(ph_cos_p), ph_cos_p);
         ph_sin <= u_if(sgn_q='1', u_neg(ph_sin_p), ph_sin_p);
       end if;
-
     end if;
   end process;
-
-  div_num   <= u_if(iltq='1', hdr_i_abs_pre, hdr_q_abs_pre);
-  div_numer <= div_num & u_rpt('0', QUO_W); -- mult by 2**QUO_W
+  ph_vld_pre <= rom_vld_d;
+  
+  
   -- This normalizes the IQ vector.
   -- The greatest possible result of the division is one half.
   -- Since we mult numerator by 2**QUOW, that is 2**(QUOW-1).
   -- We only need QUO_W-1 bits
   div_rst <= not en;
+  div_num   <= u_if(iltq='1', hdr_i_abs, hdr_q_abs);
+  div_numer <= div_num & u_rpt('0', QUO_W); -- mult by 2**QUO_W
   div_i: div
     generic map(
       DIVIDEND_W => MAG_W+QUO_W,

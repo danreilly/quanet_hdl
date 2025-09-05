@@ -74,7 +74,7 @@ begin
     end if;
   end process;
 
-  
+  -- TODO: set PREG atribute? for "pipelining"
   -- these mults have latency of 3 cycles
   mult_11: imbal_mult
     port map(

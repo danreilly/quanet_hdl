@@ -21,6 +21,7 @@ XILINX_DEPS += rebalancer_quad.vhd
 XILINX_DEPS += phase_est.vhd
 XILINX_DEPS += div.vhd
 XILINX_DEPS += rom_inf.vhd
+XILINX_DEPS += qsdc_rx.vhd
 XILINX_DEPS += rotate_iq.vhd
 XILINX_DEPS += synchronizer.vhd
 XILINX_DEPS += decipher.vhd

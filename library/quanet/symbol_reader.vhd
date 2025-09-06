@@ -1,12 +1,14 @@
 
--- Reads from a fifo like interface to get a word DIN_W of data in a
--- shift register.  While enabled counts out number of cycles per
--- symbol.  When a new symbol is needed, shifts the right number of
--- bits out of shift reg.  Keeps shift reg full by reading from the
--- fifo-like interface.
+-- Supplies symbols like this:
+--        en  __-___
+--      dout     v  
+--  dout_vld  ___-__
 
-
-
+-- Reads from a fifo like-interface to get a word (of width DIN_W)
+-- of data into a shift register.  Later, while the reader is enabled,
+-- it counts out number of cycles per symbol.  When a new symbol is
+-- needed, shifts the right number of bits out of shift reg.  Keeps
+-- shift reg full by reading from the fifo-like interface.
 
 library ieee;
 use ieee.std_logic_1164.all;

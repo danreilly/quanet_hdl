@@ -75,10 +75,12 @@ package global_pkg is
   -- could be as high as 18
   constant G_CORR_MEM_D_W: integer := 16;
 
-  constant G_QSDC_BITDUR_W : integer := 10;
+
   constant G_QSDC_BITCODE: std_logic_vector(9 downto 0) := "1010011010";
   constant G_QSDC_SYMS_PER_FR_W: integer := 9;
   constant G_QSDC_SUM_W: integer := 24;
+  constant G_QSDC_ALICE_SYMLEN_W : integer := 4;
+  constant G_QSDC_BITDUR_W       : integer := 11;
 
   constant G_SYNC_REF_RXCLK : std_logic_vector(1 downto 0) := "00";
   constant G_SYNC_REF_PWR   : std_logic_vector(1 downto 0) := "01";

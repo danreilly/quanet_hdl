@@ -649,12 +649,15 @@ begin
   -- reg QSDC
   reg_qsdc_r <= reg_w(REG_QSDC);
   reg_qsdc_w <= reg_w_dac(REG_QSDC);
-  qsdc_data_cycs_min1    <= reg_qsdc_w(9 downto 0);   -- dur of body in frame  
+  qsdc_data_cycs_min1    <= reg_qsdc_w(9 downto 0);   -- dur of body in frame.
+                                                      -- (change to data_len_min1_syms)
   qsdc_symlen_min1_cycs  <= reg_qsdc_w(13 downto 10); -- dur of one QSDC symbol aka chip. 1..8
   qsdc_pos_min1_cycs     <= reg_qsdc_w(21 downto 14); -- offset of data from start of frame
   qsdc_data_is_qpsk      <= reg_qsdc_w(22);  -- 0=bpsk, 1=qpsk
+  
   qsdc_bitdur_min1_codes <= reg_qsdc_w(31 downto 23); -- num code reps per bit, min 1
-
+  -- (TOOD: change to bitdur_min1_syms)
+  
   -- reg ALICE
   waddr_lim_min1 <= u_extl(waddr_lim_min1_aclk, 16); -- for debug
   reg_alice_r(31 downto 16) <= waddr_lim_min1; -- for debug
@@ -1196,9 +1199,9 @@ begin
       M_MAX     => 2,
       LOG2M_MAX => 2,
       LOG2M_W   => 2,
-      SYMLEN_W  => 4,
-      CODE_W    => QSDC_BITCODE_W,
-      BITDUR_W  => 9,
+      SYMLEN_W  => G_QSDC_ALICE_SYMLEN_W,
+      CODE_W    => G_QSDC_BITCODE'length,
+      BITDUR_W  => G_QSDC_BITDUR_W-2,
       MEM_W     => MEM_D_W,
       DAC_W     => DAC_D_W)
     port map(
@@ -1212,7 +1215,7 @@ begin
       mem_rd    => qsdc_mem_ren,
 
       code => G_QSDC_BITCODE,
-      bitdur_min1_codes => qsdc_bitdur_min1_codes,
+      bitdur_min1_codes => qsdc_bitdur_min1_codes, -- TODO: replace w qsdc_bit_len_min1_syms
       symlen_min1_cycs  => qsdc_symlen_min1_cycs, 
       
       -- when this component generates M-PSK, M is determined by:

@@ -274,7 +274,6 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
-library work;
 use work.global_pkg.all;
 use work.util_pkg.all;
 use work.rebalancer_quad_pkg.ALL;
@@ -289,14 +288,13 @@ use work.cdc_sync_cross_pkg.ALL;
 use work.cdc_pulse_pkg.ALL;
 use work.hdr_corr_pkg.ALL;
 use work.event_ctr_pkg.ALL;
-library work;
 use work.global_pkg.all;
 use work.util_pkg.all;
 use work.lfsr_w_pkg.all;
 use work.fifo_2clks_infer_pkg.all;
 use work.samp_delayer_pkg.all;
 use work.samp_cyc_delayer_pkg.all;
-
+use work.qsdc_rx_pkg.all;
 architecture rtl of quanet_adc is
 
   -- This used to be a parameter to axi_adcfifo.
@@ -326,8 +324,9 @@ architecture rtl of quanet_adc is
   constant AREG_CIPHER2: integer := 13;
   constant AREG_QSDC: integer := 14;
   constant AREG_CTL3: integer := 15;
+  constant AREG_QSDC2: integer := 16;
   
-  constant NUM_REGS: integer := 16;
+  constant NUM_REGS: integer := 18;
   
   signal areg_r_vec, areg_w_vec: std_logic_vector(NUM_REGS*32-1 downto 0);
   type reg_array_t is array(0 to NUM_REGS-1) of std_logic_vector(31 downto 0);
@@ -505,7 +504,7 @@ architecture rtl of quanet_adc is
   end component;    
   
   signal meas_noise, meas_noise_adc, dma_xfer_req_rc, dma_xfer_req_inadc, dma_xfer_req_inadc_d, s_axi_rst, axi_rst,
-    txrx_en, txrx_en_n: std_logic := '0';
+    rx_en, txrx_en, txrx_en_d, txrx_en_n: std_logic := '0';
   signal
     areg_actl_w, areg_actl_r,
     areg_pctl_w, areg_pctl_r,
@@ -520,6 +519,7 @@ architecture rtl of quanet_adc is
     areg_rebalm_w, areg_rebalm_r,
     areg_rebalo_w, areg_rebalo_r,
     areg_qsdc_w, areg_qsdc_r,
+    areg_qsdc2_w, areg_qsdc2_r,
     areg_cipher_w, areg_cipher_r,
     areg_cipher2_w, areg_cipher2_r,
     areg_sync_w, areg_sync_r: std_logic_vector(31 downto 0);
@@ -576,6 +576,7 @@ architecture rtl of quanet_adc is
   signal samps_dlyd: std_logic_vector(ADC_DATA_WIDTH-1 downto 0);
   signal samps_in_i, samps_in_q: g_adc_samp_array_t;
   signal samps_derot_i, samps_derot_q, samps_xrot_i, samps_xrot_q: g_adc_samp_array_t;
+  signal samps_derot_is_nonhdr_pre: std_logic;
   signal samps_deciph_i, samps_deciph_q: g_adc_samp_array_t;
   signal samps_balanced_i, samps_balanced_q, samps_balanced_i_d, samps_balanced_q_d,
     samps_diffed_i, samps_diffed_q: g_adc_samp_array_t;
@@ -586,7 +587,7 @@ architecture rtl of quanet_adc is
   
   signal hdr_subcyc: std_logic_vector(1 downto 0);
   signal save_after_init, save_after_pwr, save_after_hdr,
-    pwr_event_iso, saw_pwr_event, deciph_vld,
+    pwr_event_iso, saw_pwr_event, samps_deciph_is_nonhdr,
     hdr_det, saw_hdr_det, rxbuf_exists, rxbuf_exists_aclk, rxbuf_exists_d, rxbuf_exists_pul,
     ext_frame_ref, tx_commence_d, tx_commence_pulse, tx_commence_i, tx_commence_aclk,
     synchro_lock, synchro_lor, synchro_resyncing, synchro_resyncing_adc_clk,
@@ -598,7 +599,7 @@ architecture rtl of quanet_adc is
   signal hdr_i, hdr_q, hdr_mag: std_logic_vector(G_CORR_MAG_W-1 downto 0);
   constant TRIG_W: integer := 9;
   signal ph_cos, ph_sin, xph_cos, xph_sin,
-    r1_cos, r1_sin, r2_cos, r2_sin: std_logic_vector(TRIG_W-1 downto 0);
+    xrot_cos, xrot_sin, derot_cos, derot_sin: std_logic_vector(TRIG_W-1 downto 0);
   signal ext_frame_atlim: std_logic := '1';
 --  signal sync_dly_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
   signal corr_out: std_logic_vector(G_CORR_MEM_D_W*4-1 downto 0);
@@ -606,14 +607,15 @@ architecture rtl of quanet_adc is
   signal proc_sel: std_logic_vector(3 downto 0);
   signal lfsr_rst_st: std_logic_vector(10 downto 0);
   signal alice_syncing, alice_txing, alice_txing_d, a_restart_search, dbg_hold,
-    phase_est_go,
+    phase_est_go, ph_vld_pre,
     phase_est_en, resync, resync_d, resync_pul, resync_i, corr_resync, txdly_sync,
     resync_causes_fullcorr,
     proc_clr_cnts, sync_ref, corr_out_tog, corr_out_w_vld: std_logic := '0';
   signal wdata_aug: std_logic_vector(7 downto 0);
   signal phase_est_latency: std_logic_vector(9 downto 0) :=
     std_logic_vector(to_unsigned(15, 10));
-  signal corr_out_w, sav_data, adc_wdata_aug: std_logic_vector(ADC_DATA_WIDTH-1 downto 0);	
+  signal qsdc_rxout_w,
+         corr_out_w, sav_data, adc_wdata_aug: std_logic_vector(ADC_DATA_WIDTH-1 downto 0);	
 
   signal axi_xfer_status_s: std_logic_vector(3 downto 0);
   signal adc_ddata_s, axi_ddata_s: std_logic_vector(AXI_DATA_WIDTH-1 downto 0);
@@ -625,16 +627,18 @@ architecture rtl of quanet_adc is
 
   constant CIPHER_LOG2M_MAX: integer := 2; -- (for now).
   constant CIPHER_LOG2M_W: integer := 2; -- (for now).
-  signal decipher_rst, decipher_en, decipher_en_d, cipher_en, cipher_en_d, 
-    decipher_go_pre, decipher_go, cipher_fifo_mt, cipher_fifo_full, corr_diff_rx_en,
-    decipher_pre, decipher_pre_d, decipher_prime, decipher_going, cipher_lfsr_rst,
+  signal decipher_rst, decipher_en, decipher_en_pre,
+    cipher_en, cipher_en_d, 
+    cipher_fifo_mt, cipher_fifo_full, corr_diff_rx_en,
+    decipher_prime, decipher_prime_d, decipher_prime_pul,
+    cipher_lfsr_rst,
     cipher_fifo_rd: std_logic := '0';
   signal cipher_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
-  signal cipher_dly_asamps: std_logic_vector(1 downto 0);
+--  signal cipher_dly_asamps: std_logic_vector(1 downto 0);
   signal cipher_log2m: std_logic_vector(CIPHER_LOG2M_W-1 downto 0);
   signal cipher_symlen_min1_asamps: std_logic_vector(G_CIPHER_SYMLEN_W-1 downto 0);
   signal cipher_body_len_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
-  signal data_len_min1_cycs, nonhdr_len_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal nonhdr_len_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
   signal cipher_rst_st: std_logic_vector(G_CIPHER_LFSR_W-1 downto 0) := G_CIPHER_RST_STATE;
   signal cipher, cipher_lfsr_data: std_logic_vector(G_CIPHER_FIFO_D_W-1 downto 0);
   
@@ -645,10 +649,18 @@ architecture rtl of quanet_adc is
   signal dbg_clk_sel: std_logic;
 
   signal rnd_trip_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
-  signal frame_go_dlyd, qsdc_rx, qsdc_track_pilots, nonhdr_vld, do_stream_cdc, derote_go,derote_en: std_logic := '0';
-  signal nonhdr_vld_v: std_logic_vector(3 downto 0) := (others=>'0');
+  signal frame_go_dlyd, qsdc_track_pilots, do_stream_cdc,
+    nonhdr_vld,  samps_dlyd_is_nonhdr, samps_xrot_is_nonhdr,  qsdc_rx_use_trans, qsdc_rx_vld, qsdc_rx_en, qsdc_rx_prime, qsdc_rx_prime_d, qsdc_rx_prime_pul,
+    derot_go,derote_en: std_logic := '0';
+  signal qsdc_data_len_min1_syms, qsdc_pos_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal qsdc_alice_symlen_min1_cycs: std_logic_vector(G_QSDC_ALICE_SYMLEN_W-1 downto 0);
+  signal qsdc_bitdur_min1_syms: std_logic_vector(G_QSDC_BITDUR_W-1 downto 0);
+  signal nonhdr_vld_v: std_logic_vector(8 downto 0) := (others=>'0');
   signal has_full_correlator: std_logic := u_if(G_OPT_GEN_CDM_CORR=0,'0','1');
   signal corr_w_same_hdr, corr_mode_cdm: std_logic;
+
+  signal qsdc_rx_out: std_logic_vector(127 downto 0);
+  
 -- synthesis translate_off
   signal adc_dwr_ctr: integer :=0;
 -- synthesis translate_on  
@@ -746,7 +758,7 @@ begin
 
  
   -- When bob rxs qsdc, he also uses frame_go_dlyd
- corr_start_slices <= frame_sync_dlyd when (sync_ref_sel_is_rxclk='1')
+  corr_start_slices <= frame_sync_dlyd when (sync_ref_sel_is_rxclk='1')
                   else (frame_sync or (frame_go_dlyd and u_b2b(sync_ref_sel=G_SYNC_REF_TXDLY)));
   hdr_corr_inst: hdr_corr
     generic map(
@@ -831,19 +843,19 @@ begin
         hdr_mag => hdr_mag,
         go      => phase_est_go,
         ph_cos  => ph_cos, -- held constant after ph_vld_pre
-        ph_sin  => ph_sin);
---      ph_vld_pre => ph_vld_pre);
+        ph_sin  => ph_sin,
+        ph_vld_pre => ph_vld_pre);
 
-   derote_go <= corr_start_slices and derote_en;
+   derot_go <= corr_start_slices and derote_en;
    phase_est_latency_ctr: duration_ctr
      generic map(
        LEN_W => 10)
      port map(
        clk      => adc_clk,
        rst      => adc_rst,
-       go_pul   => derote_go,
+       go_pul   => derot_go,
        len_min1 => phase_est_latency,
-       sig_last => nonhdr_pre);
+       sig_last => nonhdr_pre); -- should be same as ph_vld_pre.
     
    nonhdr_dur_ctr: duration_ctr
      generic map(
@@ -872,14 +884,16 @@ begin
         end loop;
         
         nonhdr_len_cycs <= u_dec(u_sub_u(frame_pd_min1(G_QSDC_FRAME_CYCS_W-1 downto 0), hdr_len_min1_cycs));
-        r1_cos <= u_if(nonhdr_vld='1', ph_cos, "01"&u_rpt('0',TRIG_W-2));
-        r1_sin <= u_if(nonhdr_vld='1', u_neg(ph_sin), u_rpt('0',TRIG_W));
-        nonhdr_vld_v <= nonhdr_vld_v(2 downto 0)&nonhdr_vld;
-        r2_cos <= u_if(nonhdr_vld_v(3)='1', xph_cos, "01"&u_rpt('0',TRIG_W-2));
-        r2_sin <= u_if(nonhdr_vld_v(3)='1', xph_sin, u_rpt('0',TRIG_W));
+
+        nonhdr_vld_v <= nonhdr_vld_v(7 downto 0)&nonhdr_vld;
+        
+        xrot_cos <= u_if(nonhdr_vld='1', xph_cos, "01"&u_rpt('0',TRIG_W-2));
+        xrot_sin <= u_if(nonhdr_vld='1', xph_sin, u_rpt('0',TRIG_W));
+
+        derot_cos <= u_if(nonhdr_vld_v(3)='1', ph_cos, "01"&u_rpt('0',TRIG_W-2));
+        derot_sin <= u_if(nonhdr_vld_v(3)='1', u_neg(ph_sin), u_rpt('0',TRIG_W));
       end if;
     end process;
-
     
     samp_delayer: samp_cyc_delayer
       generic map(
@@ -890,8 +904,10 @@ begin
         din  => samps_balanced_v,
         dly  => samps_cyc_dly,
         dout => samps_dlyd_v);
+    samps_dlyd_is_nonhdr <= nonhdr_vld_v(0); -- hi when samps_dlyd is nonhdr
+
     
-    rotate1: rotate_iq
+    xrot_rotate: rotate_iq -- "extra" constant phase rotator
       generic map(
         WORD_W => 14,
         TRIG_W => TRIG_W)
@@ -899,12 +915,13 @@ begin
         clk    => adc_clk,
         din_i  => samps_dlyd_i,
         din_q  => samps_dlyd_q,
-        ph_cos => r1_cos,
-        ph_sin => r1_sin,
-        dout_i => samps_xrot_i,
+        ph_cos => xrot_cos,
+        ph_sin => xrot_sin,
+        dout_i => samps_xrot_i, 
         dout_q => samps_xrot_q);
+    samps_xrot_is_nonhdr <= nonhdr_vld_v(4);
 
-    rotate2: rotate_iq
+    derot_rotate: rotate_iq -- derotate by pilot phase
       generic map(
         WORD_W => 14,
         TRIG_W => TRIG_W)
@@ -912,11 +929,12 @@ begin
         clk    => adc_clk,
         din_i  => samps_xrot_i,
         din_q  => samps_xrot_q,
-        ph_cos => r2_cos,
-        ph_sin => r2_sin,
+        ph_cos => derot_cos,
+        ph_sin => derot_sin,
         dout_i => samps_derot_i,
         dout_q => samps_derot_q);
-    
+    samps_derot_is_nonhdr_pre <= nonhdr_vld_v(7);
+      
   end generate gen_ph_est;
   gen_no_ph_est: if (G_OPT_GEN_PH_EST<=0) generate
     samps_derot_i <= samps_balanced_i;
@@ -925,20 +943,19 @@ begin
 
   gen_any_decipher: if ((G_OPT_GEN_DECIPHER_LFSR>0) or (G_OPT_GEN_CIPHER_FIFO>0)) generate
 
-   -- dont need this if phase_est_latency is correct and we delay from that.
-   decipher_go_pre <= decipher_pre and not decipher_pre_d;
-   decipher_dly_ctr: duration_ctr
-     generic map(
-       LEN_W => G_FRAME_PD_CYCS_W)
-     port map(
-       clk      => adc_clk,
-       rst      => '0',
-       go_pul   => decipher_go_pre,
-       len_min1 => cipher_dly_min1_cycs,
-       sig_last => decipher_go);
+--   decipher_dly_ctr: duration_ctr
+--     generic map(
+--       LEN_W => G_FRAME_PD_CYCS_W)
+--     port map(
+--       clk      => adc_clk,
+--       rst      => '0',
+--       go_pul   => decipher_go_pre,
+--       len_min1 => cipher_dly_min1_cycs,
+--       sig_last => decipher_go);
 
-    -- incomming data must be aligned (by setting samp_dly_asamps) so
+    -- incomming data must already be aligned (by setting samp_dly_asamps) so
     -- the first sample to decipher is sample 0 of the four samps in samp_derot
+    decipher_en_pre <= decipher_prime and samps_derot_is_nonhdr_pre;
     decipher_i: decipher
       generic map(
         M_MAX     => 4,
@@ -948,41 +965,33 @@ begin
         FRAME_PD_W => G_QSDC_FRAME_CYCS_W,
         CIPHER_W   => G_CIPHER_FIFO_D_W)
       port map(
-        clk    => adc_clk,
-        prime  => decipher_prime,
-        go     => decipher_go,
-        en     => decipher_going,
-        frame_pd_cycs_min1 => frame_pd_min1(G_QSDC_FRAME_CYCS_W-1 downto 0),
-        ii     => samps_derot_i,
-        iq     => samps_derot_q,
-        dly_asamps => cipher_dly_asamps,
+        clk        => adc_clk,
+        prime      => decipher_prime_pul,
+        en_pre     => decipher_en_pre,
+        ii         => samps_derot_i,
+        iq         => samps_derot_q,
         symlen_min1_asamps => cipher_symlen_min1_asamps,
-        body_len_min1_cycs => cipher_body_len_min1_cycs,
-        log2m  => cipher_log2m, -- the modulation used
+        log2m     => cipher_log2m, -- the modulation used
         cipher_rd => cipher_fifo_rd,
-        cipher => cipher,
-        o_vld  => deciph_vld,
-        oi     => samps_deciph_i,
-        oq     => samps_deciph_q);
+        cipher    => cipher,
+        o_vld     => samps_deciph_is_nonhdr,
+        oi        => samps_deciph_i,
+        oq        => samps_deciph_q);
    
     process(adc_clk)
     begin
       if (rising_edge(adc_clk)) then
-        decipher_pre <= txrx_en and decipher_en and (dac_tx_in_adc or decipher_pre);
-        decipher_pre_d <= decipher_pre;
+        decipher_prime     <= txrx_en and decipher_en and (frame_go_dlyd or decipher_prime);
+        decipher_prime_d   <= decipher_prime;
+        decipher_prime_pul <= decipher_prime and not decipher_prime_d;
         
         -- goes high the first time cipher fifo has something in it
         cipher_en_d   <= cipher_en;
         
-        decipher_en_d <= decipher_en;
-        
-        decipher_going <= (decipher_go or decipher_going)
-                            and decipher_en;
       end if;
     end process;
    
     decipher_rst   <= not decipher_en;
-    decipher_prime <= decipher_en and not decipher_en_d;
 
   end generate gen_any_decipher;
   
@@ -1044,6 +1053,41 @@ begin
   end generate gen_no_decipher;
 
 
+  qsdc_rx_prime_pul <= qsdc_rx_prime and not qsdc_rx_prime_d;
+  qsdrx: qsdc_rx
+    generic map(
+      SAMP_W   => G_ADC_SAMP_W,
+      SYMLEN_W => G_QSDC_ALICE_SYMLEN_W, -- 4
+      CSYMLEN_W => G_CIPHER_SYMLEN_W,
+      FRAME_W  => G_QSDC_FRAME_CYCS_W, -- 10
+      CODE_W   => G_QSDC_BITCODE'length, -- 10 bits
+      BITDUR_W => G_QSDC_BITDUR_W, -- 11 = max is 2^11 * 2^asymlen samps
+      SUM_W    => G_QSDC_SUM_W) -- 24
+    port map(
+      clk   => adc_clk,
+      code                    => G_QSDC_BITCODE,
+      use_transitions         => qsdc_rx_use_trans,
+      qsdc_pos_min1_cycs      => qsdc_pos_min1_cycs, -- offset from start of frame
+      qsdc_data_len_min1_syms => qsdc_data_len_min1_syms, -- syms per frame
+      alice_symlen_min1_cycs  => qsdc_alice_symlen_min1_cycs,
+      cipher_symlen_min1_asamps => cipher_symlen_min1_asamps,
+      qsdc_bitdur_min1_syms   => qsdc_bitdur_min1_syms, -- syms per bit
+
+      -- The priming pulse indicates the start of the first bit.
+      -- It may be simultaneous with frame_start but not after it.
+      -- It does not happen before every frame.
+      -- It may not happen during any preceeding data_vld
+      prime_pul   => qsdc_rx_prime_pul,
+      
+      frame_start => samps_deciph_is_nonhdr, -- WRONG
+      ii          => samps_deciph_i,
+      qq          => samps_deciph_q,
+      
+      dout_vld  => qsdc_rx_vld,
+      dout      => qsdc_rx_out);
+
+
+ 
   
   axi_rst <= not s_axi_aresetn;
 
@@ -1130,8 +1174,9 @@ begin
   areg_r(AREG_REBALO) <= areg_rebalo_r;
   areg_r(AREG_CIPHER) <= areg_cipher_r;
   areg_r(AREG_CIPHER2) <= areg_cipher_r;
-  areg_r(AREG_DBG)    <= areg_dbg_r;
-  areg_r(AREG_QSDC)   <= areg_qsdc_r;
+  areg_r(AREG_DBG)     <= areg_dbg_r;
+  areg_r(AREG_QSDC)    <= areg_qsdc_r;
+  areg_r(AREG_QSDC2)   <= areg_qsdc2_r;
 
   -- pctl
   -- fields are kept in processor clock domain
@@ -1161,7 +1206,7 @@ begin
   resync_causes_fullcorr <= areg_actl_w(27);
   corr_mode_cdm   <= areg_actl_w(28); -- corr w same hdr
   tx_go_cond      <= areg_actl_w(30 downto 29);
-   
+  rx_en           <= areg_actl_w(31); -- I want to phase out txrx
   -- reg stat
   areg_stat_r(31 downto 31) <= (others=>'0');
   areg_stat_r(30) <= synchro_lor;  -- no ref within 256 frames
@@ -1232,11 +1277,18 @@ begin
   -- reg qsdc
   areg_qsdc_r <= areg_w(AREG_QSDC);
   areg_qsdc_w <= areg_w_adc(AREG_QSDC);
-  qsdc_track_pilots <= areg_qsdc_w(26); -- for qsdc
---  qsdc_rx           <= areg_qsdc_w(25);
+  qsdc_rx_en         <= areg_qsdc_w(26); -- changes DMA mux
+  qsdc_rx_use_trans  <= areg_qsdc_w(25);
+  qsdc_track_pilots  <= areg_qsdc_w(24); -- for qsdc
    -- This is 24 bits wide:
-  rnd_trip_dly_min1_cycs <= areg_qsdc_w(G_FRAME_PD_CYCS_W-1 downto 0); 
- 
+  rnd_trip_dly_min1_cycs <= areg_qsdc_w(G_FRAME_PD_CYCS_W-1 downto 0);  
+
+  areg_qsdc2_r <= areg_w(AREG_QSDC2);
+  areg_qsdc2_w <= areg_w_adc(AREG_QSDC2);
+  qsdc_pos_min1_cycs          <= areg_qsdc2_w( 9 downto 0); -- offset of data from start of frame 
+  qsdc_alice_symlen_min1_cycs <= areg_qsdc2_w(13 downto 10); -- len of alice's syms
+  qsdc_bitdur_min1_syms       <= areg_qsdc2_w(24 downto 14); -- total duration of a bit
+   
   -- reg cipher
   areg_cipher_r <= areg_w(AREG_CIPHER);
   areg_cipher_w <= areg_w_adc(AREG_CIPHER);
@@ -1248,14 +1300,14 @@ begin
 
   areg_cipher2_r <= areg_w(AREG_CIPHER2);
   areg_cipher2_w <= areg_w_adc(AREG_CIPHER2);
-  cipher_dly_min1_cycs <= areg_cipher2_w(G_FRAME_PD_CYCS_W-1 downto 0); -- 23:0
-  cipher_dly_asamps    <= areg_cipher2_w(31 downto 30);
+--  cipher_dly_min1_cycs <= areg_cipher2_w(G_FRAME_PD_CYCS_W-1 downto 0); -- 23:0
+--  cipher_dly_asamps    <= areg_cipher2_w(31 downto 30);
   
 
   -- reg ctl2
   areg_ctl2_r <= areg_w(AREG_CTL2);
   areg_ctl2_w <= areg_w_adc(AREG_CTL2);
-  data_len_min1_cycs       <= areg_ctl2_w(9 downto 0);
+  qsdc_data_len_min1_syms  <= areg_ctl2_w(9 downto 0);
   ext_frame_pd_min1_cycs   <= areg_ctl2_w(19 downto 10);
   frame_dly_min1_cycs      <= areg_ctl2_w(29 downto 20);
  
@@ -1455,9 +1507,10 @@ begin
               else pwr_event_iso when (sync_ref_sel=G_SYNC_REF_PWR)
               else hdr_sync;
 
- resync_i <= resync_pul
+  resync_i <= resync_pul
              or (search_en and not search_en_d)
-             or (u_b2b(sync_ref_sel=G_SYNC_REF_RXCLK) and sfp_rxclk_vld_adc and not sfp_rxclk_vld_adc_d);
+             or (u_b2b(sync_ref_sel=G_SYNC_REF_RXCLK) and sfp_rxclk_vld_adc and not sfp_rxclk_vld_adc_d)
+             or (u_b2b(sync_ref_sel=G_SYNC_REF_TXDLY) and (txrx_en and not txrx_en_d));
   corr_resync <= sync_ref_corr and resync_pul and resync_causes_fullcorr;
   synchronizer_i: synchronizer
     generic map(
@@ -1549,7 +1602,7 @@ begin
 
       -- For now we begin hdr_corr search when software says.
       -- If saving to the host (txrx_en) we wait for the buffer to be avail.
-      search_en <= search and (not txrx_en or rxbuf_exists);
+      search_en <= search and ((not txrx_en and not rx_en) or rxbuf_exists);
       search_en_d <= search_en;
       
       -- In CDR or CDMA want the ADC to start capturing data simultaneously
@@ -1561,7 +1614,7 @@ begin
       -- and keep taking samples.  This is in case software can't keep up,
       -- in which case we keep cramming data into the DDR so we don't
       -- loose any consecutive data.
-      save_go <= txrx_en and
+      save_go <= (txrx_en or rx_en) and
                  (   (    dma_xfer_req_inadc_d
                       and u_if(save_after_hdr='1',  hdr_det,
                           u_if(save_after_pwr='1',  hdr_pwr_det,
@@ -1569,6 +1622,12 @@ begin
                                                     dac_tx_in_adc))))
                   or save_go );
       save_go_d <= save_go;
+
+      
+      txrx_en_d <= txrx_en;
+
+      qsdc_rx_prime   <= (rx_en or txrx_en) and qsdc_rx_en;
+      qsdc_rx_prime_d <= qsdc_rx_prime;
       
       noise_ctr_go <= meas_noise and save_go;
       if ((not noise_ctr_go or noise_ctr_is0)='1') then
@@ -1629,9 +1688,11 @@ begin
     adc_wdata_aug(k*32+16+15)                <= wdata_aug(k*2+1);
   end generate gen_out;
   
-  sav_data <= adc_wdata_aug when (corrstart='0')
-              else corr_out_w;
-  sav_data_wr <= save_go and u_if((corrstart='0'), adc_wr, corr_out_w_vld);
+  sav_data <=     qsdc_rx_out when (qsdc_rx_en='1')
+             else corr_out_w when (corrstart='1')
+             else adc_wdata_aug;
+  sav_data_wr <= save_go and u_if(qsdc_rx_en='1', qsdc_rx_vld,
+                                u_if(corrstart='1', corr_out_w_vld, adc_wr));
 
   -- This widens the data from "adc" width (16*2*4=128) to "axi" width (512).
   -- data does not cross from adc clk domain to axi (to the ddr) clk domain

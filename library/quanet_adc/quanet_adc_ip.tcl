@@ -46,6 +46,7 @@ adi_ip_files quanet_adc [list \
   "rebalancer.vhd" \
   "phase_est.vhd" \
   "decipher.vhd" \
+  "qsdc_rx.vhd" \
   "div.vhd" \
   "rom_inf.vhd" \
   "rotate_iq.vhd" \

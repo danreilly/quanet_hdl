@@ -26,12 +26,12 @@ package qsdc_rx_pkg is
       qsdc_bitdur_min1_syms   : in std_logic_vector(BITDUR_W-1 downto 0);
 
       -- The priming pulse indicates the start of the first bit.
-      -- It may be simultaneous with frame_start but not after it.
+      -- It may be simultaneous with iq_is_nonhdr but not after it.
       -- It does not happen before every frame.
       -- It may not happen during any preceeding data_vld
       prime_pul   : in std_logic;
       
-      frame_start : in std_logic;
+      iq_is_nonhdr : in std_logic;
       ii          : in g_adc_samp_array_t;
       qq          : in g_adc_samp_array_t;
       
@@ -66,12 +66,12 @@ entity qsdc_rx is
     qsdc_bitdur_min1_syms : in std_logic_vector(BITDUR_W-1 downto 0); -- 3
 
     -- The priming pulse indicates the start of the first bit.
-    -- It may be simultaneous with frame_start but not after it.
+    -- It may be simultaneous with iq_is_nonhdr but not after it.
     -- It does not happen before every frame.
     -- It may not happen during any preceeding data_vld
     prime_pul   : in std_logic;
     
-    frame_start : in std_logic;
+    iq_is_nonhdr : in std_logic;
     ii          : in g_adc_samp_array_t;
     qq          : in g_adc_samp_array_t;
     
@@ -106,13 +106,13 @@ architecture struct of qsdc_rx is
   signal shout_ctr: std_logic_vector(1 downto 0):= (others=>'0');
 begin
 
-  frame_start_dly_ctr: duration_ctr
+  iq_is_nonhdr_dly_ctr: duration_ctr
      generic map (
        LEN_W => G_QSDC_FRAME_CYCS_W)
      port map(
        clk      => clk,
        rst      => '0',
-       go_pul   => frame_start,
+       go_pul   => iq_is_nonhdr,
        len_min1 => qsdc_pos_min1_cycs,
        sig_last => data_start);
 

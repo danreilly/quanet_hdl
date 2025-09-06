@@ -1056,15 +1056,15 @@ begin
   qsdc_rx_prime_pul <= qsdc_rx_prime and not qsdc_rx_prime_d;
   qsdrx: qsdc_rx
     generic map(
-      SAMP_W   => G_ADC_SAMP_W,
-      SYMLEN_W => G_QSDC_ALICE_SYMLEN_W, -- 4
+      SAMP_W    => G_ADC_SAMP_W,
+      SYMLEN_W  => G_QSDC_ALICE_SYMLEN_W, -- 4
       CSYMLEN_W => G_CIPHER_SYMLEN_W,
-      FRAME_W  => G_QSDC_FRAME_CYCS_W, -- 10
-      CODE_W   => G_QSDC_BITCODE'length, -- 10 bits
-      BITDUR_W => G_QSDC_BITDUR_W, -- 11 = max is 2^11 * 2^asymlen samps
-      SUM_W    => G_QSDC_SUM_W) -- 24
+      FRAME_W   => G_QSDC_FRAME_CYCS_W, -- 10
+      CODE_W    => G_QSDC_BITCODE'length, -- 10 bits
+      BITDUR_W  => G_QSDC_BITDUR_W, -- 11 = max is 2^11 * 2^asymlen samps
+      SUM_W     => G_QSDC_SUM_W) -- 24
     port map(
-      clk   => adc_clk,
+      clk                     => adc_clk,
       code                    => G_QSDC_BITCODE,
       use_transitions         => qsdc_rx_use_trans,
       qsdc_pos_min1_cycs      => qsdc_pos_min1_cycs, -- offset from start of frame
@@ -1079,9 +1079,9 @@ begin
       -- It may not happen during any preceeding data_vld
       prime_pul   => qsdc_rx_prime_pul,
       
-      frame_start => samps_deciph_is_nonhdr, -- WRONG
-      ii          => samps_deciph_i,
-      qq          => samps_deciph_q,
+      iq_is_nonhdr => samps_deciph_is_nonhdr,
+      ii           => samps_deciph_i,
+      qq           => samps_deciph_q,
       
       dout_vld  => qsdc_rx_vld,
       dout      => qsdc_rx_out);

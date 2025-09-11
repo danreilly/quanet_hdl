@@ -284,7 +284,7 @@ if {$sys_zynq == 0 || $sys_zynq == 1 || $sys_zynq == 2 } {
 
 }
 
-puts "Quanet connections1"
+puts "quanet connections1"
 # dac_xfer_out_port not used anymore
 # create_bd_port -dir O dac_xfer_out_port
 create_bd_port -dir O ser0_tx
@@ -334,7 +334,7 @@ ad_connect  gth_rst     $dac_fifo_name/gth_rst
 
 # puts "type [ad_connect_int_class led0]"
 # puts "tst [get_bd_ports led0]"
-puts "dans connections"
+puts "quanet connections"
 ad_connect  util_daq3_xcvr/rx_out_clk_0 axi_ad9680_cpack/clk
 ad_connect  axi_ad9680_jesd_rstgen/peripheral_reset axi_ad9680_cpack/reset
 

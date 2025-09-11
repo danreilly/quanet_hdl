@@ -432,7 +432,7 @@ architecture rtl of quanet_dac is
 
 --  signal frame_dly_asamps_min1: std_logic_vector(1 downto 0);
 --  signal frame_dly_cycs_min1: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
-  signal frame_sync_dlyd, alice_pm_invert: std_logic; -- used by alice
+  signal alice_pm_invert: std_logic; -- used by alice
 
   signal dma_lastvld: std_logic;
   signal dma_last_cnt, dma_lastvld_cnt: std_logic_vector(2 downto 0);
@@ -705,16 +705,6 @@ begin
   reg_dbg_r(2) <= ser_saw_xoff_timo;
   reg_dbg_r(1) <= ser_parity_err;
   reg_dbg_r(0) <= ser_frame_err;
-
---  frame_sync_dly: duration_ctr
---     generic map (
---       LEN_W => G_QSDC_FRAME_CYCS_W)
---     port map(
---       clk      => dac_clk,
---       rst      => '0',
---       go_pul   => frame_sync_in,
---       len_min1 => frame_dly_cycs_min1,
---       sig_last => frame_sync_dlyd);
 
   frame_ctl_i: frame_ctl
     generic map(

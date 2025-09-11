@@ -1,7 +1,7 @@
 // h_vhdl_extract.h
 // hardware access constants
 // This file was automatically generated
-// by Register Extractor (ver 4.14) on Sat Sep  6 13:55:20 2025
+// by Register Extractor (ver 4.14) on Sat Sep  6 17:06:06 2025
 // compile version Mon Jun 16 10:25:20 2025
 // current dir:  C:\reilly\proj\quanet\quanet_hdl\projects\quanet\zcu106
 // DO NOT MODIFY THIS FILE!
@@ -18,7 +18,7 @@
 // version constants
 #define H_VHDL_EXTRACT_VER (4)
 #define H_VHDL_EXTRACT_SUBVER (14)
-#define H_VHDL_EXTRACT_DATE "Sat Sep  6 13:55:20 2025"
+#define H_VHDL_EXTRACT_DATE "Sat Sep  6 17:06:06 2025"
 #define H_VHDL_EXTRACT_DIR "C:\reilly\proj\quanet\quanet_hdl\projects\quanet\zcu106"
 
 
@@ -381,10 +381,8 @@
 
 #define H_ADC_CIPHER2                           0x1000d000  /* 13 */
 #define H_ADC_CIPHER2_AREG_W                    0x1000d400  /* 0xffffffff  r  */
-#define H_ADC_CIPHER2_CIPHER_DLY_MIN1_CYCS      0x1000d300  /* 0x00ffffff   w -- 23:0 */
-#define H_ADC_CIPHER2_CIPHER_DLY_ASAMPS         0x1000d05e  /* 0xc0000000   w */
                                        // r 0xffffffff
-                                       // w 0xc0ffffff
+                                       // w 0x00000000
 
 #define H_ADC_QSDC                              0x1000e000  /* 14 */
 #define H_ADC_QSDC_AREG_W                       0x1000e400  /* 0xffffffff  r  */

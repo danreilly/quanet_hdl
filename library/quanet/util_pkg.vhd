@@ -617,7 +617,7 @@ package body util_pkg is
   function u_clip_s(v: std_logic_vector; w: integer)
     return std_logic_vector is
     variable vv: std_logic_vector(v'length-1 downto 0) := v;
-    variable msbs: std_logic_vector(v'length-w-1 downto 0);
+    variable msbs: std_logic_vector(v'length-w downto 0);
   -- Clip signed value to new shorter width    
   -- For example, with v of 8 bits and w=4
   --   11111abc -> 1abc
@@ -625,7 +625,7 @@ package body util_pkg is
   --   11110abc -> 1000    
   --   00100abc -> 0111
   begin
-    msbs := vv(v'length-1 downto w);
+    msbs := vv(v'length-1 downto w-1);
     if (v'length<=w) then
       return u_extl_s(v, w);
     elsif (u_or(msbs)='0') then
@@ -633,7 +633,7 @@ package body util_pkg is
     elsif (u_and(msbs)='1') then
       return '1'&vv(w-2 downto 0);
     else
-      return v(v'left)&u_rpt(not v(v'left), w-1);
+      return vv(vv'left)&u_rpt(not vv(vv'left), w-1);
     end if;
   end function u_clip_s;
 

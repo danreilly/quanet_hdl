@@ -421,17 +421,18 @@ proc adi_project_files {project_name project_files} {
 	    
 	  file mkdir $project_name.srcs/sources_1/ip/$ipname
 	  file mkdir $project_name.gen/sources_1/ip
+	  file delete -force $project_name.gen/sources_1/ip/$ipname
 	  
 	  # Still not sure which is best to use.
-	  puts "will copy xci and pre-generated files"
-#	  file copy -force $ipname/$ipname.xci $project_name.gen/sources_1/ip/$ipname
+	  puts "quanet: will copy xci and pre-generated files"
+#            file copy -force $ipname/$ipname.xci $project_name.gen/sources_1/ip/$ipname
 	  file copy -force ip/$ipname/$ipname     $project_name.gen/sources_1/ip
 	  puts "dbg2"
 	  file copy -force ip/$ipname/$ipname.xci $project_name.srcs/sources_1/ip/$ipname
         # file copy -force $pname/$ipname.xml $project_name.srcs/sources_1/ip/$ipname
-	  puts "copied files"
+	  puts "quanet: copied files"
 	  add_files -norecurse -fileset sources_1 $project_name.srcs/sources_1/ip/$ipname/$ipname.xci
-	  puts "done adding xci"
+	  puts "quanet: done adding xci"
 #	  import_files -norecurse -fileset sources_1 $pname/$ipname.xci
 	  
 #	  puts "reading xci"

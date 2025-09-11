@@ -45,14 +45,14 @@ set /p FWVER=<fwver.txt
 echo fwver is %FWVER%
 
 
-git rev-parse HEAD > gitrev.txt
-set /p GITREV=<gitrev.txt
-rem call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT.BIN
-call :cp BOOT.BIN            ..\latest
+rem git rev-parse HEAD > gitrev.txt
+rem set /p GITREV=<gitrev.txt
+
+rem latest is excluded from the git repo
+call :cp BOOT.BIN                                                ..\latest
 call :cp ..\%PROJ%.runs\impl_1\system_top_utilization_placed.rpt ..\latest
 call :cp ..\%PROJ%.runs\impl_1\system_top_io_placed.rpt          ..\latest
-call :cp ..\h_vhdl_extract.h ..\latest
-rem call :cp BOOT.BIN            ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT_fwver%FWVER%.BIN
+call :cp ..\h_vhdl_extract.h                                     ..\latest
 
 cd ..
 

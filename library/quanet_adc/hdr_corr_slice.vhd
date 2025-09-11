@@ -132,12 +132,13 @@ begin
     -- each delayed one sample after its predecessor
 --    hdr_a(d)   <=   hdr_in(3-d downto 0) & hdr_in_d(3 downto 4-d);
 
-    gen_per_ss: for k in 0 to 3 generate -- d = delay in samples
+    gen_per_ss: for k in 0 to 3 generate
     begin -- for view in sim
       din_i_a(d*4+k) <= samps_a(d)((k*2+1)*SAMP_W-1 downto     k*2*SAMP_W);
       din_q_a(d*4+k) <= samps_a(d)((k*2+2)*SAMP_W-1 downto (k*2+1)*SAMP_W);
     end generate gen_per_ss;
-      
+
+    -- The four sub0-cycle samples in this cycle, for each of i and q
     ddat_i_a(d) <=   din_i_a(d*4+3)--(7*SAMP_W-1 downto 6*SAMP_W)
                    & din_i_a(d*4+2)--(5*SAMP_W-1 downto 4*SAMP_W)
                    & din_i_a(d*4+1)--(3*SAMP_W-1 downto 2*SAMP_W)

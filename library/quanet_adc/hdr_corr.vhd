@@ -297,7 +297,6 @@ architecture struct of hdr_corr is
   -- The samples are reduced by some sort of AGC mechanism (not made yet)  
 
   signal sampred_i, sampred_q: g_reduced_samp_array_t;
-
   
   -- Then delayed so pwr-based detector has time to work.
   type sampreddly_a_t is array(0 to SAMP_DLY-1) of g_reduced_samp_array_t;

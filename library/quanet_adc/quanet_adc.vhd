@@ -71,7 +71,7 @@ package quanet_adc_pkg is
       dac_clk             : in  std_logic;
       tx_commence         : out std_logic; -- once hi, stays hi till tear-down
       frame_sync_o        : out std_logic;
-      dac_tx_in           : in  std_logic; -- dac txes first pilot of cdc or qssc
+      dac_tx_in           : in  std_logic; -- dac txes first pilot of cdm or qssc
       sfp_rxclk_in        : in  std_logic; -- dac is ready
       sfp_rxclk_vld       : in  std_logic; -- dac is ready
       
@@ -504,7 +504,7 @@ architecture rtl of quanet_adc is
   end component;    
   
   signal meas_noise, meas_noise_adc, dma_xfer_req_rc, dma_xfer_req_inadc, dma_xfer_req_inadc_d, s_axi_rst, axi_rst,
-    rx_en, txrx_en, txrx_en_d, txrx_en_n: std_logic := '0';
+    rx_en, tx_en, tx_en_n, tx_en_d: std_logic := '0';
   signal
     areg_actl_w, areg_actl_r,
     areg_pctl_w, areg_pctl_r,
@@ -524,16 +524,17 @@ architecture rtl of quanet_adc is
     areg_cipher2_w, areg_cipher2_r,
     areg_sync_w, areg_sync_r: std_logic_vector(31 downto 0);
 
-  signal noise_ctr_en, rxq_sw_ctl_i, dma_xfer_req_d, xfer_req_event, dma_flush, dma_flush_rc, dma_flush_n,
-    dma_wr_i,
+  signal noise_ctr_en, rxq_sw_ctl_i, dma_xfer_req_d, xfer_req_event, dma_flush,
+    dma_flush_rc, dma_flush_n, dma_wr_i,
     dma_wready_d, dma_wready_pulse: std_logic := '0';
   signal noise_ctr_go: std_logic := '0';
   signal noise_ctr_is0, noise_trig: std_logic:='0';
   signal noise_ctr: std_logic_vector(10 downto 0) := (others=>'0');
   signal dac_tx_in_adc, dac_tx_in_changed: std_logic;
 
-  signal adc_xfer_req_m: std_logic_vector(2 downto 0) := (others=>'0');
-  signal adc_xfer_req, adc_xfer_req_d, adc_dwr: std_logic := '0';
+--  signal adc_xfer_req_m: std_logic_vector(2 downto 0) := (others=>'0');
+--  signal adc_xfer_req, adc_xfer_req_d
+  signal adc_dwr: std_logic := '0';
   signal save_go, save_go_d, ddr_fifo_rst, save_go_pulse, adc_rst_d, adc_rst_pulse, adc_rst_axi: std_logic := '0';
   signal clr_ctrs, save_go_dma: std_logic;
 
@@ -557,7 +558,7 @@ architecture rtl of quanet_adc is
   signal ext_frame_pd_min1_cycs, ext_frame_pd_min2_cycs,
     ext_frame_pd_min2_cycs_rc: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
   signal frame_dly_min1_cycs, tx_dly_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);  
-  signal ext_frame_pd_is1, frame_sync_dlyd, frame_tx_sync: std_logic;
+  signal frame_dly_is0, frame_dly_out, frame_dly_go, ext_frame_pd_is1, frame_sync_dlyd, frame_tx_sync: std_logic;
   signal ext_frame_ctr: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0) := (others=>'0');
   
   signal frame_pd_min1, ref_frame_ctr, ref_frame_dur, ref_frame_dur_pre: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
@@ -576,7 +577,8 @@ architecture rtl of quanet_adc is
   signal samps_dlyd: std_logic_vector(ADC_DATA_WIDTH-1 downto 0);
   signal samps_in_i, samps_in_q: g_adc_samp_array_t;
   signal samps_derot_i, samps_derot_q, samps_xrot_i, samps_xrot_q: g_adc_samp_array_t;
-  signal samps_derot_is_nonhdr_pre: std_logic;
+  signal samps_derot_is_nonhdr_pre, samps_derot_is_nonhdr,
+    samps_deciph_is_nonhdr, samps_deciph_is_nonhdr_dbg: std_logic;
   signal samps_deciph_i, samps_deciph_q: g_adc_samp_array_t;
   signal samps_balanced_i, samps_balanced_q, samps_balanced_i_d, samps_balanced_q_d,
     samps_diffed_i, samps_diffed_q: g_adc_samp_array_t;
@@ -587,9 +589,10 @@ architecture rtl of quanet_adc is
   
   signal hdr_subcyc: std_logic_vector(1 downto 0);
   signal save_after_init, save_after_pwr, save_after_hdr,
-    pwr_event_iso, saw_pwr_event, samps_deciph_is_nonhdr,
+    pwr_event_iso, saw_pwr_event,  rx_rdy,
     hdr_det, saw_hdr_det, rxbuf_exists, rxbuf_exists_aclk, rxbuf_exists_d, rxbuf_exists_pul,
-    ext_frame_ref, tx_commence_d, tx_commence_pulse, tx_commence_i, tx_commence_aclk,
+    ext_frame_ref, tx_commence_o, rx_commence,
+    tx_commence_d, tx_commence_pulse, tx_commence_i, tx_commence_aclk,
     synchro_lock, synchro_lor, synchro_resyncing, synchro_resyncing_adc_clk,
     saw_sync_ool, clr_saw_sync_ool,
     hdr_pwr_det, dbg_met_init, dbg_framer_going,
@@ -633,7 +636,7 @@ architecture rtl of quanet_adc is
     decipher_prime, decipher_prime_d, decipher_prime_pul,
     cipher_lfsr_rst,
     cipher_fifo_rd: std_logic := '0';
-  signal cipher_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
+--  signal cipher_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
 --  signal cipher_dly_asamps: std_logic_vector(1 downto 0);
   signal cipher_log2m: std_logic_vector(CIPHER_LOG2M_W-1 downto 0);
   signal cipher_symlen_min1_asamps: std_logic_vector(G_CIPHER_SYMLEN_W-1 downto 0);
@@ -649,10 +652,11 @@ architecture rtl of quanet_adc is
   signal dbg_clk_sel: std_logic;
 
   signal rnd_trip_dly_min1_cycs: std_logic_vector(G_FRAME_PD_CYCS_W-1 downto 0);
-  signal frame_go_dlyd, qsdc_track_pilots, do_stream_cdc,
+  signal frame_go_dlyd, qsdc_track_pilots, do_stream_cdm,
     nonhdr_vld,  samps_dlyd_is_nonhdr, samps_xrot_is_nonhdr,  qsdc_rx_use_trans, qsdc_rx_vld, qsdc_rx_en, qsdc_rx_prime, qsdc_rx_prime_d, qsdc_rx_prime_pul,
     derot_go,derote_en: std_logic := '0';
-  signal qsdc_data_len_min1_syms, qsdc_pos_min1_cycs: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal qsdc_data_len_min1_syms: std_logic_vector(G_QSDC_FRAME_CYCS_W-1 downto 0);
+  signal qsdc_guard_len_min1_cycs: std_logic_vector(7 downto 0);
   signal qsdc_alice_symlen_min1_cycs: std_logic_vector(G_QSDC_ALICE_SYMLEN_W-1 downto 0);
   signal qsdc_bitdur_min1_syms: std_logic_vector(G_QSDC_BITDUR_W-1 downto 0);
   signal nonhdr_vld_v: std_logic_vector(8 downto 0) := (others=>'0');
@@ -733,16 +737,21 @@ begin
 
 
   -- This one is to line up (recovered) frame sync
-  -- with frames coming into alice
+  -- with frames coming into alice.
+  -- When alice syncs to rxed pilots, the frame dly is zero.
+  -- TODO: rename as sync2rx
+  frame_dly_go <= frame_sync and not frame_dly_is0;
   frame_sync_dly_ctr: duration_ctr
      generic map (
        LEN_W => G_QSDC_FRAME_CYCS_W)
      port map(
        clk      => adc_clk,
        rst      => '0',
-       go_pul   => frame_sync,
+       go_pul   => frame_dly_go,
        len_min1 => frame_dly_min1_cycs,
-       sig_last => frame_sync_dlyd);
+       sig_last => frame_dly_out);
+  frame_sync_dlyd <= frame_sync when (frame_dly_is0='1')
+                    else frame_dly_out;
 
   -- This one to set alice's TX insertions at the right time.
   -- Has little to no effect on Bob.
@@ -776,7 +785,6 @@ begin
       clk                => adc_clk,
       rst                => adc_rst,
       qsdc_track_en      => qsdc_track_pilots,
---      frame_go_dlyd      => frame_go_dlyd,
       osamp_min1         => osamp_min1,
       corr_diff_rx_en    => corr_diff_rx_en,
       corr_mode_cdm      => corr_mode_cdm,
@@ -786,7 +794,7 @@ begin
       search             => search_en,
       search_restart     => a_restart_search,
       dbg_hold           => dbg_hold,
-      do_stream          => do_stream_cdc,
+      do_stream          => do_stream_cdm,
 --      alice_syncing      => alice_syncing,
       alice_txing        => alice_txing,
       corr_w_same_hdr    => corr_w_same_hdr,
@@ -943,16 +951,6 @@ begin
 
   gen_any_decipher: if ((G_OPT_GEN_DECIPHER_LFSR>0) or (G_OPT_GEN_CIPHER_FIFO>0)) generate
 
---   decipher_dly_ctr: duration_ctr
---     generic map(
---       LEN_W => G_FRAME_PD_CYCS_W)
---     port map(
---       clk      => adc_clk,
---       rst      => '0',
---       go_pul   => decipher_go_pre,
---       len_min1 => cipher_dly_min1_cycs,
---       sig_last => decipher_go);
-
     -- incomming data must already be aligned (by setting samp_dly_asamps) so
     -- the first sample to decipher is sample 0 of the four samps in samp_derot
     decipher_en_pre <= decipher_prime and samps_derot_is_nonhdr_pre;
@@ -974,14 +972,18 @@ begin
         log2m     => cipher_log2m, -- the modulation used
         cipher_rd => cipher_fifo_rd,
         cipher    => cipher,
-        o_vld     => samps_deciph_is_nonhdr,
+        o_vld     => samps_deciph_is_nonhdr_dbg,
         oi        => samps_deciph_i,
         oq        => samps_deciph_q);
    
     process(adc_clk)
     begin
       if (rising_edge(adc_clk)) then
-        decipher_prime     <= txrx_en and decipher_en and (frame_go_dlyd or decipher_prime);
+        samps_derot_is_nonhdr  <= samps_derot_is_nonhdr_pre;
+        samps_deciph_is_nonhdr <= samps_derot_is_nonhdr and rx_en;
+        
+        decipher_prime     <= rx_en and decipher_en
+                              and (frame_go_dlyd or decipher_prime);
         decipher_prime_d   <= decipher_prime;
         decipher_prime_pul <= decipher_prime and not decipher_prime_d;
         
@@ -1060,6 +1062,7 @@ begin
       SYMLEN_W  => G_QSDC_ALICE_SYMLEN_W, -- 4
       CSYMLEN_W => G_CIPHER_SYMLEN_W,
       FRAME_W   => G_QSDC_FRAME_CYCS_W, -- 10
+      GUARD_W   => 8,
       CODE_W    => G_QSDC_BITCODE'length, -- 10 bits
       BITDUR_W  => G_QSDC_BITDUR_W, -- 11 = max is 2^11 * 2^asymlen samps
       SUM_W     => G_QSDC_SUM_W) -- 24
@@ -1067,8 +1070,8 @@ begin
       clk                     => adc_clk,
       code                    => G_QSDC_BITCODE,
       use_transitions         => qsdc_rx_use_trans,
-      qsdc_pos_min1_cycs      => qsdc_pos_min1_cycs, -- offset from start of frame
-      qsdc_data_len_min1_syms => qsdc_data_len_min1_syms, -- syms per frame
+      guard_len_min1_cycs     => qsdc_guard_len_min1_cycs,  -- offset from end of hdr
+      data_len_min1_syms      => qsdc_data_len_min1_syms, -- syms per frame
       alice_symlen_min1_cycs  => qsdc_alice_symlen_min1_cycs,
       cipher_symlen_min1_asamps => cipher_symlen_min1_asamps,
       qsdc_bitdur_min1_syms   => qsdc_bitdur_min1_syms, -- syms per bit
@@ -1190,7 +1193,7 @@ begin
   areg_actl_w <= areg_w_adc(AREG_ACTL);
   areg_actl_r    <= areg_w(AREG_ACTL);
   meas_noise     <= areg_actl_w(1);
-  txrx_en        <= areg_actl_w(2);
+  tx_en          <= areg_actl_w(2);
   save_after_pwr <= areg_actl_w(3);
   osamp_min1      <= areg_actl_w(5 downto 4);
   search          <= areg_actl_w(6);
@@ -1202,7 +1205,7 @@ begin
   phase_est_en    <= areg_actl_w(23);
   resync          <= areg_actl_w(24);
   decipher_en     <= areg_actl_w(25);
-  do_stream_cdc   <= areg_actl_w(26);
+  do_stream_cdm   <= areg_actl_w(26);
   resync_causes_fullcorr <= areg_actl_w(27);
   corr_mode_cdm   <= areg_actl_w(28); -- corr w same hdr
   tx_go_cond      <= areg_actl_w(30 downto 29);
@@ -1285,7 +1288,7 @@ begin
 
   areg_qsdc2_r <= areg_w(AREG_QSDC2);
   areg_qsdc2_w <= areg_w_adc(AREG_QSDC2);
-  qsdc_pos_min1_cycs          <= areg_qsdc2_w( 9 downto 0); -- offset of data from start of frame 
+  qsdc_guard_len_min1_cycs    <= areg_qsdc2_w( 7 downto 0); -- post pilot. -1 means 0
   qsdc_alice_symlen_min1_cycs <= areg_qsdc2_w(13 downto 10); -- len of alice's syms
   qsdc_bitdur_min1_syms       <= areg_qsdc2_w(24 downto 14); -- total duration of a bit
    
@@ -1361,13 +1364,13 @@ begin
       changed     => dac_tx_in_changed,
       d_out(0)    => dac_tx_in_adc);
 
-   txrx_en_n <= not txrx_en;
+   tx_en_n <= not tx_en;
    frame_dly_ctr: duration_ctr
      generic map(
        LEN_W => G_FRAME_PD_CYCS_W)
      port map(
        clk      => adc_clk,
-       rst      => txrx_en_n,
+       rst      => tx_en_n,
        go_pul   => dac_tx_in_adc,
        len_min1 => rnd_trip_dly_min1_cycs,
        sig_last => frame_go_dlyd); -- only meaningful for bob
@@ -1413,7 +1416,7 @@ begin
   req_samp_aclk: cdc_samp
     generic map(W => 2)
     port map(
-     in_data(0)  => dma_xfer_req_d,
+     in_data(0)  => dma_xfer_req_inadc,
      in_data(1)  => adc_rst,
      out_data(0) => dma_xfer_req_rc,
      out_data(1) => adc_rst_axi,
@@ -1476,6 +1479,9 @@ begin
   -- rxclk is 30.833MHz.
   process(sfp_rxclk_in)
   begin
+
+    frame_dly_is0 <= u_and(frame_dly_min1_cycs);
+    
     -- made this count up so proc can simly change ext_frame_pd and ctr
     -- will immediately react.
     if (rising_edge(sfp_rxclk_in)) then
@@ -1510,7 +1516,7 @@ begin
   resync_i <= resync_pul
              or (search_en and not search_en_d)
              or (u_b2b(sync_ref_sel=G_SYNC_REF_RXCLK) and sfp_rxclk_vld_adc and not sfp_rxclk_vld_adc_d)
-             or (u_b2b(sync_ref_sel=G_SYNC_REF_TXDLY) and (txrx_en and not txrx_en_d));
+             or (u_b2b(sync_ref_sel=G_SYNC_REF_TXDLY) and (tx_en and not tx_en_d));
   corr_resync <= sync_ref_corr and resync_pul and resync_causes_fullcorr;
   synchronizer_i: synchronizer
     generic map(
@@ -1539,6 +1545,9 @@ begin
 
  
   resync_pul <= resync and not resync_d; -- from proc
+
+  -- Only when rx_en=1 do we meed to require dma_xfer_req_inadc.
+  rx_rdy <= not rx_en or dma_xfer_req_inadc;
  
   save_go_pulse <= save_go and not save_go_d;
   process(adc_clk)
@@ -1561,28 +1570,34 @@ begin
       sfp_rxclk_vld_adc_d <= sfp_rxclk_vld_adc;
       
       adc_rst_d <= adc_rst;
-      dma_xfer_req_inadc_d <= dma_xfer_req_inadc; 
-      adc_xfer_req_m(2)    <= dma_xfer_req_inadc;
 
---      save_buf_avail <= txrx_en and (save_buf_avail or dma_xfer_req_inadc);
-      rxbuf_exists     <= txrx_en and (rxbuf_exists   or dma_xfer_req_inadc_d);
+
+      
+
+
+
+      -- Different "commence" reasons
+      rxbuf_exists     <= (tx_en or rx_en) and (rxbuf_exists or rx_rdy);
       rxbuf_exists_d   <= rxbuf_exists;
       rxbuf_exists_pul <= rxbuf_exists and not rxbuf_exists_d;
 
+      saw_pwr_event <= (tx_en or rx_en) and ((pwr_event_iso and rx_rdy) or saw_pwr_event);
+      
+      saw_hdr_det   <= (tx_en or rx_en) and ((hdr_det       and rx_rdy) or saw_hdr_det);
       
       if (tx_go_cond=G_TXGOREASON_RXRDY) then
-      -- C code sets txrx_en then calls iio_device_create_buffer(),
-      -- which starts DMAing.  Then the rx dma request (dma_xfer_req)
-      -- goes high.  Then this signals quanet_dac
-      -- to start generating pilots or probes.
-
+        -- for CDM:
+        -- C code sets txrx_en then calls iio_device_create_buffer(),
+        -- which starts DMAing, causing the rx dma request (dma_xfer_req)
+        -- goes high.  Then this signals quanet_dac
+        -- to start generating pilots or probes.
 
         -- and after that memory is allocated, dma_xfer_req is asserted.
         -- So we use that.  We don't want to start before the DMA rx buffer
         -- exists.
         tx_commence_i <= rxbuf_exists;
       elsif (tx_go_cond=G_TXGOREASON_RXPWR) then
-        -- When alice commences, she should do it soon after Bob's first header.
+        -- When alice commences QSDC, she should do it soon after Bob's first header.
         -- We can use a simple power event for this.
         tx_commence_i <= saw_pwr_event;
       elsif (tx_go_cond=G_TXGOREASON_RXHDR) then
@@ -1590,19 +1605,26 @@ begin
         tx_commence_i <= saw_hdr_det;
       elsif (tx_go_cond=G_TXGOREASON_ALWAYS) then
         -- This is just forces it.  For debug
-        tx_commence_i <= txrx_en;
+        tx_commence_i <= (tx_en or rx_en);
       end if;
-      tx_commence_d <= tx_commence_i;
-      tx_commence_pulse <= tx_commence_i and not tx_commence_d;
-      saw_pwr_event <= txrx_en and ((pwr_event_iso and dma_xfer_req_inadc_d) or saw_pwr_event);
-      saw_hdr_det   <= txrx_en and ((hdr_det       and dma_xfer_req_inadc_d) or saw_hdr_det);
+
+      -- Only send quanet_dac a "tx commence" if txing is enabled.
+      tx_commence_o <= tx_commence_i and tx_en;
+      -- and bypass quanet_dac's response when rxing only
+      rx_commence <= rx_en and (dma_xfer_req_inadc or (tx_commence_i and not tx_en));
+      
+--      dma_xfer_req_inadc_d <= dma_xfer_req_inadc; 
+--      adc_xfer_req_m(2)    <= dma_xfer_req_inadc;
+
+      tx_commence_d <= tx_commence_o;
+      tx_commence_pulse <= tx_commence_o and not tx_commence_d; -- for counting
       
       alice_txing_d <= alice_txing;
       a_restart_search <= alice_txing and not alice_txing_d;
 
       -- For now we begin hdr_corr search when software says.
       -- If saving to the host (txrx_en) we wait for the buffer to be avail.
-      search_en <= search and ((not txrx_en and not rx_en) or rxbuf_exists);
+      search_en <= search and (not rx_en or rxbuf_exists);
       search_en_d <= search_en;
       
       -- In CDR or CDMA want the ADC to start capturing data simultaneously
@@ -1614,19 +1636,19 @@ begin
       -- and keep taking samples.  This is in case software can't keep up,
       -- in which case we keep cramming data into the DDR so we don't
       -- loose any consecutive data.
-      save_go <= (txrx_en or rx_en) and
-                 (   (    dma_xfer_req_inadc_d
+      save_go <= rx_en and
+                 (   (    rx_commence
                       and u_if(save_after_hdr='1',  hdr_det,
                           u_if(save_after_pwr='1',  hdr_pwr_det,
                           u_if(save_after_init='1', dbg_met_init,
                                                     dac_tx_in_adc))))
                   or save_go );
       save_go_d <= save_go;
-
       
-      txrx_en_d <= txrx_en;
+      tx_en_d <= tx_en;
 
-      qsdc_rx_prime   <= (rx_en or txrx_en) and qsdc_rx_en;
+      qsdc_rx_prime   <= rx_en and qsdc_rx_en
+                         and (frame_go_dlyd or decipher_prime);
       qsdc_rx_prime_d <= qsdc_rx_prime;
       
       noise_ctr_go <= meas_noise and save_go;
@@ -1641,8 +1663,8 @@ begin
       elsif (noise_ctr_is0='1') then
         rxq_sw_ctl_i <= not rxq_sw_ctl_i;
       end if;
-      adc_xfer_req   <= adc_xfer_req_m(2);
-      adc_xfer_req_d <= adc_xfer_req;
+--      adc_xfer_req   <= adc_xfer_req_m(2);
+--      adc_xfer_req_d <= adc_xfer_req;
 
       if (corr_vld='1') then
         corr_out_w <= corr_out & corr_out_w(127 downto 64);
@@ -1660,7 +1682,7 @@ begin
 -- synthesis translate_on
     end if;     
   end process;
-  tx_commence <= tx_commence_i;
+  tx_commence <= tx_commence_o;
   rxq_sw_ctl <= rxq_sw_ctl_i;
 
 

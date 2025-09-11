@@ -9,9 +9,14 @@ set base_name {eth_xcvr_gth}
 set preset {GTH-10GBASE-R}
 
 set freerun_freq {125}
-# Quanet: These frequencies are different:
-set line_rate   {10.2777778}
-set refclk_freq {308.3333342}
+# # Quanet: These frequencies are different:
+# set line_rate   {10.2777778}
+# set refclk_freq {308.3333342}
+
+# These are the original settings:
+set line_rate {10.3125}
+set refclk_freq {156.25}
+
 set sec_line_rate {0}
 set sec_refclk_freq $refclk_freq
 set qpll_fracn [expr {int(fmod($line_rate*1000/2 / $refclk_freq, 1)*pow(2, 24))}]

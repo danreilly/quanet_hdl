@@ -1,7 +1,7 @@
 // h_vhdl_extract.h
 // hardware access constants
 // This file was automatically generated
-// by Register Extractor (ver 4.14) on Sat Sep  6 13:55:20 2025
+// by Register Extractor (ver 4.14) on Thu Sep 11 16:52:52 2025
 // compile version Mon Jun 16 10:25:20 2025
 // current dir:  C:\reilly\proj\quanet\quanet_hdl\projects\quanet\zcu106
 // DO NOT MODIFY THIS FILE!
@@ -18,7 +18,7 @@
 // version constants
 #define H_VHDL_EXTRACT_VER (4)
 #define H_VHDL_EXTRACT_SUBVER (14)
-#define H_VHDL_EXTRACT_DATE "Sat Sep  6 13:55:20 2025"
+#define H_VHDL_EXTRACT_DATE "Thu Sep 11 16:52:52 2025"
 #define H_VHDL_EXTRACT_DIR "C:\reilly\proj\quanet\quanet_hdl\projects\quanet\zcu106"
 
 
@@ -253,7 +253,7 @@
 #define H_ADC_ACTL                              0x10000000  /* 0 */
 #define H_ADC_ACTL_AREG_W                       0x10000400  /* 0xffffffff  r  */
 #define H_ADC_ACTL_MEAS_NOISE                   0x10000021  /* 0x00000002   w */
-#define H_ADC_ACTL_TXRX_EN                      0x10000022  /* 0x00000004   w */
+#define H_ADC_ACTL_TX_EN                        0x10000022  /* 0x00000004   w */
 #define H_ADC_ACTL_SAVE_AFTER_PWR               0x10000023  /* 0x00000008   w */
 #define H_ADC_ACTL_OSAMP_MIN1                   0x10000044  /* 0x00000030   w */
 #define H_ADC_ACTL_SEARCH                       0x10000026  /* 0x00000040   w */
@@ -265,7 +265,7 @@
 #define H_ADC_ACTL_PHASE_EST_EN                 0x10000037  /* 0x00800000   w */
 #define H_ADC_ACTL_RESYNC                       0x10000038  /* 0x01000000   w */
 #define H_ADC_ACTL_DECIPHER_EN                  0x10000039  /* 0x02000000   w */
-#define H_ADC_ACTL_DO_STREAM_CDC                0x1000003a  /* 0x04000000   w */
+#define H_ADC_ACTL_DO_STREAM_CDM                0x1000003a  /* 0x04000000   w */
 #define H_ADC_ACTL_RESYNC_CAUSES_FULLCORR       0x1000003b  /* 0x08000000   w */
 #define H_ADC_ACTL_CORR_MODE_CDM                0x1000003c  /* 0x10000000   w -- corr w same hdr */
 #define H_ADC_ACTL_TX_GO_COND                   0x1000005d  /* 0x60000000   w */
@@ -381,10 +381,8 @@
 
 #define H_ADC_CIPHER2                           0x1000d000  /* 13 */
 #define H_ADC_CIPHER2_AREG_W                    0x1000d400  /* 0xffffffff  r  */
-#define H_ADC_CIPHER2_CIPHER_DLY_MIN1_CYCS      0x1000d300  /* 0x00ffffff   w -- 23:0 */
-#define H_ADC_CIPHER2_CIPHER_DLY_ASAMPS         0x1000d05e  /* 0xc0000000   w */
                                        // r 0xffffffff
-                                       // w 0xc0ffffff
+                                       // w 0x00000000
 
 #define H_ADC_QSDC                              0x1000e000  /* 14 */
 #define H_ADC_QSDC_AREG_W                       0x1000e400  /* 0xffffffff  r  */
@@ -406,11 +404,11 @@
 
 #define H_ADC_QSDC2                             0x10010000  /* 16 */
 #define H_ADC_QSDC2_AREG_W                      0x10010400  /* 0xffffffff  r  */
-#define H_ADC_QSDC2_QSDC_POS_MIN1_CYCS          0x10010140  /* 0x000003ff   w -- offset of data from start of frame  */
+#define H_ADC_QSDC2_QSDC_GUARD_LEN_MIN1_CYCS    0x10010100  /* 0x000000ff   w -- post pilot. -1 means 0 */
 #define H_ADC_QSDC2_QSDC_ALICE_SYMLEN_MIN1_CYCS 0x1001008a  /* 0x00003c00   w -- len of alice's syms */
 #define H_ADC_QSDC2_QSDC_BITDUR_MIN1_SYMS       0x1001016e  /* 0x01ffc000   w -- total duration of a bit */
                                        // r 0xffffffff
-                                       // w 0x01ffffff
+                                       // w 0x01fffcff
 // initializer for h_baseaddr array
 #define H_BASEADDR_INIT { 0  /* for DAC */, \
 		0  /* for ADC */}

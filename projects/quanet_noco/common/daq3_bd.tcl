@@ -1,3 +1,5 @@
+# TODO: rename as quanet_bd.tcl!!!
+
 #
 # This instantiates IPs in the block design,
 # sets parameters,
@@ -311,6 +313,8 @@ ad_connect  axi_ad9152_fifo/ser0_tx    ser0_tx
 ad_connect  axi_ad9152_fifo/ser0_rx    ser0_rx
 ad_connect  axi_ad9152_fifo/ser1_tx    ser1_tx
 ad_connect  axi_ad9152_fifo/ser1_rx    ser1_rx
+ad_connect  axi_ad9152_fifo/ser2_tx    ser2_tx
+ad_connect  axi_ad9152_fifo/ser2_rx    ser2_rx
 
 # rx clk from GTH for frame synchronition
 create_bd_port -dir I sfp_rxclk_in

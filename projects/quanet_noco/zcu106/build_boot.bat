@@ -36,7 +36,7 @@ call :cp "..\..\..\..\nucrypt_boot_objs\zynqmp-zcu102-rev10-fmcdaq3\bl31.elf" .
 
 call bootgen -arch zynqmp -image ..\zynq.bif -o BOOT.BIN -w
 echo made %DIR%\BOOT.BIN
-rem call :cp BOOT.BIN ..\..\..\..\nucrypt_boot_objs\zcu106_BOOT.BIN
+
 
 grep FWVER ..\..\..\..\library\quanet\global_pkg.vhd > tmp1.txt
 cat tmp1.txt | sed -e "s/[^[:digit:]]*//"  > tmp2.txt

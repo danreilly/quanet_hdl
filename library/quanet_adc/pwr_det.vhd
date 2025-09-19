@@ -62,7 +62,7 @@ begin
 
   gen_mag_a: for k in 0 to 3 generate
   begin
-    mag_a(k) <= u_abs(samps_in_i(k)+samps_in_q(k));
+    mag_a(k) <= u_add_u(u_abs(samps_in_i(k)),u_abs(samps_in_q(k)));
   end generate gen_mag_a;
 
   dbg1 <=u_max_u(mag_a(0),mag_a(1));

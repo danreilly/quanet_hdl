@@ -25,7 +25,7 @@ package quanet_dac_pkg is
     alice_pm             : out std_logic;
     second_im            : out std_logic;
 
-    -- serial link to QNA board
+    -- serial link to QNA2 board
     ser0_tx: out std_logic;
     ser0_rx: in std_logic;
 
@@ -33,6 +33,9 @@ package quanet_dac_pkg is
     ser1_tx: out std_logic;
     ser1_rx: in std_logic;
 
+    -- serial link to QNA1
+    ser2_tx: out std_logic;
+    ser2_rx: in std_logic;
     
     -- wr addr chan
     s_axi_awaddr : in std_logic_vector(AXI_A_W-1 downto 0);
@@ -134,6 +137,10 @@ entity quanet_dac is
     ser1_tx: out std_logic;
     ser1_rx: in std_logic;
     
+    -- serial link to QNA1
+    ser2_tx: out std_logic;
+    ser2_rx: in std_logic;
+
     -- wr addr chan
     s_axi_awaddr : in std_logic_vector(AXI_A_W-1 downto 0);
     s_axi_awvalid : in std_logic;
@@ -411,8 +418,8 @@ architecture rtl of quanet_dac is
 
   constant uart_ctr_w: integer := 4;
   signal ser_rx_vld, ser_tx_irq_en, ser_rx_irq_en,
-    ser_tx_w, ser_tx_w_d, ser_tx_w_pulse, ser_tx, ser_rx, ser_sel, ser_sel_sclk,
-    ser_rx_r, ser_rx_r_d, ser_rx_r_pulse,
+    ser_tx_w, ser_tx_w_d, ser_tx_w_pulse, ser_tx, ser_rx,
+    ser_rx_r, ser_rx_r_d, ser_rx_r_pulse, ser_sel_0, ser_sel_1, ser_sel_2,
     ser_clr_errs, ser_rst, ser_tx_mt, ser_tx_full,
     ser_xon_xoff_en, ser_set_params, ser_set_flowctl,
     ser_frame_err,ser_parity_err, ser_saw_xoff_timo,
@@ -420,6 +427,7 @@ architecture rtl of quanet_dac is
     ser_rx_ovf, ser_tx_ovf: std_logic := '0';
   signal ser_ctr_sel: std_logic_vector(uart_ctr_sel_w-1 downto 0);
   signal ser_ctr: std_logic_vector(uart_ctr_w-1 downto 0);
+  signal ser_sel: std_logic_vector(1 downto 0);
   
   signal ser_parity : std_logic_vector(1 downto 0) := "00";
   signal ser_tx_data, ser_rx_data: std_logic_vector(7 downto 0);
@@ -592,8 +600,8 @@ begin
   -- reg pctl
   gth_rst     <= reg_pctl_w(31);
   clr_cnts    <= reg_pctl_w(30);
-  ser_sel     <= reg_pctl_w(29);
-  dbg_sym_clr <= reg_pctl_w(28);
+  ser_sel     <= reg_pctl_w(29 downto 28);
+  dbg_sym_clr <= reg_pctl_w(27);
   reg_pctl_r(31 downto 16) <= reg_pctl_w(31 downto 16);
   reg_pctl_r(12 downto 1)  <= dbg_sym;
   reg_pctl_r(0)            <= dbg_sym_vld;
@@ -1253,17 +1261,22 @@ begin
 
 
 
-  ser_sel_samp: cdc_samp
-    generic map(W=>1)
-    port map (
-      in_data(0)  => ser_sel,
-      out_data(0) => ser_sel_sclk,
-      out_clk     => s_axi_aclk);
+  ser_sel_0 <= u_b2b(unsigned(ser_sel)=0);
+  ser_sel_1 <= u_b2b(unsigned(ser_sel)=1);
+  ser_sel_2 <= u_b2b(unsigned(ser_sel)=2);
+  
   ser_rx_r_pulse <= ser_rx_r and not ser_rx_r_d;
   ser_tx_w_pulse <= ser_tx_w and not ser_tx_w_d;
-  ser0_tx <= ser_tx or     ser_sel_sclk;
-  ser1_tx <= ser_tx or not ser_sel_sclk;
-  ser_rx <= ser0_rx when (ser_sel_sclk='0') else ser1_rx;
+  
+  ser0_tx <= ser_tx or not ser_sel_0;
+  ser1_tx <= ser_tx or not ser_sel_1;
+  ser2_tx <= ser_tx or not ser_sel_2;
+
+  ser_rx <=      ser0_rx when (ser_sel_0='1')
+            else ser1_rx when (ser_sel_1='1')
+            else ser2_rx;
+
+  
   comuart: uart
     generic map(
       REFCLK_HZ => G_S_AXI_CLK_FREQ_HZ,

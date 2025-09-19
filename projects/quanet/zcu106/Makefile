@@ -53,4 +53,4 @@ LIB_DEPS += xilinx/util_adxcvr
 
 include ../../scripts/project-xilinx.mk
 
-all: ../../../../corundum-master/fpga/mqnic/ZCU106/fpga_pcie/fpga
+all: ../../../../corundum/fpga/mqnic/ZCU106/fpga_pcie/fpga

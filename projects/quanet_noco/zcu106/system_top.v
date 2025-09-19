@@ -179,7 +179,7 @@ alice_pm, second_im,
 //  BUFG_GT i_dbg_clk_buf (/
 //    .I (tx_ref_clk_d2),
 //    .O (dbg_clk));
-   assign j3_24 = 0; // dbg_clk; // dbg
+//   assign j3_24 = 0; // dbg_clk; // dbg
    
    
   // OK
@@ -334,6 +334,8 @@ alice_pm, second_im,
     .ser0_tx (ser0_tx),
     .ser1_rx (ser1_rx),
     .ser1_tx (ser1_tx),
+    .ser2_rx (ser2_rx),
+    .ser2_tx (ser2_tx),
 //    .tx_p(sfp0_tx_p),
 //    .tx_n(sfp0_tx_n),
 //    .rx_p(sfp0_rx_p),

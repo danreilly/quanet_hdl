@@ -291,6 +291,8 @@ create_bd_port -dir O ser0_tx
 create_bd_port -dir I ser0_rx
 create_bd_port -dir O ser1_tx
 create_bd_port -dir I ser1_rx
+create_bd_port -dir O ser2_tx
+create_bd_port -dir I ser2_rx
 create_bd_port -dir O hdr_vld
 create_bd_port -dir O alice_pm
 create_bd_port -dir O second_im
@@ -309,6 +311,8 @@ ad_connect  axi_ad9152_fifo/ser0_tx    ser0_tx
 ad_connect  axi_ad9152_fifo/ser0_rx    ser0_rx
 ad_connect  axi_ad9152_fifo/ser1_tx    ser1_tx
 ad_connect  axi_ad9152_fifo/ser1_rx    ser1_rx
+ad_connect  axi_ad9152_fifo/ser2_tx    ser2_tx
+ad_connect  axi_ad9152_fifo/ser2_rx    ser2_rx
 
 # rx clk from GTH for frame synchronition
 create_bd_port -dir I sfp_rxclk_in

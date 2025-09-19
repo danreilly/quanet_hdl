@@ -183,7 +183,6 @@ end uart_pkg;
 library ieee;
 use ieee.std_logic_1164.all;
 use work.uart_pkg.all;
-use work.revokable_fifo_pkg.all;
 entity uart is
   generic (
     REFCLK_HZ: real;
@@ -252,6 +251,7 @@ use work.util_pkg.all;
 use work.cdc_samp_pkg.all;
 use work.cdc_pulse_pkg.all;
 use work.event_ctr_pkg.all;
+use work.revokable_fifo_pkg.all;
 architecture struct of uart is
 
 

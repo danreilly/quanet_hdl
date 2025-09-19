@@ -42,10 +42,9 @@ library work;
 use work.cdc_pulse_pkg.all;
 use work.cdc_samp_pkg.all;
 use work.cdc_thru_pkg.all;
-  
 architecture struct of event_ctr is
-  signal ctr_l, ctr_uc, ctr_still, cnt_i: std_logic_vector(W-1 downto 0) := (others=>'0');
-  signal clr_pc, req_tog, req_c, req_d, ack_tog, ack_pc, ack_d, ctr_atlim: std_logic :='0';
+  signal ctr_l, ctr_rclk, ctr_still, cnt_o: std_logic_vector(W-1 downto 0) := (others=>'0');
+  signal clr_pc, req_tog, req_tog_d, req_rclk, req_d, ack_tog, ack_pc, ack_d, ctr_atlim: std_logic :='0';
 begin
   
   clr_pb: cdc_pulse
@@ -55,44 +54,50 @@ begin
       out_pulse => clr_pc,
       out_clk   => clk);
 
-  process(clk)
-  begin
-    if (rising_edge(clk)) then
-      if (clr_pc='1') then
-        ctr_l <= (others=>'0');
-        ctr_atlim <= '0';
-      elsif ((event and not ctr_atlim)='1') then
-        ctr_l <= std_logic_vector(unsigned(ctr_l) + 1);
-        if (unsigned(not ctr_l(W-1 downto 1))=0) then
-          ctr_atlim <= '1';
-        else
+  gen_ctr: if (W>0) generate
+    process(clk)
+    begin
+      if (rising_edge(clk)) then
+        if (clr_pc='1') then
+          ctr_l <= (others=>'0');
           ctr_atlim <= '0';
+        elsif ((event and not ctr_atlim)='1') then
+          ctr_l <= std_logic_vector(unsigned(ctr_l) + 1);
+          if (unsigned(not ctr_l(W-1 downto 1))=0) then
+            ctr_atlim <= '1';
+          else
+            ctr_atlim <= '0';
+          end if;
         end if;
+        
+        if ((ack_pc xor req_tog)='0') then
+          ctr_still <= ctr_l;
+          req_tog   <= not req_tog;
+        end if;
+        req_tog_d <= req_tog;
       end if;
-      
-      if ((ack_pc xor req_tog)='0') then
-        ctr_still <= ctr_l;
-        req_tog   <= not req_tog;
-      end if;
-
-    end if;
-  end process;
-
-  -- 
-  ctr_thru: cdc_thru
+    end process;
+  end generate;
+  gen_no_ctr: if (W<=0) generate
+    ctr_still <= (others=>'0');
+    req_tog_d <= '0';
+  end generate;
+  
+  ctr_samp: cdc_samp
     generic map(W=>W)
     port map(
       in_data  => ctr_still,
-      out_data => ctr_uc);
+      out_data => ctr_rclk,
+      out_clk  => rclk);
 
-  req_thru: cdc_samp
+  req_samp: cdc_samp
     generic map(W=>1)
     port map(
-      in_data(0)  => req_tog,
-      out_data(0) => req_c,
+      in_data(0)  => req_tog_d,
+      out_data(0) => req_rclk,
       out_clk     => rclk);
 
-  ack_thru: cdc_samp
+  ack_samp: cdc_samp
     generic map(W=>1)
     port map(
       in_data(0)  => ack_tog,
@@ -102,14 +107,14 @@ begin
   process(rclk)
   begin
     if (rising_edge(rclk)) then
-      if ((req_c xor ack_tog)='1') then
-        cnt_i   <= ctr_uc;
-        ack_tog <= req_c;
+      if ((req_rclk xor ack_tog)='1') then
+        cnt_o   <= ctr_rclk;
+        ack_tog <= req_rclk;
       end if;
     end if;
   end process;
   
-  cnt <= cnt_i;
+  cnt <= cnt_o;
   
 end architecture struct;
     

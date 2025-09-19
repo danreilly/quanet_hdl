@@ -597,7 +597,7 @@ architecture rtl of quanet_adc is
     saw_sync_ool, clr_saw_sync_ool,
     hdr_pwr_det, dbg_met_init, dbg_framer_going,
     hdr_sync, hdr_found, frame_sync, nonhdr_pre,
-    corr_start_slices, hdr_iq_vld, hdr_gtt,
+    sync_starts_corr, hdr_iq_vld, hdr_gtt,
     hdr_sync_dlyd, corr_vld: std_logic := '0';
   signal hdr_i, hdr_q, hdr_mag: std_logic_vector(G_CORR_MAG_W-1 downto 0);
   constant TRIG_W: integer := 9;
@@ -612,7 +612,7 @@ architecture rtl of quanet_adc is
   signal alice_syncing, alice_txing, alice_txing_d, a_restart_search, dbg_hold,
     phase_est_go, ph_vld_pre,
     phase_est_en, resync, resync_d, resync_pul, resync_i, corr_resync, txdly_sync,
-    resync_causes_fullcorr,
+    resync_causes_fullcorr, proc_stat_mag_clr,
     proc_clr_cnts, sync_ref, corr_out_tog, corr_out_w_vld: std_logic := '0';
   signal wdata_aug: std_logic_vector(7 downto 0);
   signal phase_est_latency: std_logic_vector(9 downto 0) :=
@@ -729,9 +729,6 @@ begin
  
 
 
- -- When alice's syncref is rxclk, the sync should NOT be used
- -- to pulse corr_start_slices.  But maybe OK after fixed delay.
- -- but need to figre that out.
 
 
 
@@ -767,7 +764,7 @@ begin
 
  
   -- When bob rxs qsdc, he also uses frame_go_dlyd
-  corr_start_slices <= frame_sync_dlyd when (sync_ref_sel_is_rxclk='1')
+  sync_starts_corr <= frame_sync_dlyd when (sync_ref_sel_is_rxclk='1')
                   else (frame_sync or (frame_go_dlyd and u_b2b(sync_ref_sel=G_SYNC_REF_TXDLY)));
   hdr_corr_inst: hdr_corr
     generic map(
@@ -790,7 +787,7 @@ begin
       corr_mode_cdm      => corr_mode_cdm,
       corrstart_in       => corr_go,-- full correlation
       corr_resync_pul    => corr_resync,
-      start_slices_in    => corr_start_slices,
+      sync_starts_corr   => sync_starts_corr,
       search             => search_en,
       search_restart     => a_restart_search,
       dbg_hold           => dbg_hold,
@@ -832,6 +829,7 @@ begin
       -- below here is in proc clk domain		   
       proc_clk=> s_axi_aclk,
       proc_clr_cnts => proc_clr_cnts,
+      proc_stat_mag_clr => proc_stat_mag_clr,
       proc_sel=> proc_sel,
       proc_dout=> proc_dout);
 
@@ -854,7 +852,7 @@ begin
         ph_sin  => ph_sin,
         ph_vld_pre => ph_vld_pre);
 
-   derot_go <= corr_start_slices and derote_en;
+   derot_go <= sync_starts_corr and derote_en;
    phase_est_latency_ctr: duration_ctr
      generic map(
        LEN_W => 10)
@@ -1187,6 +1185,7 @@ begin
   clr_saw_sync_ool <= areg_pctl_w(1);
   event_cnt_sel    <= areg_pctl_w(4 downto 2);
   proc_clr_cnts    <= areg_pctl_w(8);
+  proc_stat_mag_clr <= areg_pctl_w(9);
   areg_pctl_r <= areg_pctl_w;
   
   -- reg actl

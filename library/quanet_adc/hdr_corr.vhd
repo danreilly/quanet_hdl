@@ -45,7 +45,7 @@ package hdr_corr_pkg is
     corrstart_in  : in std_logic; -- must be held hi.  lowering ends
     -- correlation gracefully.
     corr_resync_pul  : in std_logic;
-    start_slices_in          : in std_logic;
+    sync_starts_corr          : in std_logic;
     
 
     qsdc_track_en : in std_logic;
@@ -102,10 +102,11 @@ package hdr_corr_pkg is
     -- Rather than convey each statistic up out through its own named port,
     -- they are indexed.  The processor reads them by first setting proc_sel,
     -- then reading proc_dout.
-    proc_clk      : in std_logic;
-    proc_clr_cnts : in std_logic;
-    proc_sel      : in std_logic_vector(3 downto 0);
-    proc_dout     : out std_logic_vector(31 downto 0));
+    proc_clk          : in std_logic;
+    proc_clr_cnts     : in std_logic;
+    proc_stat_mag_clr : in std_logic;
+    proc_sel          : in std_logic_vector(3 downto 0);
+    proc_dout         : out std_logic_vector(31 downto 0));
   
   end component;
 
@@ -136,7 +137,7 @@ entity hdr_corr is
     
     corrstart_in  : in std_logic;
     corr_resync_pul  : in std_logic;
-    start_slices_in          : in std_logic;
+    sync_starts_corr          : in std_logic;
     qsdc_track_en : in std_logic; -- 1 = timing determined by frame_go_dlyd. (bob)
                                   -- 0 = tracks rxed headers and adapts
     -- ctl and status
@@ -192,6 +193,7 @@ entity hdr_corr is
     -- then reading proc_dout.
     proc_clk: in std_logic;
     proc_clr_cnts : in std_logic;
+    proc_stat_mag_clr : in std_logic;
     proc_sel: in std_logic_vector(3 downto 0);
     proc_dout: out std_logic_vector(31 downto 0));
   
@@ -345,9 +347,10 @@ architecture struct of hdr_corr is
     frame_cyc, mem_cyc_ctr: std_logic_vector(frame_pd_cycs_w-1 downto 0) := (others=>'0');
   signal hdr_cyc_w, hdr_cyc_pre, frame_pd: std_logic_vector(frame_pd_cycs_w downto 0) := (others=>'0');
 
-
-  signal statpd_frame_ctr, statpd_hdr_acc, statpd_hdr_cnt: std_logic_vector(9 downto 0):=(others=>'0');
-  signal statpd_hdr_acc_atlim, statpd_frame_ctr_atlim: std_logic := '0';
+  constant STATPD_W: integer := 10;
+  signal statpd_frame_ctr, statpd_hdr_acc, statpd_hdr_cnt: std_logic_vector(STATPD_W-1 downto 0):=(others=>'0');
+  signal statpd_mag_acc, statpd_mag_tot: std_logic_vector(MAG_W+STATPD_W-1 downto 0):=(others=>'0');
+  signal statpd_hdr_acc_atlim, statpd_frame_ctr_atlim, stat_mag_clr, stat_mag_vld: std_logic := '0';
   
 
   type mag_a_t is array(3 downto 0) of std_logic_vector(mag_w-1 downto 0);
@@ -549,13 +552,14 @@ begin
 --  or (a_going and framer_last and frame_end_pul);
 -- also had maybe but elided:  
 -- --                              and                  (not a_sync_ctr_atlim or dbg_hold));
-                             
-  search_go  <= search and u_if(hdr_found='1', start_slices_in,
+
+  
+  search_go  <= search and u_if(hdr_found='1', sync_starts_corr,
                                                hdr_pwr_det_i and not pwr_searching);
   hdr_found_out <= hdr_found;
 
-  -- track_sync simultaneous with start_slices_in is ok.
-  gen_hdr_go <= corr_starts_hdr or (not corrbest_sync_rsv and (not track_sync_pend or track_sync) and start_slices_in) or search_go;
+  -- track_sync simultaneous with sync_starts_corr is ok.
+  gen_hdr_go <= corr_starts_hdr or (not corrbest_sync_rsv and (not track_sync_pend or track_sync) and sync_starts_corr) or search_go;
   
   -- this generates a header sequence to compare against incomming data
   gen_hdr_i: gen_hdr
@@ -1350,7 +1354,7 @@ begin
   
   hdr_det_o <= hdr_det_d;
   
-  hdr_mag_o  <= u_trunc(corrbest, MAG_W);
+  hdr_mag_o  <= u_clip_u(corrbest, MAG_W);
   hdr_i_o    <= corrbest_i;
   hdr_q_o    <= corrbest_q;
   hdr_gtt    <= corrbest_gtt; -- greater than thresh
@@ -1407,17 +1411,26 @@ begin
     begin
       if (rising_edge(clk)) then
 
-        if ((not framer_go or (frame_end_pul and statpd_frame_ctr_atlim))='1') then
+        if ((not framer_going or (frame_end_pul and statpd_frame_ctr_atlim))='1') then
           statpd_frame_ctr <= (others=>'1');
-          statpd_hdr_cnt   <= statpd_hdr_acc;
         elsif (frame_end_pul='1') then
           statpd_frame_ctr <= u_dec(statpd_frame_ctr);
         end if;
+
         statpd_frame_ctr_atlim <= not u_or(statpd_frame_ctr);
-        if ((not framer_go or (frame_end_pul and statpd_frame_ctr_atlim))='1') then
+        if ((not framer_going or (frame_end_pul and statpd_frame_ctr_atlim))='1') then
           statpd_hdr_acc <= (others=>'0');
+          statpd_mag_acc <= (others=>'0');
         elsif ((hdr_det and not statpd_hdr_acc_atlim)='1') then
           statpd_hdr_acc <= u_inc(statpd_hdr_acc);
+          statpd_mag_acc <= u_add_u(statpd_mag_acc, u_clip_u(corrbest, MAG_W));
+        end if;
+        if ((framer_going and frame_end_pul and statpd_frame_ctr_atlim)='1') then
+          statpd_hdr_cnt   <= statpd_hdr_acc;
+          statpd_mag_tot   <= statpd_mag_acc;
+          stat_mag_vld     <= '1';
+        elsif (stat_mag_clr='1') then
+          stat_mag_vld     <= '0';
         end if;
         statpd_hdr_acc_atlim <= u_and(statpd_hdr_acc);
 
@@ -1466,6 +1479,14 @@ begin
   hdr_sync    <= corrbest_sync or track_sync;
   hdr_subcyc  <= hdr_subcyc_i;
 
+  stat_mag_clr_samp: cdc_samp
+    generic map(W=>1)
+    port map (
+      in_data(0)  => proc_stat_mag_clr,
+      out_data(0) => stat_mag_clr,
+      out_clk     => clk);
+
+  
   hdr_found_samp: cdc_samp
     generic map( W=>1)
     port map (
@@ -1549,8 +1570,8 @@ begin
   proc_dout_pre_a(5)(15 downto 14) <= "00"; 
   proc_dout_pre_a(5)(13 downto  0) <= pwr_avg_max;
 
-  proc_dout_pre_a(6)(25 downto 16) <= hdr_q;
-  proc_dout_pre_a(6)( 9 downto  0) <= hdr_i;
+  proc_dout_pre_a(6)(25 downto 16) <= corrbest_q;
+  proc_dout_pre_a(6)( 9 downto  0) <= corrbest_i;
   
   proc_dout_pre_a(7)(28 downto 25) <= hdr_cyc_rel;
   proc_dout_pre_a(7)(24 downto  0) <= hdr_cyc_w;
@@ -1560,8 +1581,9 @@ begin
   proc_dout_pre_a(9)(31 downto 16) <= (others=>'0');
   proc_dout_pre_a(9)(15 downto 0) <= corrbest_cnt;
   
-  proc_dout_pre_a(10)(31 downto 10) <= (others=>'0');
-  proc_dout_pre_a(10)(9 downto 0) <= statpd_hdr_cnt; -- hdrs det per 1024 frames
+  proc_dout_pre_a(10)(31)           <= stat_mag_vld;
+  proc_dout_pre_a(10)(30 downto 10) <= u_clip_u(statpd_mag_tot, 21);
+  proc_dout_pre_a(10)(9 downto 0)   <= u_extl(statpd_hdr_cnt, 10); -- hdrs det per 1024 frames
 
   gen_proc_dout: for k in 0 to 10 generate
   begin
